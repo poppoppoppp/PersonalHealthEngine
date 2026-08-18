@@ -1,4 +1,4 @@
-﻿# Secrets
+# Secrets
 .env
 .env.*
 **/secrets/
@@ -65,3 +65,4 @@ PersonalHealthEngine-L1Lab/mi-fitness-mcp-cn/
 
 # Local production runtime secrets
 deployment/config/runtime.env
+deployment/models/*.gguf
