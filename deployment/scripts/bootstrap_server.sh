@@ -80,6 +80,7 @@ install -d -m 0750 -o phe -g phe \
     "${DATA_ROOT}/runtime" \
     "${DATA_ROOT}/logs" \
     "${DATA_ROOT}/backups" \
+    "${DATA_ROOT}/model-import" \
     "${DATA_ROOT}/ollama"
 
 # ------------------------------------------------------------
