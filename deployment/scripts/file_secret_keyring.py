@@ -1,4 +1,4 @@
-﻿"""Read-only Xiaomi secret backend for production deployment."""
+"""Read-only Xiaomi secret backend for production deployment."""
 
 from __future__ import annotations
 

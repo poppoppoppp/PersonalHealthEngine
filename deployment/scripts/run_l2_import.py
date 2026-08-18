@@ -1,4 +1,4 @@
-﻿"""Production deployment wrapper for the SEALED L2 importer.
+"""Production deployment wrapper for the SEALED L2 importer.
 
 The SEALED importer remains unchanged. This wrapper only:
 1. injects Linux/VPS runtime paths from environment variables;

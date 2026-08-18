@@ -1,4 +1,4 @@
-﻿"""Production wrapper for the SEALED Xiaomi L1 collector."""
+"""Production wrapper for the SEALED Xiaomi L1 collector."""
 
 from __future__ import annotations
 

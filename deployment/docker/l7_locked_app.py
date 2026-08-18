@@ -1,4 +1,4 @@
-﻿"""Deployment-only L7 entrypoint with the production pipeline consistency gate.
+"""Deployment-only L7 entrypoint with the production pipeline consistency gate.
 
 L1-L5 daily pipeline:
     pipeline.lock = EXCLUSIVE

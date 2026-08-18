@@ -1,4 +1,4 @@
-﻿"""Trigger L7 Today refresh after a successful L1-L5 daily pipeline."""
+"""Trigger L7 Today refresh after a successful L1-L5 daily pipeline."""
 
 from __future__ import annotations
 

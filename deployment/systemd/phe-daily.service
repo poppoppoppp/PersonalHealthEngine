@@ -1,4 +1,4 @@
-﻿[Unit]
+[Unit]
 Description=Personal Health Engine Daily L1-L5 Pipeline
 Wants=network-online.target
 After=network-online.target

@@ -1,4 +1,4 @@
-﻿"""Production daily pipeline for Personal Health Engine.
+"""Production daily pipeline for Personal Health Engine.
 
 Runs L1 -> L2 -> L3 -> L4 -> L5 strictly in order.
 

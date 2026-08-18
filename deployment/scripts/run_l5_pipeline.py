@@ -1,4 +1,4 @@
-﻿"""Production wrapper for SEALED Layer 5."""
+"""Production wrapper for SEALED Layer 5."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-﻿[Unit]
+[Unit]
 Description=Run Personal Health Engine Daily Pipeline
 
 [Timer]

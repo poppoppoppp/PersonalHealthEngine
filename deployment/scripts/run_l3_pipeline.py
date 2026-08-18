@@ -1,4 +1,4 @@
-﻿"""Production orchestrator for SEALED Layer 3.
+"""Production orchestrator for SEALED Layer 3.
 
 Runs the canonical L3 production procedures in dependency order without
 modifying any SEALED L3 implementation.
