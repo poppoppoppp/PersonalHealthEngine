@@ -1,0 +1,50 @@
+﻿# Personal Health Engine production path contract
+#
+# CODE:
+#   /opt/phe = checked-out Git repository
+#
+# DATA:
+#   /srv/phe = persistent production data
+#
+# These paths describe the Linux VPS target.
+# They do not change the SEALED L1-L7 core.
+
+PHE_CODE_ROOT=/opt/phe
+PHE_DATA_ROOT=/srv/phe
+
+# Layer 1
+PHE_L1_CODE=/opt/phe/PersonalHealthEngine-L1Lab/xiaomi-raw-collector
+PHE_L1_ROOT=/srv/phe/l1
+PHE_L1_CAPTURES=/srv/phe/l1/captures
+PHE_L1_STATE=/srv/phe/l1/state/collector_state.json
+
+# Layer 2
+PHE_L2_ROOT=/srv/phe/l2
+PHE_L2_DB=/srv/phe/l2/db/personal_health_raw.sqlite3
+PHE_L2_ARCHIVE=/srv/phe/l2/archive
+PHE_L2_BACKUPS=/srv/phe/l2/backups
+
+# Layer 3
+PHE_L3_ROOT=/srv/phe/l3
+PHE_L3_DB=/srv/phe/l3/db/personal_health_features.sqlite3
+
+# Layer 4
+PHE_L4_ROOT=/srv/phe/l4
+PHE_L4_DB=/srv/phe/l4/db/personal_health_baselines.sqlite3
+
+# Layer 5
+PHE_L5_ROOT=/srv/phe/l5
+PHE_L5_DB=/srv/phe/l5/db/personal_health_analytics.sqlite3
+
+# Layer 6
+PHE_L6_ROOT=/srv/phe/l6
+PHE_L6_DB=/srv/phe/l6/db/personal_health_reasoning.sqlite3
+
+# Layer 7
+PHE_L7_ROOT=/srv/phe/l7
+PHE_L7_DB=/srv/phe/l7/db/l7_product.sqlite3
+
+# Deployment
+PHE_RUNTIME=/srv/phe/runtime
+PHE_LOGS=/srv/phe/logs
+PHE_BACKUPS=/srv/phe/backups
