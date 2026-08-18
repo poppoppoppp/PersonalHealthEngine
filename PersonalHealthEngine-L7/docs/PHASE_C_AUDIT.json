@@ -1,0 +1,97 @@
+{
+  "phase": "C",
+  "title": "Backend contracts / Product API",
+  "date_utc": "2026-08-17T14:00:00Z",
+  "status": "PASS",
+  "inputs": {
+    "architecture": "L7_TECHNICAL_ARCHITECTURE.md",
+    "upstream_read_only": [
+      "D:\\PersonalHealthEngine-L3\\db\\personal_health_features.sqlite3 (schema v8)",
+      "D:\\PersonalHealthEngine-L4\\db\\personal_health_baselines.sqlite3 (schema v2)",
+      "D:\\PersonalHealthEngine-L5\\db\\personal_health_analytics.sqlite3 (schema v2)",
+      "D:\\PersonalHealthEngine-L6\\db\\personal_health_reasoning.sqlite3 (schema v2)"
+    ],
+    "sealed_l6_modules_imported": [
+      "l6_core_v0_1", "l6_evidence_v0_1", "l6_adapters_v0_1",
+      "l6_real_adapters_v0_1", "l6_reasoning_materializer_v0_1"
+    ]
+  },
+  "code_scope": {
+    "backend": [
+      "backend/l7/config.py",
+      "backend/l7/store/db.py (L7 product db, versioned migrations, user_id on all tables)",
+      "backend/l7/upstream/readers.py (read-only upstream access)",
+      "backend/l7/upstream/l6_bridge.py (sys.path import seam; no L6 edits)",
+      "backend/l7/engine/model_cache.py (provenance-aware request-hash cache)",
+      "backend/l7/engine/orchestrator.py (3-threshold EngineOrchestrator)",
+      "backend/l7/rendering/renderer.py (deterministic five-state renderer, semantic stability)",
+      "backend/l7/services/today.py",
+      "backend/l7/api/app.py (FastAPI Product API)"
+    ],
+    "endpoints": [
+      "GET /health", "GET /today", "POST /today/refresh", "GET /today/versions",
+      "GET /today/eval-runs", "GET /evidence/today", "GET /patterns", "GET /usage",
+      "GET /settings", "PUT /settings"
+    ]
+  },
+  "tests": {
+    "command": "python -m pytest tests -q",
+    "total": 40,
+    "passed": 40,
+    "failed": 0,
+    "coverage_areas": [
+      "five-state mapping + E precedence + information order (14)",
+      "deterministic renderer / semantic stability / no-score audit (10)",
+      "change detection + model-call discipline + append-only versioning (6)",
+      "Product API contract + auth + settings + patterns projection (10)"
+    ],
+    "test_db_strategy": "per-test sqlite backup copy of production L6; L3/L4/L5 opened mode=ro"
+  },
+  "live_smoke": {
+    "server": "uvicorn 127.0.0.1:8707 (mock adapters)",
+    "results": {
+      "health": "ok",
+      "today_first_open": "built from real sealed L6 reasoning (analysis_date 2026-08-16, state C, SLEEP_DEFICIT), zero model calls",
+      "today_second_open": "NO_UPSTREAM_CHANGE, identical payload, zero model calls",
+      "auth_negative": "401 without token",
+      "usage_after_two_opens": {"eval_runs": 2, "total_model_calls": 0}
+    }
+  },
+  "real_model_gate": {
+    "script": "backend/scripts/validate_real_reasoning_gate.py",
+    "scope": "throwaway L6 copy only; production L6 NOT modified",
+    "deepseek_calls": 1,
+    "result": "PASS",
+    "observed": {
+      "outcome": "REMATERIALIZED",
+      "reasoning_model": "deepseek-v4-pro",
+      "overall_state": "NOTABLE_CHANGE",
+      "primary_hypothesis_type": "SLEEP_DEFICIT",
+      "confidence": "LOW",
+      "versioning": "prior mock row -> STALE, new real row -> CURRENT (append-only)",
+      "summary_language": "English (sealed L6 prompt does not force zh; see known_limitations)"
+    },
+    "production_l6_after_gate": {
+      "daily_reasoning_rows": 1,
+      "current_reasoning_model": "mock-reasoning-v0.1",
+      "personal_context_rows": 2,
+      "evidence_bundles_rows": 1,
+      "note": "byte-identical to sealed state; gate ran only on a temp copy"
+    }
+  },
+  "acceptance_gate": {
+    "today_served_from_real_l6_db": true,
+    "repeated_calls_no_model_invocation": true,
+    "no_health_score_in_payload": true,
+    "five_states_and_information_order_enforced": true,
+    "semantic_stability_structural": true,
+    "append_only_today_versions": true,
+    "cost_discipline": "unchanged evidence -> 0 model calls; changed bundle -> exactly 1; identical request hash -> cache hit"
+  },
+  "known_limitations": [
+    "Real DeepSeek summary is emitted in English by the sealed L6 prompt; L7 presents model text verbatim (no re-paraphrase, per semantic-stability rule). Forcing zh-CN requires a sealed-L6 prompt change (future interface extension, needs owner approval).",
+    "Production daily_reasoning is currently the sealed mock run for 2026-08-16; it will be superseded by a real deepseek-v4-pro version the first time new evidence/context/feedback legitimately changes the bundle (no fabricated trigger was injected).",
+    "MedGemma real path is wired and identity-verified upstream (L6) but not yet invoked by L7 in this phase (medical trigger is BYPASSED for current evidence)."
+  ],
+  "next_phase": "D — Today vertical slice (Flutter mobile UI over this API)"
+}

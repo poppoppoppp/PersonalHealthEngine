@@ -1,0 +1,23 @@
+{
+  "definition_id": "l3b.quality.structural",
+  "definition_version": "0.1",
+  "definition_type": "QUALITY_RULE",
+  "scope": "CURRENT_L3A_FACTS",
+  "dimensions": [
+    {
+      "name": "STRUCTURAL_VALIDITY",
+      "rule": "Required temporal fields are present and ordered; zero-duration intervals are valid."
+    },
+    {
+      "name": "PROVENANCE_COMPLETENESS",
+      "rule": "At least one L2 logical-record/raw-version provenance pair is present."
+    },
+    {
+      "name": "VENDOR_SEMANTIC_CERTAINTY",
+      "rule": "Vendor-derived/inferred meanings remain UNKNOWN unless the Layer 3 contract verifies them."
+    }
+  ],
+  "clinical_thresholds": false,
+  "opaque_score": false,
+  "contract_version": "L3-v0.1"
+}

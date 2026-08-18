@@ -1,0 +1,19 @@
+{
+  "definition_id": "l3b.resolution.source",
+  "definition_version": "0.1",
+  "definition_type": "RESOLUTION_RULE",
+  "scope": "CURRENT_L3A_FACTS",
+  "grouping": {
+    "POINT": "metric + event_time + timezone context",
+    "DAILY": "metric + local_date + timezone context",
+    "BUCKET": "metric + bucket anchor + timezone context",
+    "INTERVAL": "metric + exact interval + timezone context"
+  },
+  "rules": [
+    "One source class is SINGLE_SOURCE.",
+    "Multiple source classes with identical value/unit are AGREE and COEXIST.",
+    "Multiple source classes with disagreement are CONFLICT and UNRESOLVED.",
+    "No global source priority, averaging, addition, overwrite, deletion, or sleep-night merge is allowed."
+  ],
+  "contract_version": "L3-v0.1"
+}

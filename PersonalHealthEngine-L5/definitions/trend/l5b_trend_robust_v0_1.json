@@ -1,0 +1,14 @@
+{
+  "definition_id": "l5b.trend.robust",
+  "definition_version": "0.1",
+  "definition_type": "TREND",
+  "applies_to": ["DAILY"],
+  "min_trend_points": 3,
+  "max_trend_points": 14,
+  "slope_method": "Theil-Sen (median of pairwise value/day slopes)",
+  "monotonicity": "Spearman rank correlation between observation index and value",
+  "rho_threshold": 0.5,
+  "classes": ["INSUFFICIENT_OBSERVATIONS", "RISING", "FALLING", "STABLE"],
+  "rule": "RISING when slope > 0 and rho >= rho_threshold; FALLING when slope < 0 and rho <= -rho_threshold; STABLE otherwise (flat series are STABLE)",
+  "contract_version": "L5-v0.1"
+}

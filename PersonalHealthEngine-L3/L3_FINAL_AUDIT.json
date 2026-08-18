@@ -1,0 +1,741 @@
+{
+  "layer": "Layer 3 = Feature Engineering",
+  "status": "PASS",
+  "generated_at_utc": "2026-08-16T09:10:52+00:00",
+  "l2_source": "D:\\PersonalHealthEngine-L2\\db\\personal_health_raw.sqlite3",
+  "l3_database": "D:\\PersonalHealthEngine-L3\\db\\personal_health_features.sqlite3",
+  "checks_passed": 55,
+  "checks_failed": 0,
+  "checks_total": 55,
+  "summary": {
+    "schema_version": 8,
+    "current_fact_total": 5179,
+    "current_facts_by_metric": {
+      "calories": 1064,
+      "heart_rate": 2614,
+      "resting_heart_rate": 2,
+      "sleep_source_episode": 14,
+      "sleep_vendor_stage_segment": 149,
+      "spo2": 385,
+      "steps": 468,
+      "xiaomi_stress_score": 483
+    },
+    "current_quality_assessments": 15537,
+    "current_resolution_decisions": 4994,
+    "current_feature_total": 229,
+    "current_features_by_name": {
+      "calories.daily.bucket_count": 11,
+      "calories.daily.sum": 11,
+      "heart_rate.daily.count": 5,
+      "heart_rate.daily.max": 5,
+      "heart_rate.daily.mean": 5,
+      "heart_rate.daily.median": 5,
+      "heart_rate.daily.min": 5,
+      "resting_heart_rate.daily.value": 2,
+      "sleep_source_episode.duration_seconds": 14,
+      "sleep_source_episode.vendor_awake_duration_seconds": 13,
+      "sleep_source_episode.vendor_sleep_like_duration_seconds": 13,
+      "sleep_source_episode.vendor_stage.awake.duration_seconds": 5,
+      "sleep_source_episode.vendor_stage.awake.proportion": 5,
+      "sleep_source_episode.vendor_stage.deep.duration_seconds": 6,
+      "sleep_source_episode.vendor_stage.deep.proportion": 6,
+      "sleep_source_episode.vendor_stage.light.duration_seconds": 6,
+      "sleep_source_episode.vendor_stage.light.proportion": 6,
+      "sleep_source_episode.vendor_stage.rem.duration_seconds": 6,
+      "sleep_source_episode.vendor_stage.rem.proportion": 6,
+      "sleep_source_episode.vendor_stage.sleep.duration_seconds": 7,
+      "sleep_source_episode.vendor_stage.sleep.proportion": 7,
+      "sleep_source_episode.vendor_stage_segment_count": 14,
+      "spo2.daily.count": 5,
+      "spo2.daily.max": 5,
+      "spo2.daily.mean": 5,
+      "spo2.daily.median": 5,
+      "spo2.daily.min": 5,
+      "steps.daily.bucket_count": 8,
+      "steps.daily.sum": 8,
+      "xiaomi_stress_score.daily.count": 5,
+      "xiaomi_stress_score.daily.max": 5,
+      "xiaomi_stress_score.daily.mean": 5,
+      "xiaomi_stress_score.daily.median": 5,
+      "xiaomi_stress_score.daily.min": 5
+    },
+    "definitions": 10,
+    "migrations": 8,
+    "checkpoints": 9
+  },
+  "stage_results": {
+    "L3A": "PASS",
+    "L3B": "PASS",
+    "L3C": "PASS",
+    "FULL_REBUILD": "PASS",
+    "SEMANTIC_EQUIVALENCE": "PASS"
+  },
+  "known_limitations": [
+    "Sleep stages and sleep/awake states are Xiaomi vendor inferences, not physiological ground truth.",
+    "Canonical Sleep night grouping remains unresolved because the sample is insufficient for a stable gap threshold.",
+    "Activity bucket widths remain vendor-unresolved.",
+    "Calories retain vendor_calories because the physical unit and component meaning are unresolved.",
+    "Some multi-source conflicts remain explicitly UNRESOLVED.",
+    "Resting-heart-rate coverage is sparse (2 daily facts).",
+    "No external physiological ground truth is available."
+  ],
+  "checks": [
+    {
+      "id": "FINAL-01",
+      "name": "SQLite integrity",
+      "status": "PASS",
+      "evidence": "ok"
+    },
+    {
+      "id": "FINAL-02",
+      "name": "Foreign keys",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "FINAL-03",
+      "name": "WAL journal mode",
+      "status": "PASS",
+      "evidence": "wal"
+    },
+    {
+      "id": "FINAL-04",
+      "name": "L2/L3 isolation",
+      "status": "PASS",
+      "evidence": {
+        "l2": "D:\\PersonalHealthEngine-L2\\db\\personal_health_raw.sqlite3",
+        "l3": "D:\\PersonalHealthEngine-L3\\db\\personal_health_features.sqlite3",
+        "l2_mode": "ro"
+      }
+    },
+    {
+      "id": "FINAL-05",
+      "name": "Production schema version",
+      "status": "PASS",
+      "evidence": 8
+    },
+    {
+      "id": "FINAL-06",
+      "name": "Migration chain",
+      "status": "PASS",
+      "evidence": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "id": "FINAL-07",
+      "name": "Migration checksums",
+      "status": "PASS",
+      "evidence": {
+        "matched": 8,
+        "total": 8
+      }
+    },
+    {
+      "id": "FINAL-08",
+      "name": "Migration atomicity from empty database",
+      "status": "PASS",
+      "evidence": {
+        "name": "migrations",
+        "status": "PASS",
+        "returncode": 0,
+        "stdout_tail": [
+          "{",
+          "  \"status\": \"PASS\",",
+          "  \"schema_version\": 8,",
+          "  \"applied\": [",
+          "    1,",
+          "    2,",
+          "    3,",
+          "    4,",
+          "    5,",
+          "    6,",
+          "    7,",
+          "    8",
+          "  ],",
+          "  \"migration_count\": 8",
+          "}"
+        ],
+        "stderr_tail": []
+      }
+    },
+    {
+      "id": "FINAL-09",
+      "name": "Definition registry integrity",
+      "status": "PASS",
+      "evidence": {
+        "registered": 10,
+        "files": 10,
+        "matched": 10
+      }
+    },
+    {
+      "id": "FINAL-10",
+      "name": "heart_rate coverage",
+      "status": "PASS",
+      "evidence": {
+        "expected": 2614,
+        "actual": 2614
+      }
+    },
+    {
+      "id": "FINAL-11",
+      "name": "resting_heart_rate coverage",
+      "status": "PASS",
+      "evidence": {
+        "expected": 2,
+        "actual": 2
+      }
+    },
+    {
+      "id": "FINAL-12",
+      "name": "sleep coverage",
+      "status": "PASS",
+      "evidence": {
+        "episodes": {
+          "expected": 14,
+          "actual": 14
+        },
+        "segments": {
+          "expected": 149,
+          "actual": 149
+        }
+      }
+    },
+    {
+      "id": "FINAL-13",
+      "name": "spo2 coverage",
+      "status": "PASS",
+      "evidence": {
+        "expected": 385,
+        "actual": 385
+      }
+    },
+    {
+      "id": "FINAL-14",
+      "name": "xiaomi_stress_score coverage",
+      "status": "PASS",
+      "evidence": {
+        "expected": 483,
+        "actual": 483
+      }
+    },
+    {
+      "id": "FINAL-15",
+      "name": "steps coverage",
+      "status": "PASS",
+      "evidence": {
+        "expected": 468,
+        "actual": 468
+      }
+    },
+    {
+      "id": "FINAL-16",
+      "name": "calories coverage",
+      "status": "PASS",
+      "evidence": {
+        "expected": 1064,
+        "actual": 1064
+      }
+    },
+    {
+      "id": "FINAL-17",
+      "name": "POINT temporal semantics",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "FINAL-18",
+      "name": "DAILY temporal semantics",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "FINAL-19",
+      "name": "BUCKET temporal semantics",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "FINAL-20",
+      "name": "INTERVAL temporal semantics",
+      "status": "PASS",
+      "evidence": {
+        "invalid": 0,
+        "zero_duration_preserved": 2
+      }
+    },
+    {
+      "id": "FINAL-21",
+      "name": "Evidence semantics",
+      "status": "PASS",
+      "evidence": [
+        {
+          "metric": "heart_rate",
+          "mismatches": 0
+        },
+        {
+          "metric": "resting_heart_rate",
+          "mismatches": 0
+        },
+        {
+          "metric": "spo2",
+          "mismatches": 0
+        },
+        {
+          "metric": "xiaomi_stress_score",
+          "mismatches": 0
+        },
+        {
+          "metric": "steps",
+          "mismatches": 0
+        },
+        {
+          "metric": "calories",
+          "mismatches": 0
+        },
+        {
+          "metric": "sleep_source_episode",
+          "mismatches": 0
+        },
+        {
+          "metric": "sleep_vendor_stage_segment",
+          "mismatches": 0
+        }
+      ]
+    },
+    {
+      "id": "FINAL-22",
+      "name": "Full L3A provenance",
+      "status": "PASS",
+      "evidence": {
+        "current_facts": 5179,
+        "provenance_rows": 5179
+      }
+    },
+    {
+      "id": "FINAL-23",
+      "name": "Source coexistence",
+      "status": "PASS",
+      "evidence": {
+        "steps": {
+          "NUMERIC_SOURCE": 174,
+          "XIAOMI_GENERATED": 294
+        },
+        "calories": {
+          "NUMERIC_SOURCE": 770,
+          "XIAOMI_GENERATED": 294
+        },
+        "sleep_source_episode": {
+          "NUMERIC_SOURCE": 7,
+          "XIAOMI_GENERATED": 7
+        }
+      }
+    },
+    {
+      "id": "FINAL-24",
+      "name": "Latest raw-version parity",
+      "status": "PASS",
+      "evidence": {
+        "mismatch_count": 0
+      }
+    },
+    {
+      "id": "FINAL-25",
+      "name": "No duplicate CURRENT facts",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "FINAL-26",
+      "name": "L3B quality provenance",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "FINAL-27",
+      "name": "L3B resolution provenance",
+      "status": "PASS",
+      "evidence": {
+        "decisions": 4994,
+        "without_inputs": 0
+      }
+    },
+    {
+      "id": "FINAL-28",
+      "name": "Unresolved preservation",
+      "status": "PASS",
+      "evidence": 183
+    },
+    {
+      "id": "FINAL-29",
+      "name": "No source destruction",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "FINAL-30",
+      "name": "Quality/clinical separation",
+      "status": "PASS",
+      "evidence": "Only explicit evidence-state results are stored"
+    },
+    {
+      "id": "FINAL-31",
+      "name": "L3C definition provenance",
+      "status": "PASS",
+      "evidence": {
+        "definition_id": "l3c.features.daily",
+        "version": "0.1",
+        "checksum_match": true
+      }
+    },
+    {
+      "id": "FINAL-32",
+      "name": "L3C N:M provenance",
+      "status": "PASS",
+      "evidence": 212
+    },
+    {
+      "id": "FINAL-33",
+      "name": "Timezone semantics",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "FINAL-34",
+      "name": "Missing is not zero",
+      "status": "PASS",
+      "evidence": {
+        "invalid_sample_count": 0,
+        "rule": "Missing groups produce no feature row. Explicit empty vendor segment lists may produce segment_count=0 with episode context."
+      }
+    },
+    {
+      "id": "FINAL-35",
+      "name": "Source-aware aggregation",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "FINAL-36",
+      "name": "NEW propagation",
+      "status": "PASS",
+      "evidence": {
+        "point_bucket": {
+          "POINT": {
+            "exists": true,
+            "integrity": "ok",
+            "matching_runs": [
+              {
+                "dataset": "heart_rate",
+                "metric": "heart_rate",
+                "runner": "generic_point_incremental_v0.1",
+                "checkpoint_before": 15751,
+                "checkpoint_after": 15754,
+                "observations_scanned": 3,
+                "target_new": 1,
+                "target_revision": 1,
+                "target_reobservation": 1,
+                "non_target": 0,
+                "inserted": 2,
+                "skipped_existing": 0,
+                "superseded": 1
+              }
+            ]
+          },
+          "BUCKET": {
+            "exists": true,
+            "integrity": "ok",
+            "matching_runs": [
+              {
+                "dataset": "calories",
+                "metric": "calories",
+                "checkpoint_before": 15751,
+                "checkpoint_after": 15754,
+                "observations_scanned": 3,
+                "target_new": 1,
+                "target_revision": 1,
+                "target_reobservation": 1,
+                "non_target": 0,
+                "inserted": 2,
+                "skipped_existing": 0,
+                "superseded": 1
+              }
+            ]
+          }
+        },
+        "sleep": {
+          "files": [
+            "D:\\PersonalHealthEngine-L3\\tests\\test_sleep_zero_duration_v0_1.py",
+            "D:\\PersonalHealthEngine-L3\\tests\\test_sleep_incremental_v0_1.py"
+          ],
+          "returncode": 0,
+          "summary": [
+            "----------------------------------------------------------------------",
+            "Ran 6 tests in 3.854s",
+            "",
+            "OK"
+          ]
+        }
+      }
+    },
+    {
+      "id": "FINAL-37",
+      "name": "REVISION propagation",
+      "status": "PASS",
+      "evidence": {
+        "l3b": {
+          "returncode": 0,
+          "summary": [
+            "----------------------------------------------------------------------",
+            "Ran 4 tests in 11.699s",
+            "",
+            "OK"
+          ]
+        },
+        "l3c": {
+          "returncode": 0,
+          "summary": [
+            "----------------------------------------------------------------------",
+            "Ran 4 tests in 19.259s",
+            "",
+            "OK"
+          ]
+        }
+      }
+    },
+    {
+      "id": "FINAL-38",
+      "name": "REOBSERVATION no-op",
+      "status": "PASS",
+      "evidence": {
+        "l3b": {
+          "returncode": 0,
+          "summary": [
+            "----------------------------------------------------------------------",
+            "Ran 4 tests in 11.699s",
+            "",
+            "OK"
+          ]
+        },
+        "l3c": {
+          "returncode": 0,
+          "summary": [
+            "----------------------------------------------------------------------",
+            "Ran 4 tests in 19.259s",
+            "",
+            "OK"
+          ]
+        }
+      }
+    },
+    {
+      "id": "FINAL-39",
+      "name": "Checkpoint correctness",
+      "status": "PASS",
+      "evidence": {
+        "frontier": 15751,
+        "checkpoints": [
+          [
+            "normalize.heart_rate",
+            15751
+          ],
+          [
+            "normalize.spo2",
+            15751
+          ],
+          [
+            "normalize.xiaomi_stress_score",
+            15751
+          ],
+          [
+            "normalize.resting_heart_rate",
+            15751
+          ],
+          [
+            "normalize.steps",
+            15751
+          ],
+          [
+            "normalize.calories",
+            15751
+          ],
+          [
+            "normalize.sleep",
+            15751
+          ],
+          [
+            "l3b.quality_resolution",
+            15751
+          ],
+          [
+            "l3c.derived_features",
+            15751
+          ]
+        ]
+      }
+    },
+    {
+      "id": "FINAL-40",
+      "name": "L3A deterministic rebuild",
+      "status": "PASS",
+      "evidence": {
+        "domain": "facts",
+        "status": "PASS",
+        "evidence": {
+          "production_count": 5179,
+          "rebuilt_count": 5179
+        }
+      }
+    },
+    {
+      "id": "FINAL-41",
+      "name": "L3B deterministic rebuild",
+      "status": "PASS",
+      "evidence": {
+        "quality": {
+          "domain": "quality",
+          "status": "PASS",
+          "evidence": {
+            "production_count": 15537,
+            "rebuilt_count": 15537
+          }
+        },
+        "resolutions": {
+          "domain": "resolutions",
+          "status": "PASS",
+          "evidence": {
+            "production_count": 4994,
+            "rebuilt_count": 4994
+          }
+        }
+      }
+    },
+    {
+      "id": "FINAL-42",
+      "name": "L3C deterministic rebuild",
+      "status": "PASS",
+      "evidence": {
+        "domain": "features",
+        "status": "PASS",
+        "evidence": {
+          "production_count": 229,
+          "rebuilt_count": 229
+        }
+      }
+    },
+    {
+      "id": "FINAL-43",
+      "name": "Full Layer 3 rebuild",
+      "status": "PASS",
+      "evidence": {
+        "status": "PASS",
+        "checks": "18/18"
+      }
+    },
+    {
+      "id": "FINAL-44",
+      "name": "Incremental/full equivalence",
+      "status": "PASS",
+      "evidence": {
+        "semantic": "PASS",
+        "l3b": "PASS",
+        "l3c": "PASS"
+      }
+    },
+    {
+      "id": "FINAL-45",
+      "name": "Synthetic/full-rebuild production isolation",
+      "status": "PASS",
+      "evidence": {
+        "migrations": "PASS",
+        "l3a_point_heart_rate": "PASS",
+        "l3a_point_heart_rate_checkpoint": "PASS",
+        "l3a_point_spo2": "PASS",
+        "l3a_point_spo2_checkpoint": "PASS",
+        "l3a_point_stress": "PASS",
+        "l3a_point_stress_checkpoint": "PASS",
+        "l3a_daily_resting_heart_rate": "PASS",
+        "l3a_bucket_steps": "PASS",
+        "l3a_bucket_steps_checkpoint": "PASS",
+        "l3a_bucket_calories": "PASS",
+        "l3a_bucket_calories_checkpoint": "PASS",
+        "l3a_interval_sleep": "PASS",
+        "l3b_full": "PASS",
+        "l3c_full": "PASS",
+        "semantic_equivalence": "PASS",
+        "production_l2_unchanged": "PASS",
+        "production_l3_unchanged": "PASS"
+      }
+    },
+    {
+      "id": "FINAL-46",
+      "name": "No Layer 4 baseline leakage",
+      "status": "PASS",
+      "evidence": "No output identifier contains baseline"
+    },
+    {
+      "id": "FINAL-47",
+      "name": "No Layer 5 anomaly-analysis leakage",
+      "status": "PASS",
+      "evidence": "No output identifier contains anomaly/risk_score"
+    },
+    {
+      "id": "FINAL-48",
+      "name": "No Layer 6 AI-reasoning leakage",
+      "status": "PASS",
+      "evidence": "No output identifier contains AI reasoning/recommendation"
+    },
+    {
+      "id": "FINAL-49",
+      "name": "Final SQLite integrity",
+      "status": "PASS",
+      "evidence": "ok"
+    },
+    {
+      "id": "FINAL-50",
+      "name": "Final foreign-key integrity",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "FINAL-51",
+      "name": "Zero-duration Sleep segments preserved",
+      "status": "PASS",
+      "evidence": 2
+    },
+    {
+      "id": "FINAL-52",
+      "name": "Bucket width remains unresolved",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "FINAL-53",
+      "name": "Calories physical unit remains unresolved",
+      "status": "PASS",
+      "evidence": [
+        "vendor_calories"
+      ]
+    },
+    {
+      "id": "FINAL-54",
+      "name": "No canonical Sleep night invented",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "FINAL-55",
+      "name": "Production pipeline runs all PASS",
+      "status": "PASS",
+      "evidence": 0
+    }
+  ]
+}

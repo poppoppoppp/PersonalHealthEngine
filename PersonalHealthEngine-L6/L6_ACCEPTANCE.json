@@ -1,0 +1,198 @@
+{
+  "layer": "Layer 6 = AI Reasoning",
+  "stage": "L6",
+  "status": "PASS",
+  "generated_at_utc": "2026-08-17T10:15:27+00:00",
+  "l6_database": "D:\\PersonalHealthEngine-L6\\db\\personal_health_reasoning.sqlite3",
+  "checks_passed": 24,
+  "checks_failed": 0,
+  "checks_total": 24,
+  "summary": {
+    "schema_version": 2,
+    "counts": {
+      "context": 2,
+      "feedback": 1,
+      "evidence_bundles": 1,
+      "hypotheses": 1,
+      "daily_reasoning": 1,
+      "patterns": 12
+    },
+    "real_model_integration_verified": false
+  },
+  "real_model_integration_verified": false,
+  "note": "Acceptance uses mock adapters only. Real DeepSeek/MedGemma integration is a separate smoke test and is NOT asserted here.",
+  "checks": [
+    {
+      "id": "L6-01",
+      "name": "Upstreams intact and read-only (L3/L4/L5)",
+      "status": "PASS",
+      "evidence": {
+        "l3_schema": 8,
+        "l4_schema": 2,
+        "l5_schema": 2
+      }
+    },
+    {
+      "id": "L6-02",
+      "name": "L6 SQLite integrity",
+      "status": "PASS",
+      "evidence": "ok"
+    },
+    {
+      "id": "L6-03",
+      "name": "L6 foreign keys",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L6-04",
+      "name": "L6 schema version",
+      "status": "PASS",
+      "evidence": 2
+    },
+    {
+      "id": "L6-05",
+      "name": "Migration chain",
+      "status": "PASS",
+      "evidence": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": "L6-06",
+      "name": "Migration checksums",
+      "status": "PASS",
+      "evidence": 2
+    },
+    {
+      "id": "L6-07",
+      "name": "Definition registry integrity",
+      "status": "PASS",
+      "evidence": 7
+    },
+    {
+      "id": "L6-08",
+      "name": "Context/Feedback source distinction",
+      "status": "PASS",
+      "evidence": {
+        "ctx": 0,
+        "fb": 0
+      }
+    },
+    {
+      "id": "L6-09",
+      "name": "AI inference never promoted to fact",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L6-10",
+      "name": "Context revision supported",
+      "status": "PASS",
+      "evidence": null
+    },
+    {
+      "id": "L6-11",
+      "name": "Evidence bundle deterministic (hash matches)",
+      "status": "PASS",
+      "evidence": null
+    },
+    {
+      "id": "L6-12",
+      "name": "Hypotheses carry supporting evidence",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L6-13",
+      "name": "Deterministic confidence + overall state enums",
+      "status": "PASS",
+      "evidence": {
+        "conf": 0,
+        "state": 0
+      }
+    },
+    {
+      "id": "L6-14",
+      "name": "No health score and no diagnosis",
+      "status": "PASS",
+      "evidence": {
+        "score_tables": [],
+        "diagnose": 0
+      }
+    },
+    {
+      "id": "L6-15",
+      "name": "No canonical sleep night invented",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L6-16",
+      "name": "Medical review states valid",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L6-17",
+      "name": "API credentials not persisted",
+      "status": "PASS",
+      "evidence": []
+    },
+    {
+      "id": "L6-18",
+      "name": "Model invocation table present",
+      "status": "PASS",
+      "evidence": null
+    },
+    {
+      "id": "L6-19",
+      "name": "Q&A sessions table present",
+      "status": "PASS",
+      "evidence": null
+    },
+    {
+      "id": "L6-20",
+      "name": "Personal patterns are non-causal",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L6-21",
+      "name": "Full rebuild PASS",
+      "status": "PASS",
+      "evidence": "PASS"
+    },
+    {
+      "id": "L6-22",
+      "name": "Deterministic replay equivalence",
+      "status": "PASS",
+      "evidence": "PASS"
+    },
+    {
+      "id": "L6-23",
+      "name": "Upstream protection PASS",
+      "status": "PASS",
+      "evidence": {
+        "production_l3_unchanged": "PASS",
+        "production_l4_unchanged": "PASS",
+        "production_l5_unchanged": "PASS"
+      }
+    },
+    {
+      "id": "L6-24",
+      "name": "Regression suite passes",
+      "status": "PASS",
+      "evidence": {
+        "returncode": 0,
+        "tail": [
+          "----------------------------------------------------------------------",
+          "Ran 18 tests in 2.409s",
+          "",
+          "OK"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+﻿{
+  "definition_id": "normalize.heart_rate",
+  "definition_version": "0.1",
+  "definition_type": "NORMALIZER",
+  "dataset": "heart_rate",
+  "metric": "heart_rate",
+  "temporal_type": "POINT",
+  "evidence_type": "SENSOR_DERIVED",
+  "provider": "xiaomi",
+  "unit": "bpm",
+  "event_time_source": "value.time",
+  "value_source": "value.bpm",
+  "preserved_vendor_attributes": {
+    "xiaomi_type_code": "value.type"
+  },
+  "source_class_rule": {
+    "numeric_sid": "NUMERIC_SOURCE",
+    "hlth.gen_*": "XIAOMI_GENERATED"
+  },
+  "contract_version": "L3-v0.1"
+}

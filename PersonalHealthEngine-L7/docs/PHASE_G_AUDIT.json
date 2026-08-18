@@ -1,0 +1,38 @@
+{
+  "phase": "G",
+  "title": "Notifications + Settings",
+  "date_utc": "2026-08-18T05:30:00Z",
+  "status": "PASS",
+  "inputs": {"phase_f": "History/Patterns PASS"},
+  "code_scope": {
+    "backend": {
+      "services/notify.py": "Notification Threshold gate. Consulted ONLY when a new judgment version exists (judgment_updated) — wired via orchestrator.judgment_listeners so UI re-renders and unchanged bundles never reach it. Modes QUIET/SMART/DAILY; safety (E) overrides mode and quiet hours; quiet_hours window parsed + applied; every decision (SEND/SUPPRESS + reason) persisted to notification_decisions audit log; feed() joins SEND decisions to their Today version payload.",
+      "engine/orchestrator.py": "Added judgment_listeners hook fired after evaluate() only on judgment_updated.",
+      "api/app.py": "GET /notifications (in-app feed), GET /notifications/decisions (audit); PUT /settings validates quiet_hours format."
+    },
+    "app": {
+      "notifications_screen.dart": "Sent feed + decision audit (SEND/SUPPRESS with Chinese reasons)",
+      "me_screen.dart": "quiet_hours editor + link to notification/decision log",
+      "api_client.dart": "getNotifications/getNotificationDecisions"
+    }
+  },
+  "tests": {
+    "backend_suite": "84/84 PASS (incl. 8 Phase G cases)",
+    "phase_g_cases": [
+      "parse/quiet-hours window incl. crossing midnight",
+      "SMART sends only actionable (C) judgment updates; B/A/no-update suppressed",
+      "QUIET sends safety only",
+      "DAILY sends every judgment update but not unchanged re-renders",
+      "safety overrides quiet hours; non-safety suppressed during quiet hours",
+      "every decision audited; feed lists only SEND",
+      "threshold separation: first render + identical re-render fire no hook; real fact change fires exactly one"
+    ],
+    "flutter": "analyze 0 errors; widget tests 5/5 PASS (FakeClient extended)"
+  },
+  "e2e_contract_cases": {
+    "notification_restraint": "PASS — stable/unchanged days produce zero SEND; actionable change produces exactly one SEND; all suppressions logged with reasons"
+  },
+  "transport_note": "MVP transport is the in-app feed + decision log. OS-level push (Android local notifications) is a Phase H packaging item; the gate/mode/quiet-hours logic is transport-agnostic.",
+  "model_calls_paid_this_phase": {"real_deepseek": 0, "note": "notification gate is deterministic, zero model calls"},
+  "next_phase": "H — Cloud-ready packaging"
+}

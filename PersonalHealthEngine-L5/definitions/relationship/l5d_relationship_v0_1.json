@@ -1,0 +1,19 @@
+{
+  "definition_id": "l5d.relationship",
+  "definition_version": "0.1",
+  "definition_type": "RELATIONSHIP",
+  "applies_to": ["DAILY"],
+  "min_paired": 5,
+  "rho_threshold": 0.7,
+  "method": "Spearman rank correlation over date-aligned paired observations within a shared source context",
+  "classes": ["INSUFFICIENT_PAIRED_DATA", "POSITIVE_ASSOCIATION", "NEGATIVE_ASSOCIATION", "NO_ASSOCIATION"],
+  "pairs": [
+    {"metric_a": "heart_rate", "feature_a": "heart_rate.daily.mean", "metric_b": "spo2", "feature_b": "spo2.daily.mean"},
+    {"metric_a": "xiaomi_stress_score", "feature_a": "xiaomi_stress_score.daily.mean", "metric_b": "heart_rate", "feature_b": "heart_rate.daily.mean"},
+    {"metric_a": "xiaomi_stress_score", "feature_a": "xiaomi_stress_score.daily.mean", "metric_b": "resting_heart_rate", "feature_b": "resting_heart_rate.daily.value"},
+    {"metric_a": "steps", "feature_a": "steps.daily.sum", "metric_b": "resting_heart_rate", "feature_b": "resting_heart_rate.daily.value"},
+    {"metric_a": "calories", "feature_a": "calories.daily.sum", "metric_b": "steps", "feature_b": "steps.daily.sum"}
+  ],
+  "causal_inference": false,
+  "contract_version": "L5-v0.1"
+}

@@ -1,0 +1,8 @@
+{
+  "definition_id": "l6.daily.reasoning",
+  "definition_version": "0.1",
+  "definition_type": "DAILY_REASONING",
+  "overall_states": ["STABLE", "MILD_CHANGE", "NOTABLE_CHANGE", "INSUFFICIENT_EVIDENCE"],
+  "rule": "overall_state is deterministic from evidence; no health score",
+  "contract_version": "L6-v0.1"
+}

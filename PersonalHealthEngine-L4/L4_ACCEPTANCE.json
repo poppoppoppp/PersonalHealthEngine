@@ -1,0 +1,213 @@
+{
+  "layer": "Layer 4 = Personal Baseline",
+  "stage": "L4",
+  "status": "PASS",
+  "generated_at_utc": "2026-08-16T10:33:48+00:00",
+  "l3_source": "D:\\PersonalHealthEngine-L3\\db\\personal_health_features.sqlite3",
+  "l4_database": "D:\\PersonalHealthEngine-L4\\db\\personal_health_baselines.sqlite3",
+  "checks_passed": 25,
+  "checks_failed": 0,
+  "checks_total": 25,
+  "summary": {
+    "schema_version": 2,
+    "current_series": 44,
+    "current_baselines": 1056,
+    "maturity_distribution": {
+      "ESTABLISHED": 74,
+      "INSUFFICIENT_HISTORY": 570,
+      "PROVISIONAL": 412
+    }
+  },
+  "checks": [
+    {
+      "id": "L4-01",
+      "name": "SQLite integrity",
+      "status": "PASS",
+      "evidence": "ok"
+    },
+    {
+      "id": "L4-02",
+      "name": "Foreign keys",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L4-03",
+      "name": "L4/L3 database isolation",
+      "status": "PASS",
+      "evidence": {
+        "l3": "D:\\PersonalHealthEngine-L3\\db\\personal_health_features.sqlite3",
+        "l4": "D:\\PersonalHealthEngine-L4\\db\\personal_health_baselines.sqlite3",
+        "l3_mode": "ro"
+      }
+    },
+    {
+      "id": "L4-04",
+      "name": "Production schema version",
+      "status": "PASS",
+      "evidence": 2
+    },
+    {
+      "id": "L4-05",
+      "name": "Migration chain",
+      "status": "PASS",
+      "evidence": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": "L4-06",
+      "name": "Migration checksums",
+      "status": "PASS",
+      "evidence": {
+        "matched": 2,
+        "total": 2
+      }
+    },
+    {
+      "id": "L4-07",
+      "name": "Definition registry integrity",
+      "status": "PASS",
+      "evidence": {
+        "registered": 4,
+        "files": 4,
+        "matched": 4
+      }
+    },
+    {
+      "id": "L4-08",
+      "name": "Windows 7/28/90 present",
+      "status": "PASS",
+      "evidence": [
+        7,
+        28,
+        90
+      ]
+    },
+    {
+      "id": "L4-09",
+      "name": "No look-ahead leakage",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L4-10",
+      "name": "Window lower boundary",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L4-11",
+      "name": "Robust statistic invariants",
+      "status": "PASS",
+      "evidence": 486
+    },
+    {
+      "id": "L4-12",
+      "name": "INSUFFICIENT_HISTORY publishes no statistics",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L4-13",
+      "name": "Sparse series stay INSUFFICIENT_HISTORY",
+      "status": "PASS",
+      "evidence": [
+        "INSUFFICIENT_HISTORY"
+      ]
+    },
+    {
+      "id": "L4-14",
+      "name": "Source isolation",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L4-15",
+      "name": "Baseline provenance complete",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L4-16",
+      "name": "observation_count equals provenance inputs",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L4-17",
+      "name": "No canonical Sleep night invented",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L4-18",
+      "name": "Steps/calories coverage preserved",
+      "status": "PASS",
+      "evidence": null
+    },
+    {
+      "id": "L4-19",
+      "name": "Independent robust statistic recomputation",
+      "status": "PASS",
+      "evidence": {
+        "median": 59.894736842105
+      }
+    },
+    {
+      "id": "L4-20",
+      "name": "No L5/L6 anomaly/score/reasoning leakage",
+      "status": "PASS",
+      "evidence": {
+        "leaked_tokens": [],
+        "unexpected_maturity": []
+      }
+    },
+    {
+      "id": "L4-21",
+      "name": "Checkpoint correctness",
+      "status": "PASS",
+      "evidence": {
+        "frontier": 229,
+        "checkpoint": 229
+      }
+    },
+    {
+      "id": "L4-22",
+      "name": "Pipeline runs all PASS",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L4-23",
+      "name": "Full rebuild PASS",
+      "status": "PASS",
+      "evidence": {
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "L4-24",
+      "name": "Incremental/full semantic equivalence",
+      "status": "PASS",
+      "evidence": {
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "L4-25",
+      "name": "Regression suite passes",
+      "status": "PASS",
+      "evidence": {
+        "returncode": 0,
+        "tail": [
+          "----------------------------------------------------------------------",
+          "Ran 11 tests in 3.640s",
+          "",
+          "OK"
+        ]
+      }
+    }
+  ]
+}

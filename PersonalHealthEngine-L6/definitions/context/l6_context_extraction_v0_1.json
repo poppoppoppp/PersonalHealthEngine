@@ -1,0 +1,15 @@
+{
+  "definition_id": "l6.context.extraction",
+  "definition_version": "0.1",
+  "definition_type": "CONTEXT_EXTRACTION",
+  "source": "USER_REPORTED",
+  "context_types": [
+    "HIGH_INTENSITY_TRAINING", "ALCOHOL_USE", "LATE_SLEEP", "CAFFEINE", "STRESS",
+    "TRAVEL", "ILLNESS", "SORE_THROAT", "FEVER", "NASAL_CONGESTION", "MEDICATION",
+    "FATIGUE", "FEELING_GOOD", "DIET_CHANGE", "SCHEDULE_CHANGE"
+  ],
+  "body_parts": ["legs", "back", "chest", "arms", "shoulders", "full_body"],
+  "relative_day_keywords": {"yesterday": -1, "last_night": -1, "today": 0},
+  "rule": "structured fields only for what the user actually said; never invent missing fields",
+  "contract_version": "L6-v0.1"
+}

@@ -1,0 +1,18 @@
+﻿{
+  "definition_id": "normalize.calories",
+  "definition_version": "0.1",
+  "definition_type": "NORMALIZER",
+  "dataset": "calories",
+  "metric": "calories",
+  "temporal_type": "BUCKET",
+  "evidence_type": "VENDOR_DERIVED",
+  "provider": "xiaomi",
+  "unit": "vendor_calories",
+  "bucket_anchor_source": "value.time",
+  "bucket_width_seconds": null,
+  "bucket_semantics": "VENDOR_UNRESOLVED",
+  "value_source": "value.calories",
+  "preserved_vendor_attributes": {},
+  "semantic_note": "Standalone Xiaomi calorie bucket. Source-specific facts are preserved independently. No assumption is made that the value is total calories, active calories, walking calories, or directly equivalent to step-embedded calories.",
+  "contract_version": "L3-v0.1"
+}

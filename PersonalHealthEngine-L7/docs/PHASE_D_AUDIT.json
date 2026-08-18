@@ -1,0 +1,81 @@
+{
+  "phase": "D",
+  "title": "Today vertical slice (end-to-end)",
+  "date_utc": "2026-08-17T16:30:00Z",
+  "status": "PASS",
+  "pipeline_proven": "L1-L6 sealed data -> L7 backend (FastAPI) -> Current Today State -> Product API -> Flutter UI",
+  "inputs": {
+    "phase_c_backend": "40/40 tests, live API on 127.0.0.1:8707",
+    "flutter_toolchain": "Flutter 3.41.1 stable, Dart 3.11.0, JDK 17, Android SDK present"
+  },
+  "code_scope": {
+    "flutter_project": "D:\\PersonalHealthEngine-L7\\app (org com.personalhealthengine, platforms android+web)",
+    "screens": [
+      "today_screen.dart (状态/主原因/今日行动/更新于 HH:MM/判断已更新/查看依据/Q&A入口/Context入口/feedback prompt/版本历史)",
+      "evidence_screen.dart (Level-3 drill-down: series chart + baseline + quality, only deviating metrics)",
+      "history_screen.dart (honest Phase-F placeholder + real append-only judgment version history)",
+      "patterns_screen.dart (actionable patterns + counterevidence + accumulation state, wired to /patterns)",
+      "me_screen.dart (notification mode, engine connection, model-call usage transparency, about)",
+      "qa_screen.dart (decision-assistant shell, Phase E engine wiring noted in-app)",
+      "context_screen.dart (natural language + quick chips, no questionnaire, Phase E wiring noted)"
+    ],
+    "shared": [
+      "api_client.dart (L7Client + TodayPayload; app never computes health state)",
+      "main.dart (4 fixed bottom tabs 今日/历史/我的规律/我的; instant-open local cache)",
+      "widgets/trend_chart.dart (dependency-free chart)"
+    ]
+  },
+  "tests": {
+    "flutter_analyze": "0 errors (12 deprecation infos only)",
+    "widget_tests": {
+      "total": 5,
+      "passed": 5,
+      "cases": [
+        "TodayPayload parses contract fields",
+        "stable day renders zero actions (no filler advice)",
+        "notable change shows conclusion/cause/actions/更新于/查看依据/两个入口",
+        "medical safety (E) renders action ABOVE cause",
+        "no score-like text/widgets anywhere"
+      ]
+    },
+    "dart_e2e_transport": {
+      "script": "app/bin/e2e_check.dart",
+      "result": "PASS (11/11)",
+      "note": "exercises the exact HttpApiClient code path against the live backend"
+    },
+    "cors_preflight": "OPTIONS /today returns access-control-allow-origin:* in local env only"
+  },
+  "builds": {
+    "web_release": "PASS (app/build/web, rebuilt after Phase E/G screens)",
+    "android_debug_apk": "PASS — app/build/app/outputs/flutter-apk/app-debug.apk (147 MB) built 2026-08-18 after fixing CN-network blocks: Aliyun/Tencent maven mirrors in app gradle files + patched Flutter SDK includeBuild settings + global init script (settings-level) + NDK pinned to fully-installed 27.1.12297006 (28.2 dir was an incomplete download; dl.google.com unreachable)"
+  },
+  "acceptance_gate": {
+    "four_bottom_tabs": true,
+    "today_first_screen_shows": [
+      "当前状态 (product_state_label)",
+      "最可能原因 (cause.text, verbatim from engine)",
+      "今日行动 (<=3, 0 allowed on stable)",
+      "更新于 HH:MM",
+      "查看依据 (Level 2 sentences + Level 3 drill-down page)",
+      "Context 入口 (补充我的情况)",
+      "Q&A 入口 (问问我的状态)"
+    ],
+    "information_order_follows_payload": true,
+    "no_scores_no_traffic_lights": true,
+    "offline_instant_open_via_cache": true,
+    "judgment_updated_badge_and_version_history": true,
+    "secrets_not_in_client": "token only; model credentials never leave backend"
+  },
+  "run_instructions": {
+    "backend": "cd backend; set env (see .env.example); python -m uvicorn l7.api.app:create_app --factory --host 0.0.0.0 --port 8707",
+    "app_android": "flutter run (device) or install app/build/app/outputs/flutter-apk/app-debug.apk; set server address in 我的 tab (emulator: http://10.0.2.2:8707)",
+    "app_web": "serve app/build/web statically; default base url http://127.0.0.1:8707"
+  },
+  "known_limitations": [
+    "Q&A engine wiring and Context structured extraction are Phase E (UI shells are live and honest about it).",
+    "History episode projection is Phase F; version history is already real.",
+    "Notifications are settings-only until Phase G.",
+    "APK is debug-signed for the owner's device; release signing is a Phase H packaging item."
+  ],
+  "next_phase": "E — Q&A + Context + Feedback"
+}

@@ -1,0 +1,56 @@
+# Personal Health Engine — L7 deployment composition.
+#
+# Topology:
+#   app (Flutter, on the user's device) -> l7-backend (this service) -> sealed L1–L6 data
+#   The dev PC is NOT part of the final runtime: everything below runs on one VPS.
+#
+# Before first run:
+#   1. Copy the sealed layer dbs + L6 scripts/definitions into ./sealed (read-only mount).
+#   2. Create .env next to this file (never commit it):
+#        L7_ENV=prod
+#        L7_API_TOKEN=<long random secret>
+#        DEEPSEEK_API_KEY=<your key>
+#        L7_REASONING_ADAPTER=deepseek
+#        L7_MEDICAL_ADAPTER=medgemma
+#        L7_MEDGEMMA_ENDPOINT=http://medgemma:11434   # or a remote Ollama host
+#   3. docker compose up -d --build
+
+services:
+  l7-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      L7_L3_DB: /sealed/l3/personal_health_features.sqlite3
+      L7_L4_DB: /sealed/l4/personal_health_baselines.sqlite3
+      L7_L5_DB: /sealed/l5/personal_health_analytics.sqlite3
+      L6_DB: /sealed/l6/personal_health_reasoning.sqlite3
+      L7_L6_DB: /sealed/l6/personal_health_reasoning.sqlite3
+      L7_L6_CODE: /sealed/l6/scripts
+      L7_L6_DEFINITIONS: /sealed/l6/definitions
+      L7_DB: /data/l7/l7_product.sqlite3
+    volumes:
+      # Sealed upstream: strictly read-only inside the container.
+      - ./sealed/l3:/sealed/l3:ro
+      - ./sealed/l4:/sealed/l4:ro
+      - ./sealed/l5:/sealed/l5:ro
+      - ./sealed/l6:/sealed/l6:ro
+      # L7's own product db: read-write.
+      - l7data:/data/l7
+    ports:
+      - "127.0.0.1:8707:8707"   # put TLS termination (nginx/caddy) in front for remote access
+    restart: unless-stopped
+
+  # Optional local MedGemma service. Remove and point L7_MEDGEMMA_ENDPOINT at a remote
+  # Ollama if you prefer the model host elsewhere.
+  medgemma:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama:/root/.ollama
+    restart: unless-stopped
+    # Pull once on the host: docker compose exec medgemma ollama pull medgemma
+
+volumes:
+  l7data:
+  ollama:

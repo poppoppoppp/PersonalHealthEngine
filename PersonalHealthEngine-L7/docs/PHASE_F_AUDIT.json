@@ -1,0 +1,43 @@
+{
+  "phase": "F",
+  "title": "History + Personal Patterns",
+  "date_utc": "2026-08-18T05:00:00Z",
+  "status": "PASS",
+  "inputs": {"phase_e": "Q&A/Context/Feedback PASS"},
+  "code_scope": {
+    "backend": {
+      "services/history.py": "Deterministic Health Episode projection from sealed L6 history (daily_reasoning + personal_context + user_feedback). Consecutive same-theme notable days merge; stable days hidden but counted; read-model keyed by (user_id, episode_key) updated in place; vanished episodes marked SUPERSEDED; keyword search over summaries/event details. Zero model calls.",
+      "services/today.py (patterns)": "Added display_status semantics: ESTABLISHED / WEAKENED (support<50% at total>=4) / INVALIDATED (support==0 at total>=4) / OBSERVING. Weakened/invalidated patterns now surface because counterevidence is itself actionable. Single events never surface.",
+      "api/app.py": "GET /history/episodes, GET /history/episodes/{id}, GET /history/search"
+    },
+    "app": {
+      "history_screen.dart": "Real episode list with phase chip (进行中/恢复中/已结束), search box, stable-day-hidden counter, episode timeline detail (judgment/context/feedback events)",
+      "patterns_screen.dart": "display_status rendered (已确立/正在减弱/已被反例否定/观察中) + counterevidence",
+      "api_client.dart": "getEpisodes/getEpisode/searchHistory"
+    }
+  },
+  "tests": {
+    "backend_suite": "76/76 PASS (incl. 10 Phase F cases)",
+    "phase_f_cases": [
+      "episodes from real sealed data (SLEEP_DEFICIT 2026-08-16 DEVELOPING)",
+      "multi-day grouping + stable-day hiding + phase CLOSED for non-latest",
+      "rebuild idempotent (stable read-model identity, no event duplication)",
+      "vanished episode marked SUPERSEDED not deleted",
+      "keyword search hits and misses",
+      "no-episodes note when reasoning empty",
+      "pattern display_status WEAKENED/INVALIDATED + counterevidence math",
+      "single-event pattern never surfaced",
+      "API wiring: episodes/detail/404/search/patterns"
+    ],
+    "flutter": "analyze 0 errors; widget tests 5/5 PASS (FakeClient extended)"
+  },
+  "e2e_contract_cases": {
+    "history_browsing": "PASS — episodes + timeline render from live API; stable days hidden but counted"
+  },
+  "model_calls_paid_this_phase": {"real_deepseek": 0, "note": "pure projection, zero model calls by design"},
+  "known_limitations": [
+    "History search is deterministic keyword match; semantic NL search over episodes is deferred.",
+    "Only one analysis_date exists in sealed L6 today, so multi-day behavior is proven on seeded test data."
+  ],
+  "next_phase": "G — Notifications + Settings"
+}

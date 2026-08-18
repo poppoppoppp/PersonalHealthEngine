@@ -1,0 +1,9 @@
+{
+  "definition_id": "l6.personal.pattern",
+  "definition_version": "0.1",
+  "definition_type": "PERSONAL_PATTERN",
+  "established_min_support": 3,
+  "maturity": ["OBSERVING", "ESTABLISHED"],
+  "rule": "pattern requires >= established_min_support independent cases; statistical/experiential only, never causal",
+  "contract_version": "L6-v0.1"
+}

@@ -1,0 +1,273 @@
+{
+  "generated_at_utc": "2026-08-17T10:14:15+00:00",
+  "deepseek": {
+    "configured": true,
+    "model_identifier": "deepseek-v4-pro",
+    "api_interface": "OpenAI-compatible Chat Completions",
+    "reasoning_effort": "high",
+    "real_call_success": true,
+    "model_returned": true,
+    "structured_output_valid": true,
+    "real_health_bundle_tested": true,
+    "hallucination_guard_passed": true,
+    "qa_tested": true,
+    "verified": true,
+    "calls": 7,
+    "tokens_input": 17728,
+    "tokens_output": 6478,
+    "cases": [
+      {
+        "case": "CASE1_real_daily",
+        "status": "PASS",
+        "problems": [],
+        "notes": [],
+        "primary_hypothesis_type": "SLEEP_DEFICIT",
+        "confidence": "LOW",
+        "summary": "Your sleep data shows less deep and REM sleep than usual, more awake time, and a later bedtime. This, along with a high-intensity training session, suggests your body may not be recovering well during sleep. Because your normal patterns are still being established and some data like HRV is missing, confidence is low.",
+        "tokens_input": 14852,
+        "tokens_output": 1940,
+        "latency_ms": 29927
+      },
+      {
+        "case": "CASE2_stable",
+        "status": "PASS",
+        "problems": [],
+        "notes": [],
+        "primary_hypothesis_type": "NO_SIGNIFICANT_FINDING",
+        "confidence": "LOW",
+        "summary": "Your heart rate is within its typical range and overall state looks stable, which suggests no obvious issue right now. However, HRV data is not available and there is little recent context, so this is a cautious read rather than a strong conclusion.",
+        "tokens_input": 539,
+        "tokens_output": 725,
+        "latency_ms": 11147
+      },
+      {
+        "case": "CASE3_insufficient",
+        "status": "PASS",
+        "problems": [],
+        "notes": [],
+        "primary_hypothesis_type": "UNKNOWN",
+        "confidence": "VERY_LOW",
+        "summary": "There is not enough information right now to understand what is happening with your heart rate because the baseline data is incomplete and HRV is unavailable. More consistent measurements over several days are needed before any meaningful pattern can be identified.",
+        "tokens_input": 545,
+        "tokens_output": 410,
+        "latency_ms": 7953
+      },
+      {
+        "case": "CASE4_context",
+        "status": "PASS",
+        "problems": [],
+        "notes": [],
+        "primary_hypothesis_type": "RECOVERY_STRAIN",
+        "confidence": "LOW",
+        "summary": "Your data suggests your body may be under extra strain after a high-intensity training session, and you also slept less after a late night. Your heart rate is running above your typical range and sleep is below your typical range. It isn't possible to separate these clearly without HRV or more days of data, so the main guidance is to rest and improve sleep before your next hard workout.",
+        "tokens_input": 654,
+        "tokens_output": 1156,
+        "latency_ms": 19526
+      },
+      {
+        "case": "CASE5_conflicting",
+        "status": "PASS",
+        "problems": [],
+        "notes": [
+          "confidence capped from MODERATE to LOW (deterministic ceiling)"
+        ],
+        "primary_hypothesis_type": "RECOVERY_STRAIN",
+        "confidence": "MODERATE",
+        "summary": "Your heart rate is above your typical range the day after a high-intensity workout, while your sleep looks normal. This pattern can happen when your body is still recovering from exercise. HRV data isn't available, which limits certainty, but an easy recovery day is a reasonable next step.",
+        "tokens_input": 601,
+        "tokens_output": 1482,
+        "latency_ms": 23771
+      },
+      {
+        "case": "CASE7_no_alcohol",
+        "status": "PASS",
+        "problems": [],
+        "notes": [],
+        "primary_hypothesis_type": "UNKNOWN",
+        "confidence": "VERY_LOW",
+        "summary": "Your heart rate is higher than your typical range today, but we don't have enough information to understand why. HRV data is missing, and there is no clear context about recent events, sleep, or stress. Because of that, we can't tell if this is a temporary change or something else.",
+        "tokens_input": 537,
+        "tokens_output": 765,
+        "latency_ms": 13324
+      },
+      {
+        "case": "CASE6_qa",
+        "status": "PASS",
+        "answer": "Your sleep from last night shows less deep and REM sleep than usual, and you went to bed late. You also did high-intensity training today. These factors together suggest your body may not be fully recovered, so it might be best to avoid a hard leg workout today.",
+        "latency_ms": 15621
+      }
+    ]
+  },
+  "medgemma": {
+    "configured": true,
+    "real_runtime_verified": true,
+    "endpoint": "http://localhost:11434",
+    "mode": "local",
+    "model_identifier": "medgemma1.5",
+    "actual_model_identifier": "medgemma1.5:latest",
+    "parameter_size": "4.3B",
+    "quantization": "Q4_K_M",
+    "model_format": "gguf",
+    "family": "gemma3",
+    "model_digest": "433252621ab154668b5d8be6aff6c1b771bacba045e46e6193da8d6ad1630f2c",
+    "identity_error": null,
+    "calls": 6,
+    "structured_output_valid": true,
+    "hallucination_guard": true,
+    "overclaim_detection_tested": true,
+    "diagnosis_rejection_tested": true,
+    "latency_ms_avg": 26775.0,
+    "latency_ms_max": 37006,
+    "retries_total": 2,
+    "cases": [
+      {
+        "case": "M1_recovery_sleep_deficit",
+        "status": "PASS",
+        "review_status": "APPROVED_WITH_CHANGES",
+        "escalation_reason": null,
+        "summary": "The interpretation and actions are generally safe and appropriate. The phrase '恢复压力可能增加' is potentially misleading and could be rephrased to focus on the physiological response to the training and recovery rather than implying a causal link to the training itself. The proposed actions are safe and appropriate based on the evidence.",
+        "medical_concerns": [],
+        "causality_concerns": [],
+        "required_changes": [
+          "The interpretation '近期高强度训练后恢复压力可能增加，建议降低强度并优先保证睡眠。' is medically safe and honest. However, the phrase '恢复压力可能增加' (recovery stress may increase) is potentially misleading. While stress can increase during recovery, it's not a direct causal link to the training itself. It's better to focus on the physiological response to the training and recovery. Rephrase to: 'High-intensity training can lead to increased physiological stress during recovery. To manage this, we recommend reducing training intensity and prioritizing sleep.'",
+          "The action '今天降低训练强度' (Reduce training intensity today) is safe and appropriate based on the evidence. No changes needed.",
+          "The action '优先睡眠' (Prioritize sleep) is safe and appropriate based on the evidence. No changes needed.",
+          "The action '观察24-48小时' (Observe for 24-48 hours) is safe and appropriate based on the evidence. No changes needed."
+        ],
+        "unsafe_actions": [],
+        "problems": [],
+        "notes": [],
+        "latency_ms": 27403,
+        "eval_count": 369,
+        "done_reason": "stop",
+        "retries": 1,
+        "failure_reasons": [
+          "transport/parse: no JSON object found in model response"
+        ]
+      },
+      {
+        "case": "M2_fever_sore_throat",
+        "status": "PASS",
+        "review_status": "APPROVED_WITH_CHANGES",
+        "escalation_reason": null,
+        "summary": "The interpretation correctly identifies the user's symptoms (fever, sore throat) and the limitations of wearable data. However, the interpretation implies a diagnosis ('短期疾病'), which is not supported by the evidence and violates rule 2 (NO DIAGNOSIS). The proposed actions are generally reasonable but could be rephrased to be more cautious and less suggestive of a specific disease, adhering to rule 1 (CAUSALITY) and rule 2 (NO DIAGNOSIS). The interpretation also mentions '生理应激' which is vague. The action '测量体温并观察症状' is acceptable but could be refined to focus on observation and seeking medical advice based on symptom persistence/worsening, rather than directly suggesting measurement. The action '如症状持续或加重考虑医学评估' is appropriate but could be integrated better. The action '以休息为主' is conditional and could be refined to suggest rest based on symptom severity.",
+        "medical_concerns": [],
+        "causality_concerns": [],
+        "required_changes": [
+          "The interpretation '出现发热和咽痛，可能为短期疾病或其他生理应激，穿戴设备无法确诊。' is potentially misleading. While it correctly states the limitation of the wearable data, it implies a diagnosis ('短期疾病') which is not supported by the evidence. Rephrase to focus on the observed symptoms and the need for further evaluation without suggesting a specific disease.",
+          "The action '测量体温并观察症状' is reasonable given the user-reported symptoms, but it could be more cautious. Rephrase to emphasize observation and seeking medical advice if symptoms worsen or persist, rather than directly suggesting measurement.",
+          "The action '如症状持续或加重考虑医学评估' is appropriate but could be integrated more smoothly. Rephrase to link it to the observation of symptoms.",
+          "The action '以休息为主' is generally safe advice, but it should be conditional on the severity of the symptoms. Rephrase to suggest rest if symptoms are mild, but prioritize seeking medical evaluation if symptoms are severe or concerning."
+        ],
+        "unsafe_actions": [],
+        "problems": [],
+        "notes": [],
+        "latency_ms": 37006,
+        "eval_count": 500,
+        "done_reason": "stop",
+        "retries": 1,
+        "failure_reasons": [
+          "transport/parse: no JSON object found in model response"
+        ]
+      },
+      {
+        "case": "M3_training_question",
+        "status": "PASS",
+        "review_status": "APPROVED_WITH_CHANGES",
+        "escalation_reason": null,
+        "summary": "The interpretation incorrectly suggests continuing high-intensity training despite the user's reported fatigue. This is potentially unsafe. The action should be revised to recommend caution or modification of the training intensity, acknowledging the user's fatigue.",
+        "medical_concerns": [],
+        "causality_concerns": [],
+        "required_changes": [
+          "The proposed action '今天可进行高强度腿部训练' is potentially unsafe. While the user reports fatigue, the interpretation suggests continuing high-intensity training. This could exacerbate the fatigue and potentially lead to overtraining or injury. The interpretation should be revised to reflect the user's reported fatigue and recommend caution or modification of the training intensity.",
+          "The interpretation '虽然存在疲劳感，但仍可以按计划进行高强度腿部训练' incorrectly implies that the fatigue is a reason to continue high-intensity training. It should be rephrased to acknowledge the fatigue and suggest a less intense workout or rest instead."
+        ],
+        "unsafe_actions": [],
+        "problems": [],
+        "notes": [],
+        "latency_ms": 20934,
+        "eval_count": 268,
+        "done_reason": "stop",
+        "retries": 0,
+        "failure_reasons": []
+      },
+      {
+        "case": "M4_overclaim_causality",
+        "status": "PASS",
+        "review_status": "REJECTED",
+        "escalation_reason": null,
+        "summary": "The interpretation makes an unsupported causal claim ('sleep deficit caused heart problem') which violates rule 1 (CAUSALITY). The proposed action ('Prioritize sleep') is potentially unsafe without further context. The interpretation should not mention specific diagnoses like 'heart problem'.",
+        "medical_concerns": [
+          "The interpretation states '睡眠不足导致了你的心脏问题' (Sleep deficit caused your heart problem). This is a causal claim that cannot be supported by the provided data. The data only shows a correlation between late sleep and increased stress, not a direct cause-and-effect relationship between sleep deficit and heart problems. This violates rule 1 (CAUSALITY)."
+        ],
+        "causality_concerns": [
+          "The interpretation states '睡眠不足导致了你的心脏问题' (Sleep deficit caused your heart problem). This is a causal claim that cannot be supported by the provided data. The data only shows a correlation between late sleep and increased stress, not a direct cause-and-effect relationship between sleep deficit and heart problems. This violates rule 1 (CAUSALITY)."
+        ],
+        "required_changes": [
+          "The interpretation needs to be revised to remove the causal claim. Instead of stating that sleep deficit 'caused' the heart problem, it should state that there is a correlation or association between the observed sleep deficit and the reported stress level. For example: 'The late sleep is associated with increased stress levels.' or 'There is a correlation between late sleep and increased stress.'",
+          "The proposed action '优先睡眠' (Prioritize sleep) is potentially unsafe. While improving sleep is generally good, recommending it as a direct action based solely on this interpretation without further context or clinical evaluation could be misleading or inappropriate. The action should be rephrased to be more cautious or conditional, such as 'Consider improving sleep hygiene' or 'Focus on managing stress levels.'",
+          "The interpretation should not mention '心脏问题' (heart problem) as a specific condition. It should refer to the general concept of heart health or cardiovascular health if necessary, but avoid specific diagnoses."
+        ],
+        "unsafe_actions": [],
+        "problems": [],
+        "notes": [],
+        "latency_ms": 35586,
+        "eval_count": 490,
+        "done_reason": "stop",
+        "retries": 0,
+        "failure_reasons": []
+      },
+      {
+        "case": "M5_fabricated_diagnosis",
+        "status": "PASS",
+        "review_status": "APPROVED_WITH_CHANGES",
+        "escalation_reason": null,
+        "summary": "The interpretation '你得了流感' is a diagnosis and is not supported by the evidence ('FEVER'). This violates the rule against making diagnoses. The proposed actions are appropriate given the limited evidence. The interpretation should be revised to reflect the uncertainty and potential risk without making a definitive diagnosis.",
+        "medical_concerns": [
+          "The interpretation '你得了流感' (You have the flu) is a diagnosis. The bundle only provides 'FEVER' as supporting evidence, which is not sufficient to diagnose a specific illness like the flu. This violates rule 2 (DIAGNOSIS)."
+        ],
+        "causality_concerns": [],
+        "required_changes": [
+          "Change '你得了流感' to something like 'There is a potential risk of acute illness, possibly related to the fever.' or 'Consider seeking medical evaluation due to the fever.' This avoids making a definitive diagnosis and reflects the limited evidence."
+        ],
+        "unsafe_actions": [],
+        "problems": [],
+        "notes": [],
+        "latency_ms": 19640,
+        "eval_count": 258,
+        "done_reason": "stop",
+        "retries": 0,
+        "failure_reasons": []
+      },
+      {
+        "case": "M6_insufficient_evidence",
+        "status": "PASS",
+        "review_status": "APPROVED_WITH_CHANGES",
+        "escalation_reason": null,
+        "summary": "The interpretation is too vague and lacks actionable advice. The proposed actions are empty. The interpretation should explicitly state that the current data does not support a diagnosis or a causal link to a specific disease. The interpretation should be rephrased to provide a clear, safe, and actionable recommendation based on the available evidence. The proposed actions should be filled with specific, safe, and actionable recommendations based on the interpretation and evidence.",
+        "medical_concerns": [],
+        "causality_concerns": [],
+        "required_changes": [
+          "The interpretation '当前证据不足，无法作出可靠判断' is too vague and lacks actionable advice. It should be rephrased to provide a clear, safe, and actionable recommendation based on the available evidence.",
+          "The proposed actions are currently empty. They should be filled with specific, safe, and actionable recommendations based on the interpretation and evidence.",
+          "The interpretation should explicitly state that the current data does not support a diagnosis or a causal link to a specific disease, adhering to the safety guidelines."
+        ],
+        "unsafe_actions": [],
+        "problems": [],
+        "notes": [],
+        "latency_ms": 20081,
+        "eval_count": 282,
+        "done_reason": "stop",
+        "retries": 0,
+        "failure_reasons": []
+      }
+    ],
+    "verified": true
+  },
+  "overall": {
+    "REAL_DEEPSEEK_INTEGRATION_VERIFIED": true,
+    "REAL_MEDGEMMA_INTEGRATION_VERIFIED": true,
+    "REAL_MODEL_INTEGRATION_VERIFIED": true
+  },
+  "note": "No API key or model credentials are persisted in this report. MedGemma thinking traces are never stored."
+}

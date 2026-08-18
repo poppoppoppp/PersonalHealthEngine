@@ -1,0 +1,22 @@
+{
+  "definition_id": "l6.evidence.assembly",
+  "definition_version": "0.1",
+  "definition_type": "EVIDENCE_ASSEMBLY",
+  "components": [
+    "analysis_date",
+    "recent_deviations",
+    "persistence",
+    "trends",
+    "change_results",
+    "relationships",
+    "baseline_maturity_summary",
+    "evidence_strength",
+    "recent_context",
+    "recent_feedback",
+    "similar_cases",
+    "missing_evidence"
+  ],
+  "lookback_days": 7,
+  "no_lookahead": true,
+  "contract_version": "L6-v0.1"
+}

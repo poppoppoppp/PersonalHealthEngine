@@ -1,0 +1,28 @@
+{
+  "definition_id": "l3c.features.daily",
+  "definition_version": "0.1",
+  "definition_type": "FEATURE",
+  "inputs": ["CURRENT L3A facts", "CURRENT L3B quality assessments", "CURRENT L3B source-resolution decisions"],
+  "catalog": {
+    "point_daily": ["count", "mean", "median", "min", "max"],
+    "resting_heart_rate": ["daily.value"],
+    "bucket_daily_source_scoped": ["sum", "bucket_count"],
+    "sleep_source_episode": [
+      "episode_duration_seconds",
+      "vendor_stage_segment_count",
+      "vendor_awake_duration_seconds",
+      "vendor_sleep_like_duration_seconds",
+      "present_vendor_stage_duration_seconds",
+      "present_vendor_stage_proportion"
+    ]
+  },
+  "timezone_rule": "Use the source fact's preserved offset; use timezone_name only when offset is absent. DAILY source facts retain their existing local_date.",
+  "missing_rule": "Missing groups produce no feature row. Explicit empty vendor segment lists may produce segment_count=0 with episode context.",
+  "quality_gating": "Exclude only facts FLAGGED for structural validity or provenance completeness; UNKNOWN vendor semantic certainty is retained and labelled.",
+  "source_resolution_rule": "Never aggregate different source_sid/source_class groups together. UNRESOLVED source decisions remain source-scoped.",
+  "baseline": false,
+  "anomaly_detection": false,
+  "clinical_inference": false,
+  "opaque_score": false,
+  "contract_version": "L3-v0.1"
+}

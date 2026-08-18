@@ -1,0 +1,26 @@
+{
+  "definition_id": "l4c.baseline.windows",
+  "definition_version": "0.1",
+  "definition_type": "WINDOW",
+  "windows": [7, 28, 90],
+  "as_of_rule": "baseline as of date D with window W uses observations with local_date in [D - W, D - 1]; D itself and later dates are excluded (no look-ahead).",
+  "as_of_range": "from min(local_date) to max(local_date) + 1 inclusive",
+  "statistics": [
+    "observation_count",
+    "distinct_observation_dates",
+    "history_span_days",
+    "calendar_coverage",
+    "mean",
+    "median",
+    "mad",
+    "q10",
+    "q25",
+    "q50",
+    "q75",
+    "q90"
+  ],
+  "robust_statistics": true,
+  "quantile_method": "linear interpolation over sorted values (type 7)",
+  "mad_definition": "median absolute deviation around the median",
+  "contract_version": "L4-v0.1"
+}

@@ -1,0 +1,13 @@
+{
+  "definition_id": "l5c.change_point",
+  "definition_version": "0.1",
+  "definition_type": "CHANGE_POINT",
+  "applies_to": ["DAILY"],
+  "min_change_points": 10,
+  "min_segment_points": 4,
+  "shift_threshold": 3.0,
+  "method": "robust median level-shift over trailing observations; candidate split maximizes |median_after - median_before| / pooled MAD",
+  "classes": ["INSUFFICIENT_EVIDENCE", "CHANGE_DETECTED", "NO_CHANGE"],
+  "note": "short history yields INSUFFICIENT_EVIDENCE, never a fabricated change point",
+  "contract_version": "L5-v0.1"
+}

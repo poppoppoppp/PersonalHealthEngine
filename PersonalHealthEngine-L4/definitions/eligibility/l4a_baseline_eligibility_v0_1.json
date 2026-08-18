@@ -1,0 +1,23 @@
+{
+  "definition_id": "l4a.baseline.eligibility",
+  "definition_version": "0.1",
+  "definition_type": "ELIGIBILITY",
+  "input": "CURRENT L3 derived_features",
+  "eligible": {
+    "status": "CURRENT",
+    "numeric_only": true,
+    "coverage_preserved": [
+      "OBSERVED_ONLY",
+      "VENDOR_BUCKET_WIDTH_UNRESOLVED",
+      "VENDOR_INFERENCE"
+    ]
+  },
+  "rules": [
+    "Only CURRENT derived_features with a numeric value_num are eligible.",
+    "Each feature_name/source/unit/timezone forms its own series; sources are never merged.",
+    "Sleep: only existing sleep_source_episode.* derived features are eligible; no canonical night is invented.",
+    "Steps/calories: baselined source-scoped with VENDOR_BUCKET_WIDTH_UNRESOLVED preserved; not reinterpreted as total daily energy expenditure.",
+    "Missing is never zero, never forward/backward filled, never interpolated."
+  ],
+  "contract_version": "L4-v0.1"
+}

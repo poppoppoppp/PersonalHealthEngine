@@ -1,0 +1,71 @@
+{
+  "phase": "E",
+  "title": "Q&A + Context + Feedback (engine-wired)",
+  "date_utc": "2026-08-18T03:30:00Z",
+  "status": "PASS",
+  "inputs": {
+    "phase_d": "Today vertical slice PASS; live API 127.0.0.1:8707",
+    "sealed_l6_write_semantics_mirrored": [
+      "personal_context append + SUPERSEDED + context_revisions (CORRECTION/DELETION)",
+      "user_feedback append + personal_patterns learning counters",
+      "qa_sessions + medical_reviews (QA subject rows, trigger policy from sealed l6_core)"
+    ]
+  },
+  "code_scope": {
+    "backend": {
+      "services/qna.py": "scope guard (deterministic, no model), insufficient-evidence short circuit, Personal Evidence Bundle grounding, sealed medical_trigger policy, conversation open/rollover (date advanced AND long sleep ended), qa_sessions/medical_reviews persistence",
+      "services/context.py": "extract_context -> USER_REPORTED rows (auto-save, no confirmation dialog), context_time_meta (occurred/ongoing/ended/valid_until/last_confirmed), correction (SUPERSEDED + CORRECTION revision), deletion (DELETION revision), expiry sweep, one-question budget stub",
+      "services/feedback.py": "verdict classification (准确/不太准确/补充情况 -> CONFIRMED/REJECTED/context_added|reason_corrected), sealed pattern counters update, CORRECTED text ingested as context, re-evaluation chain",
+      "api/app.py": "POST /qa/conversations, GET /qa/conversations/{id}, POST /qa/ask, GET|POST /context, PUT|DELETE /context/{id}, GET /context/pending-question, POST /feedback"
+    },
+    "app": {
+      "qa_screen.dart": "answer-first bubbles, actions, medical-review note, grounding note, suggestion chips",
+      "context_screen.dart": "natural language + quick chips, auto-save, current-context list with correct/delete, principle card",
+      "today_screen.dart": "feedback block wired (补充情况 opens text dialog), re-fetch Today after Q&A/Context return",
+      "api_client.dart": "9 new client methods"
+    }
+  },
+  "tests": {
+    "backend_suite": "66/66 PASS (40 Phase C/D + 26 Phase E)",
+    "phase_e_backend_cases": [
+      "scope guard deterministic + out-of-scope costs zero model calls",
+      "answer grounded in engine bundle (analysis_date, bundle_sha256, qa_sessions row)",
+      "insufficient evidence -> 目前不能可靠判断, zero model calls",
+      "medical routing: non-medical BYPASSED / symptom question PERFORMED exactly once",
+      "conversation rollover after new day + no rollover before sleep ends",
+      "follow-up stays in conversation; chatter never becomes context",
+      "context ingest structures + stores USER_REPORTED + time meta + triggers re-evaluation",
+      "unstructured text does not fabricate facts",
+      "correction supersedes old fact (CORRECTION revision) and flips Today to E on fever",
+      "deletion keeps provenance (DELETION revision)",
+      "expiry sweep ends stale ongoing contexts",
+      "feedback CONFIRMED advances pattern counters; REJECTED does not add support",
+      "feedback CORRECTED ingests context and re-evaluates; non-fact supplement -> reason_corrected",
+      "API wiring: context CRUD, qa ask/conversation, feedback verdicts, pending-question"
+    ],
+    "flutter": "analyze 0 errors; widget tests 5/5 PASS (FakeClient extended)",
+    "dart_e2e_transport": "14/14 PASS against live backend incl. context list + qa conversation open"
+  },
+  "e2e_contract_cases": {
+    "midday_context_update": "PASS — ingest re-evaluates Today (REMATERIALIZED, 1 model call)",
+    "correction": "PASS — supersede + Today flips to E with action-first order",
+    "overnight_rollover": "PASS — deterministic boundary (date advanced AND sleep ended)",
+    "insufficient_evidence_answer": "PASS — explicit 不能可靠判断 + missing evidence, no model call"
+  },
+  "cost_discipline": {
+    "out_of_scope_question": "0 calls",
+    "insufficient_evidence_question": "0 calls",
+    "grounded_question": "1 reasoning call (+1 medical only on sealed trigger)",
+    "context_added": "exactly 1 re-materialization call when bundle changed"
+  },
+  "model_calls_paid_this_phase": {
+    "real_deepseek": 0,
+    "note": "All Phase E verification ran on deterministic mock adapters; real-gate already passed in Phase C (1 controlled call)."
+  },
+  "known_limitations": [
+    "Context question budget returns none until learning loop (Phase F+).",
+    "History episode projection still Phase F; patterns screen already live.",
+    "Real DeepSeek extract_context path exists via adapter gate but tests use deterministic mock."
+  ],
+  "next_phase": "F — History + Personal Patterns"
+}

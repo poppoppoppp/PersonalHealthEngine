@@ -1,0 +1,34 @@
+{
+  "definition_id": "l4d.baseline.maturity",
+  "definition_version": "0.1",
+  "definition_type": "MATURITY",
+  "levels": [
+    "INSUFFICIENT_HISTORY",
+    "PROVISIONAL",
+    "ESTABLISHED"
+  ],
+  "rule": "observation_count < min_observations => INSUFFICIENT_HISTORY (statistics are not published as a normal level); meeting established thresholds => ESTABLISHED; otherwise PROVISIONAL.",
+  "publish_statistics": ["PROVISIONAL", "ESTABLISHED"],
+  "thresholds": {
+    "7": {
+      "min_observations": 3,
+      "established_min_observations": 5,
+      "established_min_span_days": 5,
+      "established_min_coverage": 0.60
+    },
+    "28": {
+      "min_observations": 3,
+      "established_min_observations": 14,
+      "established_min_span_days": 14,
+      "established_min_coverage": 0.50
+    },
+    "90": {
+      "min_observations": 3,
+      "established_min_observations": 30,
+      "established_min_span_days": 30,
+      "established_min_coverage": 0.33
+    }
+  },
+  "note": "Maturity is an engineering data-sufficiency measure, not a medical judgment.",
+  "contract_version": "L4-v0.1"
+}

@@ -1,0 +1,18 @@
+﻿{
+  "definition_id": "normalize.resting_heart_rate",
+  "definition_version": "0.1",
+  "definition_type": "NORMALIZER",
+  "dataset": "resting_heart_rate",
+  "metric": "resting_heart_rate",
+  "temporal_type": "DAILY",
+  "evidence_type": "VENDOR_DERIVED",
+  "provider": "xiaomi",
+  "unit": "bpm",
+  "local_date_source": "utc_calendar_date(value.date_time)",
+  "value_source": "value.bpm",
+  "preserved_vendor_attributes": {
+    "xiaomi_date_anchor_epoch": "value.date_time"
+  },
+  "semantic_note": "Xiaomi daily resting-heart-rate fact. value.date_time is treated as a calendar-date anchor, not as an instantaneous measurement time.",
+  "contract_version": "L3-v0.1"
+}

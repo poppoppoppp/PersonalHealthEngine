@@ -1,0 +1,11 @@
+{
+  "definition_id": "l6.hypothesis",
+  "definition_version": "0.1",
+  "definition_type": "HYPOTHESIS",
+  "hypothesis_types": [
+    "RECOVERY_STRAIN", "SLEEP_DEFICIT", "STRESS_RESPONSE",
+    "ACUTE_ILLNESS_SUSPECTED", "NO_SIGNIFICANT_FINDING", "UNKNOWN"
+  ],
+  "rule": "deterministic candidate generation from evidence; model ranks and explains",
+  "contract_version": "L6-v0.1"
+}

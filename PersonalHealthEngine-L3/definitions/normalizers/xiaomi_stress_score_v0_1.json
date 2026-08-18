@@ -1,0 +1,15 @@
+﻿{
+  "definition_id": "normalize.xiaomi_stress_score",
+  "definition_version": "0.1",
+  "definition_type": "NORMALIZER",
+  "dataset": "stress",
+  "metric": "xiaomi_stress_score",
+  "temporal_type": "POINT",
+  "evidence_type": "VENDOR_DERIVED",
+  "provider": "xiaomi",
+  "unit": "vendor_score",
+  "event_time_source": "value.time",
+  "value_source": "value.stress",
+  "semantic_note": "Vendor-derived Xiaomi physiological stress score; not psychological stress ground truth or medical diagnosis.",
+  "contract_version": "L3-v0.1"
+}

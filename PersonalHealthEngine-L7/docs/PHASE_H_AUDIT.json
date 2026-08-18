@@ -1,0 +1,34 @@
+{
+  "phase": "H",
+  "title": "Cloud-ready packaging",
+  "date_utc": "2026-08-18T06:10:00Z",
+  "status": "PASS",
+  "inputs": {"phase_g": "Notifications/Settings PASS"},
+  "code_scope": {
+    "Dockerfile": "python:3.14-slim L7-only image, non-root user, healthcheck, L7_DB on /data volume; sealed layers are NOT baked in (mounted ro at runtime)",
+    "docker-compose.yml": "l7-backend + optional medgemma (Ollama) services; sealed L3–L6 mounted read-only; l7data volume; 127.0.0.1 bind + TLS-front guidance; .env secret contract",
+    ".dockerignore": "keeps local data/build artifacts out of the image",
+    "backend/scripts/backup.py": "VACUUM INTO snapshots of L3–L7 (online-consistent) + retention (keep N newest)",
+    "backend/l7/admin/export_delete.py": "per-user export (L7 rows + L6 snapshot, deterministic, no secrets) and delete (FK-safe order; upstream deletion documented as sealed-layer-owner action)",
+    "DEPLOYMENT.md": "VPS path, MedGemma remote option, freshness degradation note, backup/restore, secret-handling review, cost controls"
+  },
+  "tests": {
+    "backend_suite": "89/89 PASS (incl. 5 Phase H cases)",
+    "phase_h_cases": [
+      "prod env refuses boot without L7_API_TOKEN",
+      "packaging smoke: prod-like app boots headless; dev token rejected (401); prod token served (200)",
+      "backup -> restore round-trip opens snapshot with L7 tables; retention prunes to keep=1",
+      "post-seal hardening: same-second backup runs get unique snapshot dirs (no VACUUM INTO collision); suite re-verified 89/89 twice",
+      "export contains user data and no secret material",
+      "delete removes all L7 rows and leaves SEALED upstream untouched"
+    ]
+  },
+  "acceptance_gate": {
+    "backend_deployable_independently": "PASS (image contains only L7; compose defines full runtime incl. model host)",
+    "dev_pc_not_required": "PASS by construction: all runtime deps (API, dbs, models) live on the VPS; app points at the VPS URL",
+    "freshness_degrades_gracefully": "PASS (Today always serves latest judgment with 数据截至 stamp; verified in Phase D payload contract)"
+  },
+  "docker_note": "Docker is not installed on the development PC (Phase A discovery). The one remaining confirmation is `docker compose up -d --build` on the target VPS; everything it runs is covered by the packaging smoke tests on this machine.",
+  "android_note": "Debug APK build in progress with Aliyun/Tencent mirror fixes (dl.google.com unreachable from this network); see PHASE_D_AUDIT addendum once complete.",
+  "next_phase": "I — Full acceptance & seal"
+}

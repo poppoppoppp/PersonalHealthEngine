@@ -1,0 +1,28 @@
+{
+  "definition_id": "l4b.baseline.series",
+  "definition_version": "0.1",
+  "definition_type": "SERIES",
+  "series_identity_fields": [
+    "feature_name",
+    "scope_type",
+    "provider",
+    "source_sid",
+    "source_class",
+    "timezone_name",
+    "timezone_offset_seconds",
+    "unit"
+  ],
+  "observation_time_field": "local_date",
+  "observation_value_field": "value_num",
+  "source_isolation": true,
+  "time_semantics": {
+    "DAILY": "one value per (feature_name, scope, local_date)",
+    "SOURCE_EPISODE": "episode-level values; episode-specific scope keys are excluded from series identity; observation time is the episode local_date (wake date)"
+  },
+  "excluded_episode_scope_keys": [
+    "episode_start_utc",
+    "episode_end_utc",
+    "l2_logical_record_id"
+  ],
+  "contract_version": "L4-v0.1"
+}

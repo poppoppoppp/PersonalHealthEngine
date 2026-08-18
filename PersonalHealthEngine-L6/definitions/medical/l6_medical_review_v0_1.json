@@ -1,0 +1,18 @@
+{
+  "definition_id": "l6.medical.review",
+  "definition_version": "0.1",
+  "definition_type": "MEDICAL_REVIEW",
+  "trigger_conditions": [
+    "user_reported_symptom",
+    "disease_question",
+    "medication_question",
+    "persistent_notable_anomaly",
+    "high_risk_hypothesis",
+    "should_see_doctor_question",
+    "safety_rule_hit"
+  ],
+  "bypass_conditions": ["overall_state_STABLE", "lifestyle_only_question", "low_medical_risk"],
+  "review_states": ["REQUIRED", "PERFORMED", "BYPASSED", "UNAVAILABLE"],
+  "no_diagnosis": true,
+  "contract_version": "L6-v0.1"
+}

@@ -1,0 +1,22 @@
+﻿{
+  "definition_id": "normalize.steps",
+  "definition_version": "0.1",
+  "definition_type": "NORMALIZER",
+  "dataset": "steps",
+  "metric": "steps",
+  "temporal_type": "BUCKET",
+  "evidence_type": "VENDOR_DERIVED",
+  "provider": "xiaomi",
+  "unit": "steps",
+  "bucket_anchor_source": "value.time",
+  "bucket_width_seconds": null,
+  "bucket_semantics": "VENDOR_UNRESOLVED",
+  "value_source": "value.steps",
+  "preserved_vendor_attributes": {
+    "vendor_distance_value": "value.distance",
+    "vendor_embedded_calories_value": "value.calories"
+  },
+  "generated_source_verified_relation": "embedded_calories = steps * 0.04",
+  "semantic_note": "Source-specific Xiaomi activity buckets. Generated and numeric sources are retained independently and must not be directly summed.",
+  "contract_version": "L3-v0.1"
+}

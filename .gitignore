@@ -47,3 +47,18 @@
 # Windows
 Thumbs.db
 Desktop.ini
+
+# Acceptance / rebuild artifacts
+**/full_rebuild_acceptance/
+
+# Historical / legacy runtime data
+**/captures*/
+**/collector_state*.json
+
+# Runtime/debug artifacts
+**/*.log
+**/.tmp/
+
+# Third-party research/source repositories
+PersonalHealthEngine-L1Lab/SmartScaleConnect/
+PersonalHealthEngine-L1Lab/mi-fitness-mcp-cn/

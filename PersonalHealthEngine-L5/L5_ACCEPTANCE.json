@@ -1,0 +1,208 @@
+{
+  "layer": "Layer 5 = Health Analytics",
+  "stage": "L5",
+  "status": "PASS",
+  "generated_at_utc": "2026-08-16T11:06:54+00:00",
+  "l3_source": "D:\\PersonalHealthEngine-L3\\db\\personal_health_features.sqlite3",
+  "l4_source": "D:\\PersonalHealthEngine-L4\\db\\personal_health_baselines.sqlite3",
+  "l5_database": "D:\\PersonalHealthEngine-L5\\db\\personal_health_analytics.sqlite3",
+  "checks_passed": 23,
+  "checks_failed": 0,
+  "checks_total": 23,
+  "summary": {
+    "schema_version": 2,
+    "counts": {
+      "series": 44,
+      "deviation": 687,
+      "persistence": 72,
+      "trend": 24,
+      "change": 24,
+      "relationship": 4
+    },
+    "evidence_counts": {
+      "INSUFFICIENT_BASELINE": 375,
+      "INSUFFICIENT_EVIDENCE": 24,
+      "INSUFFICIENT_PAIRED_DATA": 0
+    }
+  },
+  "checks": [
+    {
+      "id": "L5-01",
+      "name": "SQLite integrity",
+      "status": "PASS",
+      "evidence": "ok"
+    },
+    {
+      "id": "L5-02",
+      "name": "Foreign keys",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L5-03",
+      "name": "L5/L3/L4 isolation",
+      "status": "PASS",
+      "evidence": {
+        "l3": "D:\\PersonalHealthEngine-L3\\db\\personal_health_features.sqlite3",
+        "l4": "D:\\PersonalHealthEngine-L4\\db\\personal_health_baselines.sqlite3",
+        "l5": "D:\\PersonalHealthEngine-L5\\db\\personal_health_analytics.sqlite3",
+        "upstream_mode": "ro"
+      }
+    },
+    {
+      "id": "L5-04",
+      "name": "Production schema version",
+      "status": "PASS",
+      "evidence": 2
+    },
+    {
+      "id": "L5-05",
+      "name": "Migration chain",
+      "status": "PASS",
+      "evidence": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": "L5-06",
+      "name": "Migration checksums",
+      "status": "PASS",
+      "evidence": 2
+    },
+    {
+      "id": "L5-07",
+      "name": "Definition registry integrity",
+      "status": "PASS",
+      "evidence": 6
+    },
+    {
+      "id": "L5-08",
+      "name": "Deviation + MAD=0 fallback correctness",
+      "status": "PASS",
+      "evidence": {
+        "bad_dev": 0,
+        "mad_inf": 0
+      }
+    },
+    {
+      "id": "L5-09",
+      "name": "Baseline maturity participates",
+      "status": "PASS",
+      "evidence": 375
+    },
+    {
+      "id": "L5-10",
+      "name": "No look-ahead leakage",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L5-11",
+      "name": "Deviation provenance complete",
+      "status": "PASS",
+      "evidence": {
+        "no_input": 0,
+        "no_baseline": 0
+      }
+    },
+    {
+      "id": "L5-12",
+      "name": "Source isolation",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L5-13",
+      "name": "Persistence/trend classifications valid",
+      "status": "PASS",
+      "evidence": {
+        "p": 0,
+        "t": 0
+      }
+    },
+    {
+      "id": "L5-14",
+      "name": "Change detection conservative",
+      "status": "PASS",
+      "evidence": [
+        "INSUFFICIENT_EVIDENCE"
+      ]
+    },
+    {
+      "id": "L5-15",
+      "name": "Relationship is association only (no causality)",
+      "status": "PASS",
+      "evidence": {
+        "r_valid": 0,
+        "causal": 0
+      }
+    },
+    {
+      "id": "L5-16",
+      "name": "Sleep: no canonical night, no persistence/trend/change",
+      "status": "PASS",
+      "evidence": {
+        "sleep_p": 0,
+        "canonical": 0
+      }
+    },
+    {
+      "id": "L5-17",
+      "name": "Steps/calories coverage preserved",
+      "status": "PASS",
+      "evidence": null
+    },
+    {
+      "id": "L5-18",
+      "name": "No L6 causal/score/diagnosis/recommendation leakage",
+      "status": "PASS",
+      "evidence": []
+    },
+    {
+      "id": "L5-19",
+      "name": "Checkpoint correctness",
+      "status": "PASS",
+      "evidence": {
+        "frontier_l3": 229,
+        "frontier_l4": 1056,
+        "checkpoint": [
+          229,
+          1056
+        ]
+      }
+    },
+    {
+      "id": "L5-20",
+      "name": "Pipeline runs all PASS",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L5-21",
+      "name": "Full rebuild PASS",
+      "status": "PASS",
+      "evidence": "PASS"
+    },
+    {
+      "id": "L5-22",
+      "name": "Incremental/full semantic equivalence",
+      "status": "PASS",
+      "evidence": "PASS"
+    },
+    {
+      "id": "L5-23",
+      "name": "Regression suite passes",
+      "status": "PASS",
+      "evidence": {
+        "returncode": 0,
+        "tail": [
+          "----------------------------------------------------------------------",
+          "Ran 16 tests in 3.075s",
+          "",
+          "OK"
+        ]
+      }
+    }
+  ]
+}

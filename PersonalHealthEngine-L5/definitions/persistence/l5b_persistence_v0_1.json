@@ -1,0 +1,11 @@
+{
+  "definition_id": "l5b.persistence",
+  "definition_version": "0.1",
+  "definition_type": "PERSISTENCE",
+  "applies_to": ["DAILY"],
+  "min_consecutive": 3,
+  "definition": "consecutive trailing observations (ending at latest) whose deviation_class is ABOVE_TYPICAL_RANGE (above) or BELOW_TYPICAL_RANGE (below)",
+  "classes": ["INSUFFICIENT_OBSERVATIONS", "PERSISTENT_ABOVE_TYPICAL", "PERSISTENT_BELOW_TYPICAL", "NO_PERSISTENT_DEVIATION"],
+  "note": "consecutive observations are not automatically consecutive calendar days",
+  "contract_version": "L5-v0.1"
+}

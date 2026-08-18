@@ -1,0 +1,265 @@
+"""L7 Product API (FastAPI).
+
+Endpoints are the contract between the engine and any client (Flutter app today, future
+web/CLI). No secrets are ever exposed; model credentials never reach this layer.
+"""
+
+from __future__ import annotations
+
+import json
+
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+from l7 import __version__
+from l7.config import Config
+from l7.engine.orchestrator import EngineOrchestrator
+from l7.services.context import ContextService
+from l7.services.feedback import FeedbackService
+from l7.services.history import HistoryService
+from l7.services.notify import NotificationService, parse_quiet_hours
+from l7.services.qna import QnAService
+from l7.services.today import TodayService
+from l7.store.db import connect_l7, utc_now
+from l7.upstream.l6_bridge import L6Bridge
+
+
+def create_app(config: Config | None = None, orchestrator: EngineOrchestrator | None = None) -> FastAPI:
+    cfg = config or Config()
+    l7 = connect_l7(cfg.l7_db)
+    orch = orchestrator or EngineOrchestrator(cfg, l7)
+    today_service = TodayService(cfg, l7, orch)
+    history_service = HistoryService(cfg, l7)
+    notify_service = NotificationService(cfg, l7)
+
+    # Notification Threshold hook: fires only when a new judgment version exists.
+    if notify_service not in getattr(orch, "_l7_notify_registered", []):
+        def _on_judgment(user_id, result):
+            payload = result.today_payload or {}
+            notify_service.consider(
+                user_id,
+                payload.get("product_state", "D"),
+                result.judgment_updated,
+                payload.get("change_note"),
+                result.today_version_id,
+            )
+        orch.judgment_listeners.append(_on_judgment)
+        orch._l7_notify_registered = [notify_service]
+
+    bridge = orch.bridge if orchestrator is not None else L6Bridge(cfg.l6_code_dir)
+    context_service = ContextService(cfg, l7, bridge, orch,
+                                     reasoning_adapter=orch._reasoning_adapter)
+    feedback_service = FeedbackService(cfg, l7, bridge, orch,
+                                       reasoning_adapter=orch._reasoning_adapter)
+    qna_service = QnAService(cfg, l7, bridge,
+                             reasoning_adapter=orch._reasoning_adapter,
+                             medical_adapter=orch._medical_adapter)
+
+    app = FastAPI(title="Personal Health Engine — L7 Product API", version=__version__)
+    if cfg.environment == "local":
+        # Dev convenience only: the Flutter web/desktop client runs from another origin.
+        # Never enabled outside the local environment.
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+    app.state.config = cfg
+    app.state.l7 = l7
+    app.state.orchestrator = orch
+    app.state.today_service = today_service
+
+    token = cfg.resolve_api_token()
+
+    def require_auth(request: Request):
+        header = request.headers.get("Authorization", "")
+        if not header.startswith("Bearer ") or header[len("Bearer "):] != token:
+            raise HTTPException(status_code=401, detail="unauthorized")
+        return cfg.default_user_id
+
+    @app.get("/health")
+    def health():
+        return {"status": "ok", "version": __version__, "environment": cfg.environment}
+
+    @app.get("/today")
+    def get_today(user_id: str = Depends(require_auth)):
+        return today_service.get_today(user_id, trigger="app_open")
+
+    @app.post("/today/refresh")
+    def refresh_today(user_id: str = Depends(require_auth)):
+        result = orch.evaluate(user_id, trigger="manual_refresh")
+        return {
+            "outcome": result.outcome,
+            "model_calls": result.model_calls,
+            "judgment_updated": result.judgment_updated,
+            "today": result.today_payload,
+        }
+
+    @app.get("/today/versions")
+    def today_versions(user_id: str = Depends(require_auth)):
+        return {"versions": today_service.list_versions(user_id)}
+
+    @app.get("/today/eval-runs")
+    def eval_runs(user_id: str = Depends(require_auth)):
+        return {"runs": today_service.list_eval_runs(user_id)}
+
+    @app.get("/evidence/today")
+    def evidence_today(user_id: str = Depends(require_auth)):
+        return today_service.evidence_detail(user_id)
+
+    @app.get("/patterns")
+    def patterns(user_id: str = Depends(require_auth)):
+        return today_service.patterns(user_id)
+
+    @app.get("/usage")
+    def usage(user_id: str = Depends(require_auth)):
+        return today_service.model_usage(user_id)
+
+    @app.get("/settings")
+    def get_settings(user_id: str = Depends(require_auth)):
+        rows = l7.execute("SELECT key, value_json FROM settings WHERE user_id=?", (user_id,)).fetchall()
+        defaults = {"notification_mode": "SMART", "quiet_hours": None}
+        for r in rows:
+            defaults[r["key"]] = json.loads(r["value_json"])
+        return {"settings": defaults}
+
+    @app.put("/settings")
+    async def put_settings(request: Request, user_id: str = Depends(require_auth)):
+        body = await request.json()
+        allowed = {"notification_mode": ("QUIET", "SMART", "DAILY"), "quiet_hours": None}
+        for key, value in body.items():
+            if key not in allowed:
+                raise HTTPException(status_code=400, detail=f"unknown setting {key}")
+            if key == "notification_mode" and value not in allowed[key]:
+                raise HTTPException(status_code=400, detail="invalid notification_mode")
+            if key == "quiet_hours" and value is not None and parse_quiet_hours(value) is None:
+                raise HTTPException(status_code=400, detail="quiet_hours must be 'HH:MM-HH:MM'")
+            l7.execute(
+                "INSERT INTO settings (user_id,key,value_json,updated_at_utc) VALUES (?,?,?,?) "
+                "ON CONFLICT(user_id,key) DO UPDATE SET value_json=excluded.value_json,"
+                "updated_at_utc=excluded.updated_at_utc",
+                (user_id, key, json.dumps(value, ensure_ascii=False), utc_now()),
+            )
+        l7.commit()
+        return get_settings(user_id)
+
+    # ---------------- Q&A (§18–§22) ----------------
+    @app.post("/qa/conversations")
+    def qa_open_conversation(user_id: str = Depends(require_auth)):
+        return qna_service.open_or_roll_conversation(user_id)
+
+    @app.get("/qa/conversations/{conversation_id}")
+    def qa_conversation(conversation_id: int, user_id: str = Depends(require_auth)):
+        return qna_service.conversation_state(user_id, conversation_id)
+
+    @app.post("/qa/ask")
+    async def qa_ask(request: Request, user_id: str = Depends(require_auth)):
+        body = await request.json()
+        question = (body or {}).get("question")
+        if not question:
+            raise HTTPException(status_code=400, detail="question required")
+        try:
+            return qna_service.ask(user_id, question, body.get("conversation_id"))
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    # ---------------- Context (§23–§29) ----------------
+    @app.get("/context")
+    def context_list(user_id: str = Depends(require_auth)):
+        return context_service.list_current(user_id)
+
+    @app.post("/context")
+    async def context_add(request: Request, user_id: str = Depends(require_auth)):
+        body = await request.json()
+        text = (body or {}).get("text")
+        if not text:
+            raise HTTPException(status_code=400, detail="text required")
+        try:
+            return context_service.ingest(user_id, text, body.get("date"))
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    @app.put("/context/{context_id}")
+    async def context_correct(context_id: int, request: Request,
+                              user_id: str = Depends(require_auth)):
+        body = await request.json()
+        text = (body or {}).get("text")
+        if not text:
+            raise HTTPException(status_code=400, detail="text required")
+        try:
+            return context_service.correct(user_id, context_id, text, body.get("date"))
+        except LookupError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+
+    @app.delete("/context/{context_id}")
+    def context_delete(context_id: int, user_id: str = Depends(require_auth)):
+        try:
+            return context_service.delete(user_id, context_id)
+        except LookupError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+
+    @app.get("/context/pending-question")
+    def context_pending_question(user_id: str = Depends(require_auth)):
+        return context_service.pending_question(user_id)
+
+    # ---------------- Feedback (§30–§32) ----------------
+    @app.post("/feedback")
+    async def feedback_submit(request: Request, user_id: str = Depends(require_auth)):
+        body = await request.json() or {}
+        verdict = body.get("verdict")
+        if not verdict:
+            raise HTTPException(status_code=400, detail="verdict required")
+        try:
+            return feedback_service.submit(
+                user_id, verdict, body.get("text"),
+                subject_type=body.get("subject_type", "DAILY_REASONING"),
+                subject_id=body.get("subject_id"),
+                analysis_date=body.get("analysis_date"),
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except LookupError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+
+    # ---------------- History / Episodes (§37–§40) ----------------
+    @app.get("/history/episodes")
+    def history_episodes(user_id: str = Depends(require_auth)):
+        return history_service.list_episodes(user_id)
+
+    @app.get("/history/episodes/{episode_id}")
+    def history_episode(episode_id: int, user_id: str = Depends(require_auth)):
+        try:
+            return history_service.episode_detail(user_id, episode_id)
+        except LookupError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+
+    @app.get("/history/search")
+    def history_search(q: str = "", user_id: str = Depends(require_auth)):
+        return history_service.search(user_id, q)
+
+    # ---------------- Notifications (§48–§52) ----------------
+    @app.get("/notifications")
+    def notifications_feed(user_id: str = Depends(require_auth)):
+        return notify_service.feed(user_id)
+
+    @app.get("/notifications/decisions")
+    def notifications_decisions(user_id: str = Depends(require_auth)):
+        return notify_service.decisions(user_id)
+
+    return app
+
+
+app = None  # lazily created by the entrypoint to avoid import-time side effects
+
+
+def main() -> None:
+    import uvicorn
+
+    application = create_app()
+    uvicorn.run(application, host="127.0.0.1", port=8707)
+
+
+if __name__ == "__main__":
+    main()

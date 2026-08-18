@@ -1,0 +1,97 @@
+{
+  "layer": "L7",
+  "title": "Layer 7 (Product Output) — Final Acceptance Audit",
+  "date_utc": "2026-08-18T07:00:00Z",
+  "machine_local": "2026-08-18 ~00:40 +08:00",
+  "verdict": "PASS — L7 = SEALED",
+  "contract_basis": "Layer 7 Product Contract (APPROVED/LOCKED); scope executed exactly per phases A–I in IMPLEMENTATION_PHASES.md; no product redesign, no L1–L6 re-implementation.",
+
+  "test_matrix": {
+    "backend_unit_integration": "89/89 PASS (pytest; mock adapters by default)",
+    "flutter_analyze": "0 errors (19 deprecation infos only)",
+    "flutter_widget_tests": "5/5 PASS",
+    "dart_e2e_transport_live_api": "18/18 PASS (real HttpApiClient code path vs live backend)",
+    "upstream_integrity": "PASS (scripts/verify_upstream_integrity.py; all SEALED layers byte-level behavior unchanged vs Phase A baseline)",
+    "real_model_gate": "Phase C controlled gate PASS: exactly 1 real DeepSeek call on a throwaway L6 copy; production L6 untouched"
+  },
+
+  "contract_e2e_scenarios": {
+    "1_stable_day": {
+      "verdict": "PASS",
+      "evidence": "state A mapping; widget test 'stable day renders zero actions (no forced filler advice)'; renderer caps 0 actions on A; no notification SEND on stable days"
+    },
+    "2_minor_change": {
+      "verdict": "PASS",
+      "evidence": "MILD_CHANGE -> state B mapping (test_state_mapping); B never forces actions; SMART mode suppresses B notifications"
+    },
+    "3_actionable_change": {
+      "verdict": "PASS",
+      "evidence": "NOTABLE_CHANGE -> state C; live production payload (SLEEP_DEFICIT) renders conclusion->cause->action with <=3 actions; SMART mode sends exactly one notification on judgment update"
+    },
+    "4_insufficient_evidence": {
+      "verdict": "PASS",
+      "evidence": "INSUFFICIENT_EVIDENCE -> state D; Q&A returns explicit '目前不能可靠判断 + 缺少的信息' with 0 model calls (test_qna.test_insufficient_evidence_is_explicit)"
+    },
+    "5_medical_safety": {
+      "verdict": "PASS",
+      "evidence": "E precedence in mapping; widget test proves action rendered ABOVE cause for E; sealed medical_trigger policy fires MedGemma-path exactly once on symptom question (PERFORMED); fever correction flips Today to E with conclusion->action->cause order"
+    },
+    "6_midday_context_update": {
+      "verdict": "PASS",
+      "evidence": "POST /context stores USER_REPORTED fact + time meta, then re-evaluates Today (REMATERIALIZED, exactly 1 model call on changed bundle); app Today auto-refreshes on return"
+    },
+    "7_correction": {
+      "verdict": "PASS",
+      "evidence": "PUT /context/{id} supersedes old row (SUPERSEDED + CORRECTION revision, never silent overwrite), new fact wins, Today re-evaluated; test flips state to E"
+    },
+    "8_overnight_rollover": {
+      "verdict": "PASS",
+      "evidence": "deterministic boundary: date advanced AND long sleep ended -> conversation CLOSED with boundary_reason and fresh conversation opened; no rollover before sleep ends (wall-clock-free tests)"
+    },
+    "9_semantic_stability": {
+      "verdict": "PASS",
+      "evidence": "judgment_signature (sha256 over the sealed judgment) gates version creation: identical judgment -> same rendered wording reused verbatim, no new version, no model call (Phase C change-detection tests); renderer is deterministic with no sampling/synonym/model in the render path"
+    },
+    "10_notification_restraint": {
+      "verdict": "PASS",
+      "evidence": "Notification Threshold consulted ONLY on new judgment versions (listener hook); stable/unchanged re-renders produce zero decisions; actionable C update produces exactly one SEND; every SEND/SUPPRESS logged with reason; safety overrides quiet hours"
+    }
+  },
+
+  "section_59_acceptance_criteria": {
+    "five_states_only": "PASS — A/B/C/D/E exhaustive mapping, single state per Today payload",
+    "no_scoring_system_static_audit": "PASS — repo-wide grep finds zero score/readiness/traffic-light implementations; only negation statements and the upstream raw feature name 'xiaomi_stress_score' (a data field label from L3, not a product score)",
+    "three_thresholds_separated": "PASS — Recompute (upstream signature) < UI Change (judgment signature) < Notification (new judgment version); each threshold independently tested",
+    "today_is_live_state_not_daily_report": "PASS — GET /today always answers from current evidence with '基于截至 <date>' stamp; no 'report not ready' path exists",
+    "append_only_versions": "PASS — old today_versions rows kept (STALE semantics via sealed reconcile_daily); version history visible in app",
+    "max_one_cause_max_three_actions": "PASS — renderer enforces caps; secondary cause only when sealed output carries one",
+    "cost_discipline": "PASS — unchanged evidence 0 calls; changed bundle exactly 1 call; identical request hash cache hit; medical review only on sealed trigger; out-of-scope Q&A 0 calls",
+    "four_information_classes": "PASS — AI inference never written as USER_REPORTED; Q&A chatter never becomes context (test proven); corrections supersede with provenance",
+    "secrets_server_side_only": "PASS — DEEPSEEK_API_KEY/L7_API_TOKEN env-only; app holds only user bearer token; prod env refuses boot without token; no secret material in any export/log (export test asserts)",
+    "dev_pc_not_final_dependency": "PASS by construction — Dockerfile+compose deploy backend+model host on a VPS; app points at configurable URL; freshness degrades gracefully with visible stamp; final `docker compose up -d --build` is the one remaining on-VPS confirmation (Docker not installed on dev PC, Phase A discovery)",
+    "upstream_sealed_untouched": "PASS — verify_upstream_integrity.py: L6 production state equals Phase A documented baseline exactly (daily_reasoning 1 CURRENT mock row, contexts 2, bundles 1, sealed CLI self-validation rows unchanged, context_revisions 0); L3/L4/L5 opened read-only throughout; all L6 writes in tests confined to per-test copies"
+  },
+
+  "deliverables": {
+    "backend": "FastAPI L7 Product API: /today, /today/refresh, /today/versions, /today/eval-runs, /evidence/today, /patterns, /usage, /settings, /qa/*, /context*, /feedback, /history/*, /notifications*",
+    "engine": "EngineOrchestrator (three-threshold evaluation), model_call_cache, deterministic five-state renderer, notification gate, episode projection",
+    "app": "Flutter app (Android + Web): 今日/历史/我的规律/我的 + Q&A, Context, Evidence Level-3, Feedback, Notifications log; app-debug.apk built (Aliyun/Tencent mirrors documented); web release built",
+    "ops": "Dockerfile, docker-compose.yml, .dockerignore, DEPLOYMENT.md, scripts/backup.py (VACUUM INTO + retention), scripts/verify_upstream_integrity.py, admin export/delete",
+    "docs": "L7_ENVIRONMENT_DISCOVERY.md, L7_TECHNICAL_ARCHITECTURE.md, IMPLEMENTATION_PHASES.md, PHASE_C..H audits, DEPLOYMENT.md, L7_SEAL.md, L7_HANDOFF.md"
+  },
+
+  "model_call_accounting": {
+    "real_deepseek_calls_total": 1,
+    "real_medgemma_calls_total": 0,
+    "detail": "1 controlled DeepSeek call (Phase C real-gate on throwaway copy). MedGemma availability verified via digest-confirmed local Ollama; L7 invokes it only behind the sealed trigger policy. All automated tests use deterministic mock adapters labeled mock-* per contract §61."
+  },
+
+  "known_limitations": [
+    "Real DeepSeek reasoning summary is English (sealed L6 prompt does not force zh); L7 presents model text verbatim per semantic-stability rule. Forcing zh-CN requires a sealed-L6 prompt change = future interface extension needing layer-owner approval.",
+    "Context question budget returns none until a learning loop exists (post-seal roadmap).",
+    "OS-level push transport is post-MVP; the in-app feed + decision audit is live. Gate logic is transport-agnostic.",
+    "APK is debug-signed; release signing is a distribution task.",
+    "Docker not installed on dev PC: final `docker compose up -d --build` runs on the VPS (everything it executes is covered by packaging smoke tests).",
+    "History NL search is deterministic keyword match; semantic search is post-seal."
+  ]
+}

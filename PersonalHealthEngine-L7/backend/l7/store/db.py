@@ -1,0 +1,197 @@
+"""L7 product database: versioned migrations + connection helpers.
+
+The L7 db is L7-owned. It stores product projections only (Today versions, evaluation
+runs, model-call cache, conversations, notification decisions, settings, episodes,
+context time metadata). Every table carries `user_id` so multi-user rollout never needs a
+schema rewrite. Upstream health facts are never copied here — they stay in the sealed
+layer databases and are referenced by id/hash.
+"""
+
+from __future__ import annotations
+
+import sqlite3
+from datetime import datetime, timezone
+from pathlib import Path
+
+SCHEMA_VERSION = 1
+
+MIGRATION_001 = """
+CREATE TABLE IF NOT EXISTS schema_migrations_l7 (
+    version          INTEGER PRIMARY KEY,
+    name             TEXT NOT NULL,
+    applied_at_utc   TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS users (
+    id            TEXT PRIMARY KEY,
+    created_at_utc TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS today_versions (
+    id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id                TEXT NOT NULL REFERENCES users(id),
+    analysis_date          TEXT NOT NULL,
+    l6_daily_reasoning_id  INTEGER,
+    bundle_sha256          TEXT NOT NULL,
+    product_state          TEXT NOT NULL
+        CHECK (product_state IN ('A','B','C','D','E')),
+    signature_sha256       TEXT NOT NULL,
+    rendered_json          TEXT NOT NULL,
+    judgment_updated       INTEGER NOT NULL DEFAULT 0,
+    change_note            TEXT,
+    trigger                TEXT NOT NULL,
+    created_at_utc         TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_today_versions_user ON today_versions(user_id, id);
+
+CREATE TABLE IF NOT EXISTS eval_runs (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id            TEXT NOT NULL REFERENCES users(id),
+    started_at_utc     TEXT NOT NULL,
+    finished_at_utc    TEXT,
+    trigger            TEXT NOT NULL,
+    upstream_sig_json  TEXT NOT NULL,
+    bundle_sha256      TEXT,
+    recompute_reason   TEXT,
+    model_calls        INTEGER NOT NULL DEFAULT 0,
+    outcome            TEXT NOT NULL,
+    today_version_id   INTEGER REFERENCES today_versions(id)
+);
+
+CREATE TABLE IF NOT EXISTS model_call_cache (
+    request_sha256   TEXT NOT NULL,
+    adapter_kind     TEXT NOT NULL CHECK (adapter_kind IN ('REASONING','MEDICAL')),
+    model_id         TEXT NOT NULL,
+    response_json    TEXT NOT NULL,
+    created_at_utc   TEXT NOT NULL,
+    PRIMARY KEY (request_sha256, adapter_kind)
+);
+
+CREATE TABLE IF NOT EXISTS evidence_change_log (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id        TEXT NOT NULL REFERENCES users(id),
+    eval_run_id    INTEGER REFERENCES eval_runs(id),
+    kind           TEXT NOT NULL,
+    detail_json    TEXT NOT NULL,
+    created_at_utc TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS notification_decisions (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id            TEXT NOT NULL REFERENCES users(id),
+    created_at_utc     TEXT NOT NULL,
+    decision           TEXT NOT NULL CHECK (decision IN ('SEND','SUPPRESS')),
+    reason             TEXT NOT NULL,
+    mode               TEXT NOT NULL,
+    related_version_id INTEGER REFERENCES today_versions(id)
+);
+
+CREATE TABLE IF NOT EXISTS conversations (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id         TEXT NOT NULL REFERENCES users(id),
+    opened_at_utc   TEXT NOT NULL,
+    closed_at_utc   TEXT,
+    boundary_reason TEXT,
+    status          TEXT NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN','CLOSED'))
+);
+
+CREATE TABLE IF NOT EXISTS qa_turns (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversation_id   INTEGER NOT NULL REFERENCES conversations(id),
+    user_id           TEXT NOT NULL REFERENCES users(id),
+    role              TEXT NOT NULL CHECK (role IN ('USER','ASSISTANT')),
+    text              TEXT NOT NULL,
+    l6_qa_session_id  INTEGER,
+    evidence_ref_json TEXT,
+    created_at_utc    TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS context_time_meta (
+    l6_context_id      INTEGER PRIMARY KEY,
+    user_id            TEXT NOT NULL REFERENCES users(id),
+    occurred_on        TEXT,
+    ongoing            INTEGER NOT NULL DEFAULT 0,
+    ended_on           TEXT,
+    valid_until        TEXT,
+    last_confirmed_at  TEXT,
+    extraction_confidence TEXT,
+    created_at_utc     TEXT NOT NULL,
+    updated_at_utc     TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS settings (
+    user_id        TEXT NOT NULL REFERENCES users(id),
+    key            TEXT NOT NULL,
+    value_json     TEXT NOT NULL,
+    updated_at_utc TEXT NOT NULL,
+    PRIMARY KEY (user_id, key)
+);
+
+CREATE TABLE IF NOT EXISTS health_episodes (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id          TEXT NOT NULL REFERENCES users(id),
+    episode_key      TEXT NOT NULL,
+    start_date       TEXT NOT NULL,
+    end_date         TEXT,
+    phase            TEXT NOT NULL CHECK (phase IN ('DEVELOPING','RECOVERING','CLOSED')),
+    summary          TEXT,
+    status           TEXT NOT NULL DEFAULT 'CURRENT' CHECK (status IN ('CURRENT','MERGED','SUPERSEDED')),
+    created_at_utc   TEXT NOT NULL,
+    updated_at_utc   TEXT NOT NULL,
+    UNIQUE (user_id, episode_key)
+);
+
+CREATE TABLE IF NOT EXISTS episode_events (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    episode_id    INTEGER NOT NULL REFERENCES health_episodes(id),
+    event_date    TEXT NOT NULL,
+    kind          TEXT NOT NULL,
+    ref_layer     TEXT,
+    ref_id        INTEGER,
+    detail_json   TEXT NOT NULL,
+    created_at_utc TEXT NOT NULL
+);
+"""
+
+
+def utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def connect_l7(path: str) -> sqlite3.Connection:
+    """Open the L7 product db and ensure migrations + seed rows exist."""
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    # check_same_thread=False: the FastAPI server serves requests from worker threads while
+    # the connection is created at startup. Access is serialized by the single-process
+    # design (one orchestrator, BEGIN IMMEDIATE transactions for writes).
+    con = sqlite3.connect(path, check_same_thread=False)
+    con.row_factory = sqlite3.Row
+    con.execute("PRAGMA foreign_keys = ON")
+    con.execute("PRAGMA journal_mode = WAL")
+    _migrate(con)
+    return con
+
+
+def _migrate(con: sqlite3.Connection) -> None:
+    con.execute(
+        "CREATE TABLE IF NOT EXISTS schema_migrations_l7 ("
+        "version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at_utc TEXT NOT NULL)"
+    )
+    applied = {row[0] for row in con.execute("SELECT version FROM schema_migrations_l7")}
+    if 1 not in applied:
+        con.executescript(MIGRATION_001)
+        con.execute(
+            "INSERT INTO schema_migrations_l7 (version, name, applied_at_utc) VALUES (1, 'foundation', ?)",
+            (utc_now(),),
+        )
+    con.execute("INSERT OR IGNORE INTO users (id, created_at_utc) VALUES ('owner', ?)", (utc_now(),))
+    con.commit()
+
+
+def open_readonly(path: str) -> sqlite3.Connection:
+    """Open a sealed upstream database strictly read-only."""
+    uri = Path(path).resolve().as_uri() + "?mode=ro"
+    con = sqlite3.connect(uri, uri=True)
+    con.row_factory = sqlite3.Row
+    return con

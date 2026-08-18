@@ -1,0 +1,21 @@
+{
+  "definition_id": "l5a.deviation.robust",
+  "definition_version": "0.1",
+  "definition_type": "DEVIATION",
+  "windows": [7, 28, 90],
+  "baseline_matching": "L4 baseline with as_of_date == feature local_date (no look-ahead)",
+  "typical_range": "Q10 <= current <= Q90",
+  "deviation_class_rule": {
+    "INSUFFICIENT_BASELINE": "baseline maturity is INSUFFICIENT_HISTORY or baseline median is NULL",
+    "ABOVE_TYPICAL_RANGE": "current > baseline Q90",
+    "BELOW_TYPICAL_RANGE": "current < baseline Q10",
+    "WITHIN_TYPICAL_RANGE": "Q10 <= current <= Q90"
+  },
+  "quantile_position_rule": "ordinal band over [Q10,Q25,Q50,Q75,Q90] using half-open intervals [q_low, q_high)",
+  "robust_standardized_deviation": "(current - median) / MAD",
+  "mad_zero_fallback": "robust_standardized_deviation is NULL with reason MAD_ZERO when MAD == 0",
+  "relative_deviation": "(current - median) / median",
+  "relative_deviation_units": ["bpm", "percent", "seconds", "steps", "vendor_calories"],
+  "not_clinical": true,
+  "contract_version": "L5-v0.1"
+}

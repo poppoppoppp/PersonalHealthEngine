@@ -1,0 +1,12 @@
+{
+  "definition_id": "l6.confidence",
+  "definition_version": "0.1",
+  "definition_type": "CONFIDENCE",
+  "levels": ["VERY_LOW", "LOW", "MODERATE", "HIGH"],
+  "rule": "deterministic base confidence from evidence; model may only explain or downgrade",
+  "high_requires": ">=3 supporting signals, no INSUFFICIENT_HISTORY baselines, no counter evidence",
+  "moderate_requires": ">=2 supporting signals and no counter evidence",
+  "low_requires": ">=1 supporting signal or PROVISIONAL baselines",
+  "very_low": "insufficient or conflicting evidence",
+  "contract_version": "L6-v0.1"
+}

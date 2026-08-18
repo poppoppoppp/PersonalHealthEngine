@@ -1,0 +1,126 @@
+{
+  "schema": "PHE-L2-Final-Audit-v0.1",
+  "generated_at_utc": "2026-08-16T04:14:57.665776+00:00",
+  "status": "PASS",
+  "summary": {
+    "captures": 9,
+    "source_artifacts": 81,
+    "logical_records": 5030,
+    "raw_record_versions": 5297,
+    "raw_record_observations": 15751,
+    "revisions": 267,
+    "late_arrivals": 56
+  },
+  "checks": [
+    {
+      "name": "SQLite integrity",
+      "pass": true,
+      "detail": "ok"
+    },
+    {
+      "name": "Foreign keys",
+      "pass": true,
+      "detail": "errors=0"
+    },
+    {
+      "name": "WAL journal mode",
+      "pass": true,
+      "detail": "wal"
+    },
+    {
+      "name": "Layer boundary / table set",
+      "pass": true,
+      "detail": "tables=['captures', 'ingestion_issues', 'ingestion_run_artifacts', 'ingestion_runs', 'logical_records', 'raw_record_observations', 'raw_record_versions', 'schema_migrations', 'source_artifacts']"
+    },
+    {
+      "name": "Production schema version",
+      "pass": true,
+      "detail": "versions=[1]"
+    },
+    {
+      "name": "Count captures",
+      "pass": true,
+      "detail": "9 expected=9"
+    },
+    {
+      "name": "Count source_artifacts",
+      "pass": true,
+      "detail": "81 expected=81"
+    },
+    {
+      "name": "Count logical_records",
+      "pass": true,
+      "detail": "5030 expected=5030"
+    },
+    {
+      "name": "Count raw_record_versions",
+      "pass": true,
+      "detail": "5297 expected=5297"
+    },
+    {
+      "name": "Count raw_record_observations",
+      "pass": true,
+      "detail": "15751 expected=15751"
+    },
+    {
+      "name": "Ingestion run audit",
+      "pass": true,
+      "detail": "runs=2, success=2"
+    },
+    {
+      "name": "Ingestion issues",
+      "pass": true,
+      "detail": "issues=0"
+    },
+    {
+      "name": "Credential isolation",
+      "pass": true,
+      "detail": "credentials_embedded=0"
+    },
+    {
+      "name": "Raw SID preservation",
+      "pass": true,
+      "detail": "missing_raw_sid=0"
+    },
+    {
+      "name": "Sleep source coexistence",
+      "pass": true,
+      "detail": "sources=2, generated=7, wearable=7"
+    },
+    {
+      "name": "Version classification invariant",
+      "pass": true,
+      "detail": "NEW=5030, REVISION=267, REOBSERVATION=10454"
+    },
+    {
+      "name": "Revision preservation",
+      "pass": true,
+      "detail": "{'calories': 67, 'heart_rate': 155, 'spo2': 3, 'steps': 40, 'stress': 2}"
+    },
+    {
+      "name": "Late-arrival semantics",
+      "pass": true,
+      "detail": "late_arrivals=56, invalid=0"
+    },
+    {
+      "name": "Full provenance traceability",
+      "pass": true,
+      "detail": "artifacts=81/81, manifests=9/9, lines=15751, observations=15751, errors=0"
+    },
+    {
+      "name": "Backup / restore",
+      "pass": true,
+      "detail": "backup=l2_verified_20260816T120642.sqlite3, restored=restored_20260816T120642.sqlite3"
+    },
+    {
+      "name": "Full rebuild from archive",
+      "pass": true,
+      "detail": "db=D:\\PersonalHealthEngine-L2\\rebuild_test\\20260816T120732\\db\\personal_health_raw.sqlite3"
+    },
+    {
+      "name": "Atomic schema migration",
+      "pass": true,
+      "detail": "versions=[1, 2], rollback_table=0, v3_rows=0"
+    }
+  ]
+}

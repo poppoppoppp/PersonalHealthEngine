@@ -1,0 +1,14 @@
+﻿{
+  "definition_id": "normalize.spo2",
+  "definition_version": "0.1",
+  "definition_type": "NORMALIZER",
+  "dataset": "spo2",
+  "metric": "spo2",
+  "temporal_type": "POINT",
+  "evidence_type": "SENSOR_DERIVED",
+  "provider": "xiaomi",
+  "unit": "percent",
+  "event_time_source": "value.time",
+  "value_source": "value.spo2",
+  "contract_version": "L3-v0.1"
+}

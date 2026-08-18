@@ -1,0 +1,244 @@
+{
+  "stage": "L3C",
+  "status": "PASS",
+  "generated_at_utc": "2026-08-16T09:09:53+00:00",
+  "checks_passed": 25,
+  "checks_failed": 0,
+  "checks_total": 25,
+  "checks": [
+    {
+      "id": "L3C-01",
+      "name": "SQLite integrity",
+      "status": "PASS",
+      "evidence": "ok"
+    },
+    {
+      "id": "L3C-02",
+      "name": "Foreign keys",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L3C-03",
+      "name": "L3C schema version",
+      "status": "PASS",
+      "evidence": 8
+    },
+    {
+      "id": "L3C-04",
+      "name": "L3A acceptance preserved",
+      "status": "PASS",
+      "evidence": {
+        "artifact": "D:\\PersonalHealthEngine-L3\\L3A_ACCEPTANCE.json",
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "L3C-05",
+      "name": "L3B acceptance preserved",
+      "status": "PASS",
+      "evidence": {
+        "artifact": "D:\\PersonalHealthEngine-L3\\L3B_ACCEPTANCE.json",
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "L3C-06",
+      "name": "Feature definition version and checksum",
+      "status": "PASS",
+      "evidence": {
+        "definition_id": "l3c.features.daily",
+        "version": "0.1",
+        "checksum_match": true
+      }
+    },
+    {
+      "id": "L3C-07",
+      "name": "Conservative feature catalog materialized",
+      "status": "PASS",
+      "evidence": {
+        "current_features": 229,
+        "feature_names": {
+          "heart_rate.daily.count": 5,
+          "heart_rate.daily.mean": 5,
+          "heart_rate.daily.median": 5,
+          "heart_rate.daily.min": 5,
+          "heart_rate.daily.max": 5,
+          "spo2.daily.count": 5,
+          "spo2.daily.mean": 5,
+          "spo2.daily.median": 5,
+          "spo2.daily.min": 5,
+          "spo2.daily.max": 5,
+          "xiaomi_stress_score.daily.count": 5,
+          "xiaomi_stress_score.daily.mean": 5,
+          "xiaomi_stress_score.daily.median": 5,
+          "xiaomi_stress_score.daily.min": 5,
+          "xiaomi_stress_score.daily.max": 5,
+          "resting_heart_rate.daily.value": 2,
+          "calories.daily.sum": 11,
+          "calories.daily.bucket_count": 11,
+          "steps.daily.sum": 8,
+          "steps.daily.bucket_count": 8,
+          "sleep_source_episode.duration_seconds": 14,
+          "sleep_source_episode.vendor_stage_segment_count": 14,
+          "sleep_source_episode.vendor_awake_duration_seconds": 13,
+          "sleep_source_episode.vendor_sleep_like_duration_seconds": 13,
+          "sleep_source_episode.vendor_stage.sleep.duration_seconds": 7,
+          "sleep_source_episode.vendor_stage.sleep.proportion": 7,
+          "sleep_source_episode.vendor_stage.awake.duration_seconds": 5,
+          "sleep_source_episode.vendor_stage.awake.proportion": 5,
+          "sleep_source_episode.vendor_stage.deep.duration_seconds": 6,
+          "sleep_source_episode.vendor_stage.deep.proportion": 6,
+          "sleep_source_episode.vendor_stage.light.duration_seconds": 6,
+          "sleep_source_episode.vendor_stage.light.proportion": 6,
+          "sleep_source_episode.vendor_stage.rem.duration_seconds": 6,
+          "sleep_source_episode.vendor_stage.rem.proportion": 6
+        }
+      }
+    },
+    {
+      "id": "L3C-08",
+      "name": "No duplicate CURRENT features",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L3C-09",
+      "name": "Feature provenance complete",
+      "status": "PASS",
+      "evidence": {
+        "fact_gaps": 0,
+        "quality_gaps": 0,
+        "resolution_gaps": 0
+      }
+    },
+    {
+      "id": "L3C-10",
+      "name": "N:M fact provenance exercised",
+      "status": "PASS",
+      "evidence": 212
+    },
+    {
+      "id": "L3C-11",
+      "name": "CURRENT features use CURRENT facts",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L3C-12",
+      "name": "Quality-aware aggregation",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L3C-13",
+      "name": "Resolution-aware aggregation",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L3C-14",
+      "name": "Source-aware bucket aggregation",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L3C-15",
+      "name": "Bucket coverage uncertainty preserved",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L3C-16",
+      "name": "Calories vendor unit preserved",
+      "status": "PASS",
+      "evidence": [
+        "vendor_calories"
+      ]
+    },
+    {
+      "id": "L3C-17",
+      "name": "Missing is not represented by zero samples",
+      "status": "PASS",
+      "evidence": {
+        "invalid_sample_count": 0,
+        "rule": "Missing groups produce no feature row. Explicit empty vendor segment lists may produce segment_count=0 with episode context."
+      }
+    },
+    {
+      "id": "L3C-18",
+      "name": "Timezone and local-date semantics",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L3C-19",
+      "name": "Sleep remains source-episode scoped vendor inference",
+      "status": "PASS",
+      "evidence": {
+        "episode_duration_features": 14,
+        "scope_errors": 0
+      }
+    },
+    {
+      "id": "L3C-20",
+      "name": "No canonical night or physiological truth invented",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L3C-21",
+      "name": "No opaque composite score",
+      "status": "PASS",
+      "evidence": []
+    },
+    {
+      "id": "L3C-22",
+      "name": "No baseline, anomaly, or clinical inference",
+      "status": "PASS",
+      "evidence": {
+        "baseline": false,
+        "anomaly_detection": false,
+        "clinical_inference": false
+      }
+    },
+    {
+      "id": "L3C-23",
+      "name": "Deterministic full idempotency",
+      "status": "PASS",
+      "evidence": {
+        "checkpoint": 15751,
+        "current_features": 229,
+        "input_facts": 5179,
+        "inserted": 0,
+        "mode": "FULL",
+        "run_id": "l3c-full-20260816T084606Z-09f6ce13",
+        "stale": 0,
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "L3C-24",
+      "name": "Checkpoint correctness",
+      "status": "PASS",
+      "evidence": {
+        "frontier": 15751,
+        "checkpoint": 15751
+      }
+    },
+    {
+      "id": "L3C-25",
+      "name": "Revision, REOBSERVATION, and full/incremental equivalence",
+      "status": "PASS",
+      "evidence": {
+        "returncode": 0,
+        "summary": [
+          "----------------------------------------------------------------------",
+          "Ran 4 tests in 19.259s",
+          "",
+          "OK"
+        ]
+      }
+    }
+  ]
+}

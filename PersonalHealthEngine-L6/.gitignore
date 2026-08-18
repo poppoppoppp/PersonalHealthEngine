@@ -1,0 +1,14 @@
+# Never commit credentials
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Local model caches / outputs
+*.sqlite3-wal
+*.sqlite3-shm
+hf_cache/

@@ -1,0 +1,223 @@
+{
+  "layer": "Layer 5 = Health Analytics",
+  "status": "PASS",
+  "generated_at_utc": "2026-08-16T11:06:54+00:00",
+  "l3_source": "D:\\PersonalHealthEngine-L3\\db\\personal_health_features.sqlite3",
+  "l4_source": "D:\\PersonalHealthEngine-L4\\db\\personal_health_baselines.sqlite3",
+  "l5_database": "D:\\PersonalHealthEngine-L5\\db\\personal_health_analytics.sqlite3",
+  "checks_passed": 28,
+  "checks_failed": 0,
+  "checks_total": 28,
+  "summary": {
+    "schema_version": 2,
+    "current_series": 44,
+    "current_deviation": 687,
+    "current_persistence": 72,
+    "current_trend": 24,
+    "current_change": 24,
+    "current_relationship": 4,
+    "definitions": 6,
+    "migrations": 2
+  },
+  "stage_results": {
+    "ACCEPTANCE": "PASS",
+    "FULL_REBUILD": "PASS",
+    "SEMANTIC_EQUIVALENCE": "PASS"
+  },
+  "known_limitations": [
+    "Sleep stages/awake states are Xiaomi vendor inferences, not physiological truth.",
+    "Canonical Sleep night grouping remains unresolved; Sleep series have deviation only.",
+    "Activity bucket widths and calories physical semantics remain unresolved.",
+    "Resting-heart-rate coverage is sparse; its timezone offset is NULL, so it does not share a source context with other metrics for cross-metric relationships.",
+    "Overall history is short, so most baselines are INSUFFICIENT_HISTORY/PROVISIONAL and change detection is INSUFFICIENT_EVIDENCE."
+  ],
+  "checks": [
+    {
+      "id": "FINAL-01",
+      "name": "SQLite integrity",
+      "status": "PASS",
+      "evidence": "ok"
+    },
+    {
+      "id": "FINAL-02",
+      "name": "Foreign keys",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "FINAL-03",
+      "name": "WAL journal mode",
+      "status": "PASS",
+      "evidence": "wal"
+    },
+    {
+      "id": "FINAL-04",
+      "name": "L5/L3/L4 isolation",
+      "status": "PASS",
+      "evidence": "D:\\PersonalHealthEngine-L5\\db\\personal_health_analytics.sqlite3"
+    },
+    {
+      "id": "FINAL-05",
+      "name": "Production schema version",
+      "status": "PASS",
+      "evidence": 2
+    },
+    {
+      "id": "FINAL-06",
+      "name": "Migration chain",
+      "status": "PASS",
+      "evidence": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": "FINAL-07",
+      "name": "Migration checksums",
+      "status": "PASS",
+      "evidence": 2
+    },
+    {
+      "id": "FINAL-08",
+      "name": "Definition registry integrity",
+      "status": "PASS",
+      "evidence": 6
+    },
+    {
+      "id": "FINAL-09",
+      "name": "No look-ahead leakage",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "FINAL-10",
+      "name": "Deviation + baseline-maturity correctness",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "FINAL-11",
+      "name": "Baseline maturity participates",
+      "status": "PASS",
+      "evidence": 375
+    },
+    {
+      "id": "FINAL-12",
+      "name": "Change detection conservative",
+      "status": "PASS",
+      "evidence": [
+        "INSUFFICIENT_EVIDENCE"
+      ]
+    },
+    {
+      "id": "FINAL-13",
+      "name": "Source isolation",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "FINAL-14",
+      "name": "Provenance complete",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "FINAL-15",
+      "name": "Sleep: no canonical night, no persistence/trend",
+      "status": "PASS",
+      "evidence": {
+        "sleep_p": 0,
+        "canonical": 0
+      }
+    },
+    {
+      "id": "FINAL-16",
+      "name": "Relationship is association only",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "FINAL-17",
+      "name": "Checkpoint correctness",
+      "status": "PASS",
+      "evidence": {
+        "fl3": 229,
+        "fl4": 1056
+      }
+    },
+    {
+      "id": "FINAL-18",
+      "name": "Pipeline runs all PASS",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "FINAL-19",
+      "name": "L5 acceptance PASS",
+      "status": "PASS",
+      "evidence": "PASS"
+    },
+    {
+      "id": "FINAL-20",
+      "name": "Full rebuild PASS",
+      "status": "PASS",
+      "evidence": "PASS"
+    },
+    {
+      "id": "FINAL-21",
+      "name": "Semantic equivalence PASS",
+      "status": "PASS",
+      "evidence": "PASS"
+    },
+    {
+      "id": "FINAL-22",
+      "name": "Production L3 unchanged",
+      "status": "PASS",
+      "evidence": "PASS"
+    },
+    {
+      "id": "FINAL-23",
+      "name": "Production L4 unchanged",
+      "status": "PASS",
+      "evidence": "PASS"
+    },
+    {
+      "id": "FINAL-24",
+      "name": "Production L5 unchanged",
+      "status": "PASS",
+      "evidence": "PASS"
+    },
+    {
+      "id": "FINAL-25",
+      "name": "No L6 leakage",
+      "status": "PASS",
+      "evidence": []
+    },
+    {
+      "id": "FINAL-26",
+      "name": "Regression suite passes",
+      "status": "PASS",
+      "evidence": {
+        "returncode": 0,
+        "tail": [
+          "----------------------------------------------------------------------",
+          "Ran 16 tests in 3.075s",
+          "",
+          "OK"
+        ]
+      }
+    },
+    {
+      "id": "FINAL-27",
+      "name": "Final SQLite integrity",
+      "status": "PASS",
+      "evidence": "ok"
+    },
+    {
+      "id": "FINAL-28",
+      "name": "Final foreign-key integrity",
+      "status": "PASS",
+      "evidence": 0
+    }
+  ]
+}

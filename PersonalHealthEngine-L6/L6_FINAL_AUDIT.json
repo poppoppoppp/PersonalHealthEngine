@@ -1,0 +1,172 @@
+{
+  "layer": "Layer 6 = AI Reasoning",
+  "status": "PASS",
+  "generated_at_utc": "2026-08-17T07:28:09+00:00",
+  "l6_database": "D:\\PersonalHealthEngine-L6\\db\\personal_health_reasoning.sqlite3",
+  "checks_passed": 20,
+  "checks_failed": 0,
+  "checks_total": 20,
+  "summary": {
+    "schema_version": 2,
+    "current_context": 2,
+    "current_evidence_bundles": 1,
+    "current_hypotheses": 1,
+    "current_daily_reasoning": 1,
+    "feedback": 1,
+    "patterns": 12,
+    "model_invocations": 1,
+    "definitions": 7,
+    "migrations": 2
+  },
+  "stage_results": {
+    "ACCEPTANCE": "PASS",
+    "FULL_REBUILD": "PASS",
+    "SEMANTIC_EQUIVALENCE": "PASS"
+  },
+  "l6_core_sealed": true,
+  "real_model_integration_verified": false,
+  "known_limitations": [
+    "Real DeepSeek / MedGemma endpoints are not configured; acceptance and rebuild use deterministic mock adapters only.",
+    "Personal Patterns are co-occurrence counters (non-causal) and require >=3 confirmations to be ESTABLISHED.",
+    "Feedback subject references are soft (non-FK) and may need re-keying after a full rebuild.",
+    "Medical review uses a mock reviewer; no real medical model is asserted."
+  ],
+  "checks": [
+    {
+      "id": "FINAL-01",
+      "name": "Upstreams intact (L3/L4/L5)",
+      "status": "PASS",
+      "evidence": null
+    },
+    {
+      "id": "FINAL-02",
+      "name": "L6 SQLite integrity",
+      "status": "PASS",
+      "evidence": "ok"
+    },
+    {
+      "id": "FINAL-03",
+      "name": "L6 foreign keys",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "FINAL-04",
+      "name": "L6 schema version",
+      "status": "PASS",
+      "evidence": 2
+    },
+    {
+      "id": "FINAL-05",
+      "name": "Migration chain",
+      "status": "PASS",
+      "evidence": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": "FINAL-06",
+      "name": "Migration checksums",
+      "status": "PASS",
+      "evidence": 2
+    },
+    {
+      "id": "FINAL-07",
+      "name": "Definition registry integrity",
+      "status": "PASS",
+      "evidence": 7
+    },
+    {
+      "id": "FINAL-08",
+      "name": "4-way source distinction",
+      "status": "PASS",
+      "evidence": null
+    },
+    {
+      "id": "FINAL-09",
+      "name": "AI inference not promoted to fact",
+      "status": "PASS",
+      "evidence": null
+    },
+    {
+      "id": "FINAL-10",
+      "name": "Evidence bundle deterministic",
+      "status": "PASS",
+      "evidence": null
+    },
+    {
+      "id": "FINAL-11",
+      "name": "No health score/diagnosis",
+      "status": "PASS",
+      "evidence": null
+    },
+    {
+      "id": "FINAL-12",
+      "name": "No API credential persisted",
+      "status": "PASS",
+      "evidence": null
+    },
+    {
+      "id": "FINAL-13",
+      "name": "Patterns non-causal",
+      "status": "PASS",
+      "evidence": null
+    },
+    {
+      "id": "FINAL-14",
+      "name": "L6 acceptance PASS",
+      "status": "PASS",
+      "evidence": "PASS"
+    },
+    {
+      "id": "FINAL-15",
+      "name": "Full rebuild PASS",
+      "status": "PASS",
+      "evidence": "PASS"
+    },
+    {
+      "id": "FINAL-16",
+      "name": "Replay/semantic equivalence PASS",
+      "status": "PASS",
+      "evidence": "PASS"
+    },
+    {
+      "id": "FINAL-17",
+      "name": "Upstream protection PASS",
+      "status": "PASS",
+      "evidence": {
+        "production_l3_unchanged": "PASS",
+        "production_l4_unchanged": "PASS",
+        "production_l5_unchanged": "PASS",
+        "production_l6_unchanged": "PASS"
+      }
+    },
+    {
+      "id": "FINAL-18",
+      "name": "Regression suite passes",
+      "status": "PASS",
+      "evidence": {
+        "returncode": 0,
+        "tail": [
+          "----------------------------------------------------------------------",
+          "Ran 18 tests in 2.077s",
+          "",
+          "OK"
+        ]
+      }
+    },
+    {
+      "id": "FINAL-19",
+      "name": "Final SQLite integrity",
+      "status": "PASS",
+      "evidence": "ok"
+    },
+    {
+      "id": "FINAL-20",
+      "name": "Final foreign-key integrity",
+      "status": "PASS",
+      "evidence": 0
+    }
+  ]
+}

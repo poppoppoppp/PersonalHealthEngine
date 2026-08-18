@@ -1,0 +1,20 @@
+{
+  "definition_id": "l5e.evidence",
+  "definition_version": "0.1",
+  "definition_type": "EVIDENCE",
+  "statuses": [
+    "SUFFICIENT",
+    "PROVISIONAL",
+    "INSUFFICIENT_BASELINE",
+    "INSUFFICIENT_OBSERVATIONS",
+    "INSUFFICIENT_PAIRED_DATA",
+    "INSUFFICIENT_EVIDENCE"
+  ],
+  "rule": "transparent enums and counts, never an opaque 0-100 score",
+  "baseline_maturity_map": {
+    "ESTABLISHED": "SUFFICIENT",
+    "PROVISIONAL": "PROVISIONAL",
+    "INSUFFICIENT_HISTORY": "INSUFFICIENT_BASELINE"
+  },
+  "contract_version": "L5-v0.1"
+}

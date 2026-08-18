@@ -1,0 +1,28 @@
+﻿{
+  "definition_id": "normalize.sleep",
+  "definition_version": "0.1",
+  "definition_type": "NORMALIZER",
+  "dataset": "sleep",
+  "temporal_type": "INTERVAL",
+  "evidence_type": "VENDOR_INFERRED",
+  "episode_metric": "sleep_source_episode",
+  "segment_metric": "sleep_vendor_stage_segment",
+  "episode_start_source": "value.bedtime",
+  "episode_end_source": "value.wake_up_time",
+  "segment_start_source": "items[].start_time",
+  "segment_end_source": "items[].end_time",
+  "stage_mapping": {
+    "NUMERIC_SOURCE": {
+      "2": "DEEP",
+      "3": "LIGHT",
+      "4": "REM",
+      "5": "AWAKE"
+    },
+    "XIAOMI_GENERATED": {
+      "5": "AWAKE",
+      "6": "SLEEP"
+    }
+  },
+  "semantic_note": "Preserves Xiaomi source episodes and vendor-inferred sleep-stage segments. No canonical night, physiological truth, or cross-source resolution is asserted in L3A.",
+  "contract_version": "L3-v0.1"
+}

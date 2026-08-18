@@ -1,0 +1,207 @@
+{
+  "stage": "L3B",
+  "status": "PASS",
+  "generated_at_utc": "2026-08-16T09:09:33+00:00",
+  "checks_passed": 22,
+  "checks_failed": 0,
+  "checks_total": 22,
+  "checks": [
+    {
+      "id": "L3B-01",
+      "name": "SQLite integrity",
+      "status": "PASS",
+      "evidence": "ok"
+    },
+    {
+      "id": "L3B-02",
+      "name": "Foreign keys",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L3B-03",
+      "name": "L3B schema version",
+      "status": "PASS",
+      "evidence": 8
+    },
+    {
+      "id": "L3B-04",
+      "name": "L3A acceptance preserved",
+      "status": "PASS",
+      "evidence": {
+        "artifact": "D:\\PersonalHealthEngine-L3\\L3A_ACCEPTANCE.json",
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "L3B-05",
+      "name": "L3A facts not overwritten or deleted",
+      "status": "PASS",
+      "evidence": {
+        "current": 5179,
+        "non_current": 0
+      }
+    },
+    {
+      "id": "L3B-06",
+      "name": "Quality and resolution rules versioned",
+      "status": "PASS",
+      "evidence": [
+        {
+          "definition_id": "l3b.quality.structural",
+          "version": "0.1",
+          "checksum_match": true,
+          "status": "ACTIVE"
+        },
+        {
+          "definition_id": "l3b.resolution.source",
+          "version": "0.1",
+          "checksum_match": true,
+          "status": "ACTIVE"
+        }
+      ]
+    },
+    {
+      "id": "L3B-07",
+      "name": "Three explicit quality dimensions per CURRENT fact",
+      "status": "PASS",
+      "evidence": {
+        "facts": 5179,
+        "assessments": 15537
+      }
+    },
+    {
+      "id": "L3B-08",
+      "name": "Quality dimensions are transparent",
+      "status": "PASS",
+      "evidence": {
+        "PROVENANCE_COMPLETENESS": 5179,
+        "STRUCTURAL_VALIDITY": 5179,
+        "VENDOR_SEMANTIC_CERTAINTY": 5179
+      }
+    },
+    {
+      "id": "L3B-09",
+      "name": "Quality provenance",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L3B-10",
+      "name": "Quality results depend only on CURRENT facts",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L3B-11",
+      "name": "Vendor uncertainty is not physiological truth",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L3B-12",
+      "name": "Resolution provenance",
+      "status": "PASS",
+      "evidence": {
+        "decisions": 4994,
+        "without_inputs": 0
+      }
+    },
+    {
+      "id": "L3B-13",
+      "name": "Every CURRENT fact has one resolution membership",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L3B-14",
+      "name": "Source coexistence preserved",
+      "status": "PASS",
+      "evidence": {
+        "steps": {
+          "NUMERIC_SOURCE": 174,
+          "XIAOMI_GENERATED": 294
+        },
+        "calories": {
+          "NUMERIC_SOURCE": 770,
+          "XIAOMI_GENERATED": 294
+        },
+        "sleep_source_episode": {
+          "NUMERIC_SOURCE": 7,
+          "XIAOMI_GENERATED": 7
+        }
+      }
+    },
+    {
+      "id": "L3B-15",
+      "name": "Unresolved conflicts preserved",
+      "status": "PASS",
+      "evidence": 183
+    },
+    {
+      "id": "L3B-16",
+      "name": "No source destruction",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L3B-17",
+      "name": "No incorrect Sleep night merge",
+      "status": "PASS",
+      "evidence": 0
+    },
+    {
+      "id": "L3B-18",
+      "name": "Deterministic full idempotency",
+      "status": "PASS",
+      "evidence": {
+        "status": "PASS",
+        "mode": "FULL",
+        "run_id": "l3b-full-20260816T083204Z-1c872cc9",
+        "input_facts": 5179,
+        "quality_current": 15537,
+        "quality_inserted": 0,
+        "quality_stale": 0,
+        "resolution_current": 4994,
+        "resolution_inserted": 0,
+        "resolution_stale": 0,
+        "checkpoint": 15751
+      }
+    },
+    {
+      "id": "L3B-19",
+      "name": "Checkpoint correctness",
+      "status": "PASS",
+      "evidence": {
+        "frontier": 15751,
+        "checkpoint": 15751
+      }
+    },
+    {
+      "id": "L3B-20",
+      "name": "Revision, REOBSERVATION, full/incremental regression",
+      "status": "PASS",
+      "evidence": {
+        "returncode": 0,
+        "summary": [
+          "----------------------------------------------------------------------",
+          "Ran 4 tests in 11.699s",
+          "",
+          "OK"
+        ]
+      }
+    },
+    {
+      "id": "L3B-21",
+      "name": "No clinical, baseline, anomaly, or opaque-score leakage",
+      "status": "PASS",
+      "evidence": []
+    },
+    {
+      "id": "L3B-22",
+      "name": "Quality and clinical meaning separated",
+      "status": "PASS",
+      "evidence": "Only explicit evidence-state results are stored"
+    }
+  ]
+}
