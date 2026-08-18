@@ -1,0 +1,49 @@
+﻿# Secrets
+.env
+.env.*
+**/secrets/
+*.key
+*.pem
+
+# Production health data
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+**/captures/
+**/archive/
+**/backups/
+**/logs/
+**/collector_state.json
+
+# Python
+**/__pycache__/
+**/*.pyc
+**/.venv/
+**/venv/
+
+# Git / IDE
+**/.git/
+**/.idea/
+**/.vscode/
+
+# Flutter / Android / build
+**/.dart_tool/
+**/.gradle/
+**/build/
+**/dist/
+*.apk
+*.aab
+
+# JavaScript
+**/node_modules/
+
+# Models / large binaries
+*.gguf
+*.safetensors
+*.pt
+*.pth
+*.onnx
+
+# Windows
+Thumbs.db
+Desktop.ini
