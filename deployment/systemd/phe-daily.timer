@@ -1,0 +1,18 @@
+﻿[Unit]
+Description=Run Personal Health Engine Daily Pipeline
+
+[Timer]
+
+# Every day at 10:30 China Standard Time.
+OnCalendar=*-*-* 10:30:00 Asia/Shanghai
+
+# If the VPS was offline at 10:30, run after it comes back.
+Persistent=true
+
+# One minute precision is more than enough for health data sync.
+AccuracySec=1min
+
+Unit=phe-daily.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,37 @@
+﻿[Unit]
+Description=Personal Health Engine Daily L1-L5 Pipeline
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+
+User=phe
+Group=phe
+
+WorkingDirectory=/opt/phe
+
+# Persistent data paths.
+EnvironmentFile=/etc/phe/production-paths.conf
+
+# L7 token + model runtime configuration.
+EnvironmentFile=/etc/phe/runtime.env
+
+Environment=PYTHONUNBUFFERED=1
+
+# Stage 1:
+# Xiaomi -> L1 -> L2 -> L3 -> L4 -> L5
+ExecStart=/opt/phe/.venv/bin/python /opt/phe/deployment/scripts/run_daily_pipeline.py
+
+# Stage 2:
+# Runs only after ExecStart succeeds.
+# The daily Python process has exited, therefore pipeline.lock
+# has already been released before L7 tries to acquire its shared lock.
+ExecStartPost=/opt/phe/.venv/bin/python /opt/phe/deployment/scripts/refresh_l7_after_pipeline.py
+
+TimeoutStartSec=90min
+
+StandardOutput=journal
+StandardError=journal
+
+SyslogIdentifier=phe-daily
