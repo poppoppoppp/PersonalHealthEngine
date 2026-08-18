@@ -13,8 +13,10 @@ services:
       context: ../../PersonalHealthEngine-L7
       dockerfile: Dockerfile
 
+
+    user: "10001:10001"
     env_file:
-      - ../config/runtime.env
+      - /etc/phe/runtime.env
 
     environment:
       L7_L3_DB: /data/l3/personal_health_features.sqlite3
@@ -83,3 +85,5 @@ services:
       - /srv/phe/ollama:/root/.ollama
 
     restart: unless-stopped
+
+
