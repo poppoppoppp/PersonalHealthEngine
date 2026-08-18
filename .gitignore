@@ -62,3 +62,6 @@ Desktop.ini
 # Third-party research/source repositories
 PersonalHealthEngine-L1Lab/SmartScaleConnect/
 PersonalHealthEngine-L1Lab/mi-fitness-mcp-cn/
+
+# Local production runtime secrets
+deployment/config/runtime.env

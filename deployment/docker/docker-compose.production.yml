@@ -1,0 +1,76 @@
+﻿# Personal Health Engine production composition
+#
+# Long-running services only:
+#   l7-backend
+#   medgemma (Ollama)
+#
+# L1-L5 daily pipeline is NOT run here.
+# It will be driven separately by systemd.
+
+services:
+
+  l7-backend:
+    build:
+      context: ../../PersonalHealthEngine-L7
+      dockerfile: Dockerfile
+
+    env_file:
+      - ../config/runtime.env
+
+    environment:
+      L7_L3_DB: /data/l3/personal_health_features.sqlite3
+      L7_L4_DB: /data/l4/personal_health_baselines.sqlite3
+      L7_L5_DB: /data/l5/personal_health_analytics.sqlite3
+
+      # L6 is intentionally READ-WRITE.
+      L7_L6_DB: /data/l6/personal_health_reasoning.sqlite3
+
+      L7_L6_CODE: /opt/l6/scripts
+      L7_L6_DEFINITIONS: /opt/l6/definitions
+
+      L7_DB: /data/l7/l7_product.sqlite3
+
+      # Correct MedGemma adapter environment.
+      MEDICAL_MODEL_MODE: local
+      MEDICAL_MODEL_ENDPOINT: http://medgemma:11434
+      MEDGEMMA_MODEL: medgemma1.5
+
+    volumes:
+      # Upstream derived databases: read-only.
+      - /srv/phe/l3/db:/data/l3:ro
+      - /srv/phe/l4/db:/data/l4:ro
+      - /srv/phe/l5/db:/data/l5:ro
+
+      # L6 reasoning state: read-write.
+      - /srv/phe/l6/db:/data/l6
+
+      # L7 product state: read-write.
+      - /srv/phe/l7/db:/data/l7
+
+      # SEALED L6 implementation: import-only.
+      - ../../PersonalHealthEngine-L6/scripts:/opt/l6/scripts:ro
+      - ../../PersonalHealthEngine-L6/definitions:/opt/l6/definitions:ro
+
+    ports:
+      # Backend is not exposed directly to the Internet.
+      # TLS reverse proxy will sit in front later.
+      - "127.0.0.1:8707:8707"
+
+    depends_on:
+      - medgemma
+
+    restart: unless-stopped
+
+
+  medgemma:
+    image: ollama/ollama:latest
+
+    volumes:
+      # Persist downloaded MedGemma weights across restarts.
+      - /srv/phe/ollama:/root/.ollama
+
+    restart: unless-stopped
+
+
+# No Docker named volumes.
+# All important production state lives under /srv/phe.
