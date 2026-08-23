@@ -5,6 +5,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../main.dart';
+import '../widgets/api_error_view.dart';
 import '../widgets/trend_chart.dart';
 
 class EvidenceScreen extends StatefulWidget {
@@ -16,16 +17,22 @@ class EvidenceScreen extends StatefulWidget {
 
 class _EvidenceScreenState extends State<EvidenceScreen> {
   Map<String, dynamic>? data;
-  String? error;
+  Object? error;
 
   @override
   void initState() {
     super.initState();
-    widget.env.client.getEvidence().then((r) {
-      if (mounted) setState(() => data = r);
-    }).catchError((e) {
-      if (mounted) setState(() => error = '$e');
-    });
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => error = null);
+    try {
+      final result = await widget.env.client.getEvidence();
+      if (mounted) setState(() => data = result);
+    } catch (e) {
+      if (mounted) setState(() => error = e);
+    }
   }
 
   @override
@@ -33,7 +40,12 @@ class _EvidenceScreenState extends State<EvidenceScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('依据详情')),
       body: error != null
-          ? Center(child: Text(error!))
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: ApiErrorView(error: error!, onRetry: _load),
+              ),
+            )
           : data == null
               ? const Center(child: CircularProgressIndicator())
               : ListView(

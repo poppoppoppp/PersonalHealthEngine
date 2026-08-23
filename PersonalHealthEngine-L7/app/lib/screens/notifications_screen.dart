@@ -5,6 +5,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../main.dart';
+import '../widgets/api_error_view.dart';
 
 class NotificationsScreen extends StatefulWidget {
   final AppEnv env;
@@ -16,7 +17,7 @@ class NotificationsScreen extends StatefulWidget {
 class _NotificationsScreenState extends State<NotificationsScreen> {
   List<dynamic> sent = [];
   List<dynamic> decisions = [];
-  String? error;
+  Object? error;
 
   @override
   void initState() {
@@ -25,6 +26,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _load() async {
+    setState(() => error = null);
     try {
       final f = await widget.env.client.getNotifications();
       final d = await widget.env.client.getNotificationDecisions();
@@ -36,7 +38,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() => error = '$e');
+      if (mounted) setState(() => error = e);
     }
   }
 
@@ -56,7 +58,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('通知与决策记录')),
       body: error != null
-          ? Center(child: Text(error!))
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: ApiErrorView(error: error!, onRetry: _load),
+              ),
+            )
           : RefreshIndicator(
               onRefresh: _load,
               child: ListView(

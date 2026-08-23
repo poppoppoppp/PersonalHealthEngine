@@ -6,37 +6,55 @@ library;
 
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_client.dart';
+import 'connection_store.dart';
 import 'screens/history_screen.dart';
 import 'screens/me_screen.dart';
 import 'screens/patterns_screen.dart';
 import 'screens/today_screen.dart';
+import 'widgets/api_error_view.dart';
 
 void main() {
   runApp(const HealthEngineApp());
 }
 
 class AppEnv extends ChangeNotifier {
+  static const _initialToken = String.fromEnvironment('PHE_API_TOKEN');
+  static const _configuredBaseUrl = String.fromEnvironment(
+    'PHE_API_BASE_URL',
+    defaultValue: ConnectionStore.productionBaseUrl,
+  );
+
   String baseUrl;
   String token;
   late L7Client client;
+  final ConnectionStore? _connectionStore;
 
-  AppEnv({required this.baseUrl, required this.token}) {
+  AppEnv({
+    required this.baseUrl,
+    required this.token,
+    ConnectionStore? connectionStore,
+  }) : _connectionStore = connectionStore {
     client = HttpApiClient(baseUrl: baseUrl, token: token);
   }
 
-  static String defaultBaseUrl() =>
-      kIsWeb ? 'http://127.0.0.1:8707' : 'http://10.0.2.2:8707';
+  static String defaultBaseUrl() => _configuredBaseUrl;
 
   static Future<AppEnv> load() async {
     final prefs = await SharedPreferences.getInstance();
+    final store = ConnectionStore(
+      preferences: prefs,
+      secrets: FlutterSecretStore(),
+      initialToken: _initialToken,
+    );
+    final settings = await store.load();
     return AppEnv(
-      baseUrl: prefs.getString('server.baseUrl') ?? defaultBaseUrl(),
-      token: prefs.getString('server.token') ?? 'dev-local-token',
+      baseUrl: settings.baseUrl,
+      token: settings.token,
+      connectionStore: store,
     );
   }
 
@@ -44,9 +62,8 @@ class AppEnv extends ChangeNotifier {
     baseUrl = newUrl.trim();
     token = newToken.trim();
     client = HttpApiClient(baseUrl: baseUrl, token: token);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('server.baseUrl', baseUrl);
-    await prefs.setString('server.token', token);
+    final store = _connectionStore;
+    if (store != null) await store.save(baseUrl, token);
     notifyListeners();
   }
 }
@@ -77,20 +94,40 @@ class RootLoader extends StatefulWidget {
 
 class _RootLoaderState extends State<RootLoader> {
   AppEnv? env;
+  Object? error;
 
   @override
   void initState() {
     super.initState();
-    AppEnv.load().then((e) => setState(() => env = e));
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => error = null);
+    try {
+      final loaded = await AppEnv.load();
+      if (mounted) setState(() => env = loaded);
+    } catch (e) {
+      if (mounted) setState(() => error = e);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final e = env;
     if (e == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      final failure = error;
+      if (failure != null) {
+        return Scaffold(
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: ApiErrorView(error: failure, onRetry: _load),
+            ),
+          ),
+        );
+      }
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     return HomeShell(env: e);
   }
@@ -121,21 +158,25 @@ class _HomeShellState extends State<HomeShell> {
         onDestinationSelected: (i) => setState(() => index = i),
         destinations: const [
           NavigationDestination(
-              icon: Icon(Icons.today_outlined),
-              selectedIcon: Icon(Icons.today),
-              label: '今日'),
+            icon: Icon(Icons.today_outlined),
+            selectedIcon: Icon(Icons.today),
+            label: '今日',
+          ),
           NavigationDestination(
-              icon: Icon(Icons.history_outlined),
-              selectedIcon: Icon(Icons.history),
-              label: '历史'),
+            icon: Icon(Icons.history_outlined),
+            selectedIcon: Icon(Icons.history),
+            label: '历史',
+          ),
           NavigationDestination(
-              icon: Icon(Icons.insights_outlined),
-              selectedIcon: Icon(Icons.insights),
-              label: '我的规律'),
+            icon: Icon(Icons.insights_outlined),
+            selectedIcon: Icon(Icons.insights),
+            label: '我的规律',
+          ),
           NavigationDestination(
-              icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person),
-              label: '我的'),
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: '我的',
+          ),
         ],
       ),
     );

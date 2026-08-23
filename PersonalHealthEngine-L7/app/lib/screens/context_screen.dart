@@ -6,6 +6,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../main.dart';
+import '../widgets/api_error_view.dart';
 
 class ContextScreen extends StatefulWidget {
   final AppEnv env;
@@ -19,7 +20,7 @@ class _ContextScreenState extends State<ContextScreen> {
   List<Map<String, dynamic>> contexts = [];
   bool loadingList = true;
   bool submitting = false;
-  String? listError;
+  Object? listError;
 
   static const quickChips = ['熬夜', '高强度训练', '喝酒', '身体不舒服', '压力大'];
 
@@ -30,6 +31,10 @@ class _ContextScreenState extends State<ContextScreen> {
   }
 
   Future<void> _loadList() async {
+    setState(() {
+      loadingList = true;
+      listError = null;
+    });
     try {
       final r = await widget.env.client.listContext();
       if (mounted) {
@@ -38,13 +43,16 @@ class _ContextScreenState extends State<ContextScreen> {
               .map((e) => (e as Map).cast<String, dynamic>())
               .toList();
           loadingList = false;
+          listError = null;
         });
       }
     } catch (e) {
-      if (mounted) setState(() {
-        listError = '$e';
-        loadingList = false;
-      });
+      if (mounted) {
+        setState(() {
+          listError = e;
+          loadingList = false;
+        });
+      }
     }
   }
 
@@ -78,8 +86,9 @@ class _ContextScreenState extends State<ContextScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('保存失败：$e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('保存失败：${apiErrorMessage(e)}')),
+        );
       }
     } finally {
       if (mounted) setState(() => submitting = false);
@@ -122,8 +131,9 @@ class _ContextScreenState extends State<ContextScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('纠正失败：$e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('纠正失败：${apiErrorMessage(e)}')),
+        );
       }
     }
   }
@@ -154,8 +164,9 @@ class _ContextScreenState extends State<ContextScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('删除失败：$e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('删除失败：${apiErrorMessage(e)}')),
+        );
       }
     }
   }
@@ -228,7 +239,8 @@ class _ContextScreenState extends State<ContextScreen> {
               padding: EdgeInsets.only(top: 16),
               child: Center(child: CircularProgressIndicator()),
             ),
-          if (listError != null) Text(listError!),
+          if (listError != null)
+            ApiErrorView(error: listError!, onRetry: _loadList),
           if (!loadingList && contexts.isEmpty && listError == null)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 12),

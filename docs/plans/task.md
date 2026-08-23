@@ -12,12 +12,19 @@
 | Audit, commit, and push Git | Secret-clean commit pushed or auth-only blocker | Complete |
 | Audit local Flutter, L7, deployment, Git, and public ports | Root cause and external port evidence recorded | Complete |
 | Define mainland-China direct HTTPS architecture | Design document recorded | Complete |
-| Establish clean baseline in isolated worktree | L7 pytest, Flutter analyze/test | In progress |
-| Implement tested mobile transport errors and timeouts | Focused Dart tests red/green | Not started |
-| Implement secure production configuration and token migration | Focused Dart tests red/green | Not started |
-| Implement explicit error/retry UX across L7 screens | Widget tests red/green | Not started |
-| Add Android release permission, hardening, and signing | Analyze, tests, apksigner verification | Not started |
-| Add reproducible Nginx, Certbot, and firewall deployment | Static deployment tests and shell validation | Not started |
-| Deploy VPS gateway and verify public production APIs | SSH/cloud authentication required after local work | Blocked external auth |
-| Build and validate final production APK | Release build and Android/API equivalent smoke | Not started |
-| Full regression, secret audit, commit, push, and final acceptance | Fresh acceptance evidence | Not started |
+| Establish clean baseline in isolated worktree | L7 pytest, Flutter analyze/test | Complete |
+| Implement tested mobile transport errors and timeouts | Focused Dart tests red/green | Complete |
+| Implement secure production configuration and token migration | Focused Dart tests red/green | Complete |
+| Implement explicit error/retry UX across L7 screens | 26 Flutter tests cover primary and secondary network screens | Complete |
+| Add Android release permission, hardening, and signing | Signed release APK verified with `apksigner`; manifest audited | Complete |
+| Add reproducible Nginx, Certbot, and firewall deployment | 5 static tests, Bash syntax, Python compile | Complete |
+| Deploy VPS gateway and verify public production APIs | ECS page is logged in but browser control cannot read it; no SSH/CLI credential exists | Blocked external auth |
+| Build and validate final production APK | Release APK built; signature, package, permission, backup flags verified | Complete |
+| Full regression, secret audit, commit, push, and final acceptance | 171 passed, 2 skipped, 3 subtests; Git/production gates pending | In progress |
+
+Verification snapshot (2026-08-24):
+
+- Python: `171 passed, 2 skipped, 3 subtests passed`.
+- Flutter: `26 passed`; analyzer has 0 errors, 0 warnings, and 17 pre-existing info-level lints.
+- APK: V2 signature valid, signer `CN=Personal Health Engine, O=Private, C=CN`, package `com.personalhealthengine.phe_app`, INTERNET present, backup disabled.
+- Public ports before gateway deployment: 80/443 closed; protected 8707/11434 closed.

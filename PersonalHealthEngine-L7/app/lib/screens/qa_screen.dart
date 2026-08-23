@@ -6,6 +6,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../main.dart';
+import '../widgets/api_error_view.dart';
 
 class QnAScreen extends StatefulWidget {
   final AppEnv env;
@@ -38,8 +39,11 @@ class _QnAScreenState extends State<QnAScreen> {
   void _scrollDown() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (scrollController.hasClients) {
-        scrollController.animateTo(scrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
+        scrollController.animateTo(
+          scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+        );
       }
     });
   }
@@ -55,12 +59,16 @@ class _QnAScreenState extends State<QnAScreen> {
     _scrollDown();
 
     try {
-      final r = await widget.env.client
-          .qaAsk(q, conversationId: conversationId);
+      final r = await widget.env.client.qaAsk(
+        q,
+        conversationId: conversationId,
+      );
       conversationId = r['conversation_id'] as int?;
       final answer = _Msg.assistant(
         r['direct_answer'] as String? ?? '',
-        actions: ((r['actions'] as List?) ?? const []).map((e) => '$e').toList(),
+        actions: ((r['actions'] as List?) ?? const [])
+            .map((e) => '$e')
+            .toList(),
         reason: r['reason'] as String?,
         medical: '${r['medical_review_state']}' == 'PERFORMED',
         grounded: ((r['evidence_ref'] as Map?)?['grounded'] == true),
@@ -72,7 +80,7 @@ class _QnAScreenState extends State<QnAScreen> {
       });
     } catch (e) {
       setState(() {
-        messages.add(_Msg.assistant('请求失败：$e'));
+        messages.add(_Msg.retry(apiErrorMessage(e), q));
         busy = false;
       });
     }
@@ -100,8 +108,10 @@ class _QnAScreenState extends State<QnAScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text('可以这样问：',
-                              style: TextStyle(color: Colors.black54)),
+                          const Text(
+                            '可以这样问：',
+                            style: TextStyle(color: Colors.black54),
+                          ),
                           const SizedBox(height: 12),
                           Wrap(
                             spacing: 8,
@@ -110,7 +120,9 @@ class _QnAScreenState extends State<QnAScreen> {
                             children: [
                               for (final s in suggestions)
                                 ActionChip(
-                                    label: Text(s), onPressed: () => _ask(s)),
+                                  label: Text(s),
+                                  onPressed: () => _ask(s),
+                                ),
                             ],
                           ),
                         ],
@@ -128,24 +140,27 @@ class _QnAScreenState extends State<QnAScreen> {
                           child: Padding(
                             padding: EdgeInsets.symmetric(vertical: 8),
                             child: SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2)),
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
                           ),
                         );
                       }
                       final m = messages[i];
                       return Align(
-                        alignment:
-                            m.mine ? Alignment.centerRight : Alignment.centerLeft,
+                        alignment: m.mine
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
                         child: Container(
                           margin: const EdgeInsets.symmetric(vertical: 4),
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 10),
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
                           constraints: BoxConstraints(
-                              maxWidth:
-                                  MediaQuery.of(context).size.width * 0.82),
+                            maxWidth: MediaQuery.of(context).size.width * 0.82,
+                          ),
                           decoration: BoxDecoration(
                             color: m.mine
                                 ? Theme.of(context).colorScheme.primary
@@ -172,18 +187,26 @@ class _QnAScreenState extends State<QnAScreen> {
                                 const SizedBox(height: 6),
                                 for (final a in m.actions)
                                   Padding(
-                                    padding:
-                                        const EdgeInsets.symmetric(vertical: 1),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 1,
+                                    ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        const Icon(Icons.check,
-                                            size: 14, color: Colors.black45),
+                                        const Icon(
+                                          Icons.check,
+                                          size: 14,
+                                          color: Colors.black45,
+                                        ),
                                         const SizedBox(width: 4),
                                         Flexible(
-                                            child: Text(a,
-                                                style: const TextStyle(
-                                                    fontSize: 13))),
+                                          child: Text(
+                                            a,
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -194,7 +217,9 @@ class _QnAScreenState extends State<QnAScreen> {
                                   child: Text(
                                     '本回答已按安全策略追加医学审查（不用于诊断）。',
                                     style: TextStyle(
-                                        fontSize: 11, color: Colors.black45),
+                                      fontSize: 11,
+                                      color: Colors.black45,
+                                    ),
                                   ),
                                 ),
                               if (!m.mine && m.grounded && !m.outOfScope)
@@ -203,8 +228,16 @@ class _QnAScreenState extends State<QnAScreen> {
                                   child: Text(
                                     '依据：你当前的个人证据包（非通用知识）',
                                     style: TextStyle(
-                                        fontSize: 11, color: Colors.black38),
+                                      fontSize: 11,
+                                      color: Colors.black38,
+                                    ),
                                   ),
+                                ),
+                              if (m.retryQuestion != null)
+                                TextButton.icon(
+                                  onPressed: () => _ask(m.retryQuestion!),
+                                  icon: const Icon(Icons.refresh, size: 16),
+                                  label: const Text('重新尝试'),
                                 ),
                             ],
                           ),
@@ -226,7 +259,9 @@ class _QnAScreenState extends State<QnAScreen> {
                         border: OutlineInputBorder(),
                         isDense: true,
                         contentPadding: EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 12),
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
                       ),
                       onSubmitted: _ask,
                     ),
@@ -254,22 +289,36 @@ class _Msg {
   final bool medical;
   final bool grounded;
   final bool outOfScope;
+  final String? retryQuestion;
 
   _Msg.user(this.text)
-      : mine = true,
-        actions = const [],
-        reason = null,
-        medical = false,
-        grounded = false,
-        outOfScope = false;
+    : mine = true,
+      actions = const [],
+      reason = null,
+      medical = false,
+      grounded = false,
+      outOfScope = false,
+      retryQuestion = null;
 
-  _Msg.assistant(this.text,
-      {this.actions = const [],
-      this.reason,
-      this.medical = false,
-      this.grounded = false,
-      this.outOfScope = false})
-      : mine = false;
+  _Msg.assistant(
+    this.text, {
+    this.actions = const [],
+    this.reason,
+    this.medical = false,
+    this.grounded = false,
+    this.outOfScope = false,
+  }) : mine = false,
+       retryQuestion = null;
+
+  _Msg.retry(String message, String question)
+    : text = message,
+      mine = false,
+      actions = const [],
+      reason = null,
+      medical = false,
+      grounded = false,
+      outOfScope = false,
+      retryQuestion = question;
 
   bool get isAnswer => !mine;
 }

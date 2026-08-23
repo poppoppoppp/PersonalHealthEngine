@@ -5,16 +5,29 @@
 /// than the user's own API token.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+enum ApiErrorKind {
+  noNetwork,
+  cannotConnect,
+  authentication,
+  server,
+  timeout,
+  invalidResponse,
+}
+
 class ApiException implements Exception {
+  final ApiErrorKind kind;
   final int? status;
-  final String message;
-  ApiException(this.message, {this.status});
+  final String userMessage;
+
+  const ApiException(this.kind, this.userMessage, {this.status});
+
   @override
-  String toString() => status == null ? message : 'HTTP $status: $message';
+  String toString() => userMessage;
 }
 
 /// Parsed Current Today State (l7.today/v1).
@@ -83,48 +96,99 @@ abstract class L7Client {
 class HttpApiClient implements L7Client {
   String baseUrl;
   String token;
-  final http.Client _client = http.Client();
+  final http.Client _client;
+  final Duration normalTimeout;
+  final Duration inferenceTimeout;
 
-  HttpApiClient({required this.baseUrl, required this.token});
+  HttpApiClient({
+    required this.baseUrl,
+    required this.token,
+    http.Client? client,
+    this.normalTimeout = const Duration(seconds: 30),
+    this.inferenceTimeout = const Duration(minutes: 12),
+  }) : _client = client ?? http.Client();
 
   Uri _u(String path) => Uri.parse('$baseUrl$path');
   Map<String, String> get _headers => {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      };
+    'Authorization': 'Bearer $token',
+    'Content-Type': 'application/json',
+  };
+
+  ApiException _statusError(int status) {
+    if (status == 401 || status == 403) {
+      return ApiException(
+        ApiErrorKind.authentication,
+        '认证失败，请更新访问令牌',
+        status: status,
+      );
+    }
+    return ApiException(ApiErrorKind.server, '服务器暂时不可用，请稍后重试', status: status);
+  }
+
+  Map<String, dynamic> _decode(http.Response response) {
+    if (response.statusCode != 200) {
+      throw _statusError(response.statusCode);
+    }
+    final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+    if (decoded is! Map) {
+      throw const FormatException('response is not a JSON object');
+    }
+    return decoded.cast<String, dynamic>();
+  }
+
+  Future<T> _guard<T>(Future<T> Function() request, Duration timeout) async {
+    try {
+      return await request().timeout(timeout);
+    } on ApiException {
+      rethrow;
+    } on TimeoutException {
+      throw const ApiException(ApiErrorKind.timeout, '请求超时，请重新尝试');
+    } on FormatException {
+      throw const ApiException(ApiErrorKind.invalidResponse, '服务器返回的数据无效');
+    } on http.ClientException catch (error) {
+      final text = error.message.toLowerCase();
+      final noNetwork =
+          text.contains('network is unreachable') ||
+          text.contains('network unreachable') ||
+          text.contains('no route to host') ||
+          text.contains('failed host lookup');
+      throw ApiException(
+        noNetwork ? ApiErrorKind.noNetwork : ApiErrorKind.cannotConnect,
+        noNetwork ? '当前没有可用网络' : '无法连接服务器',
+      );
+    } on Exception {
+      throw const ApiException(ApiErrorKind.cannotConnect, '无法连接服务器');
+    }
+  }
 
   Future<Map<String, dynamic>> _get(String path) async {
-    final res = await _client.get(_u(path), headers: _headers).timeout(
-          const Duration(seconds: 60),
-        );
-    if (res.statusCode != 200) {
-      throw ApiException(res.body, status: res.statusCode);
-    }
-    return (jsonDecode(utf8.decode(res.bodyBytes)) as Map).cast<String, dynamic>();
+    return _guard(
+      () async => _decode(await _client.get(_u(path), headers: _headers)),
+      normalTimeout,
+    );
   }
 
   Future<Map<String, dynamic>> _send(
     String method,
     String path, [
     Map<String, dynamic>? body,
+    Duration? timeout,
   ]) async {
-    final req = http.Request(method, _u(path));
-    req.headers.addAll(_headers);
-    if (body != null) req.body = jsonEncode(body);
-    final streamed = await _client.send(req).timeout(const Duration(seconds: 90));
-    final res = await http.Response.fromStream(streamed);
-    if (res.statusCode != 200) {
-      throw ApiException(res.body, status: res.statusCode);
-    }
-    return (jsonDecode(utf8.decode(res.bodyBytes)) as Map).cast<String, dynamic>();
+    return _guard(() async {
+      final req = http.Request(method, _u(path));
+      req.headers.addAll(_headers);
+      if (body != null) req.body = jsonEncode(body);
+      final streamed = await _client.send(req);
+      return _decode(await http.Response.fromStream(streamed));
+    }, timeout ?? normalTimeout);
   }
 
   @override
-  Future<TodayPayload> getToday() async =>
-      TodayPayload(await _get('/today'));
+  Future<TodayPayload> getToday() async => TodayPayload(await _get('/today'));
 
   @override
-  Future<Map<String, dynamic>> refreshToday() => _send('POST', '/today/refresh');
+  Future<Map<String, dynamic>> refreshToday() =>
+      _send('POST', '/today/refresh', null, inferenceTimeout);
 
   @override
   Future<Map<String, dynamic>> getTodayVersions() => _get('/today/versions');
@@ -161,29 +225,28 @@ class HttpApiClient implements L7Client {
   Future<Map<String, dynamic>> qaAsk(String question, {int? conversationId}) =>
       _send('POST', '/qa/ask', {
         'question': question,
-        if (conversationId != null) 'conversation_id': conversationId,
-      });
+        'conversation_id': ?conversationId,
+      }, inferenceTimeout);
 
   @override
   Future<Map<String, dynamic>> listContext() => _get('/context');
 
   @override
   Future<Map<String, dynamic>> addContext(String text) =>
-      _send('POST', '/context', {'text': text});
+      _send('POST', '/context', {'text': text}, inferenceTimeout);
 
   @override
   Future<Map<String, dynamic>> correctContext(int id, String text) =>
-      _send('PUT', '/context/$id', {'text': text});
+      _send('PUT', '/context/$id', {'text': text}, inferenceTimeout);
 
   @override
   Future<void> deleteContext(int id) async {
-    final req = http.Request('DELETE', _u('/context/$id'));
-    req.headers.addAll(_headers);
-    final streamed = await _client.send(req).timeout(const Duration(seconds: 90));
-    final res = await http.Response.fromStream(streamed);
-    if (res.statusCode != 200) {
-      throw ApiException(res.body, status: res.statusCode);
-    }
+    await _guard(() async {
+      final req = http.Request('DELETE', _u('/context/$id'));
+      req.headers.addAll(_headers);
+      final streamed = await _client.send(req);
+      _decode(await http.Response.fromStream(streamed));
+    }, inferenceTimeout);
   }
 
   @override
@@ -191,7 +254,7 @@ class HttpApiClient implements L7Client {
       _send('POST', '/feedback', {
         'verdict': verdict,
         if (text != null && text.isNotEmpty) 'text': text,
-      });
+      }, inferenceTimeout);
 
   // ---------------- Phase F ----------------
   @override

@@ -4,6 +4,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../main.dart';
+import '../widgets/api_error_view.dart';
 import 'notifications_screen.dart';
 
 class MeScreen extends StatefulWidget {
@@ -16,7 +17,7 @@ class MeScreen extends StatefulWidget {
 class _MeScreenState extends State<MeScreen> {
   Map<String, dynamic>? settings;
   Map<String, dynamic>? usage;
-  String? error;
+  Object? error;
 
   final urlController = TextEditingController();
   final tokenController = TextEditingController();
@@ -41,11 +42,12 @@ class _MeScreenState extends State<MeScreen> {
         setState(() {
           settings = (s['settings'] as Map).cast<String, dynamic>();
           usage = u;
+          error = null;
           quietController.text = '${settings!['quiet_hours'] ?? ''}';
         });
       }
     } catch (e) {
-      if (mounted) setState(() => error = '$e');
+      if (mounted) setState(() => error = e);
     }
   }
 
@@ -69,7 +71,9 @@ class _MeScreenState extends State<MeScreen> {
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: settings == null
-                  ? Text(error ?? '加载中…')
+                  ? error == null
+                        ? const Text('加载中…')
+                        : ApiErrorView(error: error!, onRetry: _load)
                   : Column(
                       children: [
                         RadioListTile<String>(
@@ -117,15 +121,18 @@ class _MeScreenState extends State<MeScreen> {
                           ),
                         ),
                         ListTile(
-                          leading: const Icon(Icons.history_toggle_off,
-                              color: Colors.black54),
+                          leading: const Icon(
+                            Icons.history_toggle_off,
+                            color: Colors.black54,
+                          ),
                           title: const Text('通知与决策记录'),
                           subtitle: const Text('已发送与被抑制的通知都留痕'),
                           trailing: const Icon(Icons.chevron_right),
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute(
-                                builder: (_) =>
-                                    NotificationsScreen(env: widget.env)),
+                              builder: (_) =>
+                                  NotificationsScreen(env: widget.env),
+                            ),
                           ),
                         ),
                       ],
@@ -142,13 +149,20 @@ class _MeScreenState extends State<MeScreen> {
                   TextField(
                     controller: urlController,
                     decoration: const InputDecoration(
-                        labelText: '服务器地址', border: OutlineInputBorder()),
+                      labelText: '服务器地址',
+                      border: OutlineInputBorder(),
+                    ),
                   ),
                   const SizedBox(height: 8),
                   TextField(
                     controller: tokenController,
+                    obscureText: true,
+                    enableSuggestions: false,
+                    autocorrect: false,
                     decoration: const InputDecoration(
-                        labelText: '访问令牌', border: OutlineInputBorder()),
+                      labelText: '访问令牌',
+                      border: OutlineInputBorder(),
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Align(
@@ -156,7 +170,9 @@ class _MeScreenState extends State<MeScreen> {
                     child: FilledButton.tonal(
                       onPressed: () async {
                         await widget.env.updateConnection(
-                            urlController.text, tokenController.text);
+                          urlController.text,
+                          tokenController.text,
+                        );
                         if (mounted) {
                           setState(() {
                             settings = null;
@@ -179,13 +195,15 @@ class _MeScreenState extends State<MeScreen> {
             child: Padding(
               padding: const EdgeInsets.all(14),
               child: usage == null
-                  ? const Text('暂无数据',
-                      style: TextStyle(color: Colors.black45))
+                  ? const Text('暂无数据', style: TextStyle(color: Colors.black45))
                   : Text(
                       '评估运行 ${usage!['eval_runs']} 次 · 实际模型调用 ${usage!['total_model_calls']} 次 · 缓存命中项 ${usage!['cached_entries']} 条\n'
                       '原则：科学性不能省，不必要的模型调用必须省。',
                       style: const TextStyle(
-                          fontSize: 12.5, height: 1.7, color: Colors.black87),
+                        fontSize: 12.5,
+                        height: 1.7,
+                        color: Colors.black87,
+                      ),
                     ),
             ),
           ),
@@ -198,7 +216,11 @@ class _MeScreenState extends State<MeScreen> {
                 'Personal Health Engine · Layer 7\n'
                 '核心逻辑：现在的你 vs 你自己的长期正常状态。\n'
                 '本应用不含任何健康分、恢复分或红黄绿灯。',
-                style: TextStyle(fontSize: 12.5, height: 1.7, color: Colors.black54),
+                style: TextStyle(
+                  fontSize: 12.5,
+                  height: 1.7,
+                  color: Colors.black54,
+                ),
               ),
             ),
           ),
@@ -208,10 +230,12 @@ class _MeScreenState extends State<MeScreen> {
   }
 
   Widget _sectionTitle(String t) => Padding(
-        padding: const EdgeInsets.only(bottom: 8, top: 4),
-        child: Text(t,
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-      );
+    padding: const EdgeInsets.only(bottom: 8, top: 4),
+    child: Text(
+      t,
+      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+    ),
+  );
 
   Future<void> _setMode(String mode) async {
     try {
@@ -219,8 +243,11 @@ class _MeScreenState extends State<MeScreen> {
       await _load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('保存失败：$e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(content: Text('保存失败：${apiErrorMessage(e)}')),
+        );
       }
     }
   }
@@ -228,17 +255,22 @@ class _MeScreenState extends State<MeScreen> {
   Future<void> _saveQuiet() async {
     final v = quietController.text.trim();
     try {
-      await widget.env.client
-          .putSettings({'quiet_hours': v.isEmpty ? null : v});
+      await widget.env.client.putSettings({
+        'quiet_hours': v.isEmpty ? null : v,
+      });
       await _load();
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('免打扰时段已保存')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('免打扰时段已保存')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('保存失败：$e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(content: Text('保存失败：${apiErrorMessage(e)}')),
+        );
       }
     }
   }

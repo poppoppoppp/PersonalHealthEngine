@@ -1,0 +1,11 @@
+[Unit]
+Description=Check PHE short-lived TLS certificate twice daily
+
+[Timer]
+OnCalendar=*-*-* 00/12:17:00
+Persistent=true
+RandomizedDelaySec=15m
+Unit=phe-certbot-renew.service
+
+[Install]
+WantedBy=timers.target

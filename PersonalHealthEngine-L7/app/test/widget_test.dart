@@ -9,6 +9,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:phe_app/api_client.dart';
 import 'package:phe_app/main.dart';
+import 'package:phe_app/screens/context_screen.dart';
+import 'package:phe_app/screens/evidence_screen.dart';
+import 'package:phe_app/screens/history_screen.dart';
+import 'package:phe_app/screens/me_screen.dart';
+import 'package:phe_app/screens/notifications_screen.dart';
+import 'package:phe_app/screens/patterns_screen.dart';
+import 'package:phe_app/screens/qa_screen.dart';
 import 'package:phe_app/screens/today_screen.dart';
 
 class FakeClient implements L7Client {
@@ -101,6 +108,45 @@ class FakeClient implements L7Client {
   @override
   Future<Map<String, dynamic>> getNotificationDecisions() async =>
       {'decisions': []};
+}
+
+class FailingClient extends FakeClient {
+  FailingClient(super.today);
+
+  Never _failure() => throw const ApiException(
+    ApiErrorKind.authentication,
+    '认证失败，请更新访问令牌',
+  );
+
+  @override
+  Future<TodayPayload> getToday() async => _failure();
+
+  @override
+  Future<Map<String, dynamic>> refreshToday() async => _failure();
+
+  @override
+  Future<Map<String, dynamic>> getEvidence() async => _failure();
+
+  @override
+  Future<Map<String, dynamic>> getEpisodes() async => _failure();
+
+  @override
+  Future<Map<String, dynamic>> getPatterns() async => _failure();
+
+  @override
+  Future<Map<String, dynamic>> getSettings() async => _failure();
+
+  @override
+  Future<Map<String, dynamic>> listContext() async => _failure();
+
+  @override
+  Future<Map<String, dynamic>> getNotifications() async => _failure();
+
+  @override
+  Future<Map<String, dynamic>> qaAsk(
+    String question, {
+    int? conversationId,
+  }) async => _failure();
 }
 
 AppEnv envWith(Map<String, dynamic> today) {
@@ -216,5 +262,59 @@ void main() {
       expect(RegExp(r'(readiness|score)', caseSensitive: false).hasMatch(s),
           isFalse);
     }
+  });
+
+  testWidgets('cached Today remains visible when refresh fails', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final payload = TodayPayload(todayBase());
+    await TodayCache.store(payload);
+    final env = AppEnv(baseUrl: 'https://example.invalid', token: 't');
+    env.client = FailingClient(todayBase());
+
+    await tester.pumpWidget(MaterialApp(home: TodayScreen(env: env)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('今天值得调整'), findsOneWidget);
+    expect(find.text('认证失败，请更新访问令牌'), findsOneWidget);
+    expect(find.text('重新尝试'), findsOneWidget);
+  });
+
+  for (final entry in <String, Widget Function(AppEnv)>{
+    'history': (env) => HistoryScreen(env: env),
+    'patterns': (env) => PatternsScreen(env: env),
+    'settings': (env) => MeScreen(env: env),
+    'evidence': (env) => EvidenceScreen(env: env),
+    'context': (env) => ContextScreen(env: env),
+    'notifications': (env) => NotificationsScreen(env: env),
+  }.entries) {
+    testWidgets('${entry.key} exits loading with a retryable error', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({});
+      final env = AppEnv(baseUrl: 'https://example.invalid', token: 't');
+      env.client = FailingClient(todayBase());
+
+      await tester.pumpWidget(MaterialApp(home: entry.value(env)));
+      await tester.pumpAndSettle();
+
+      expect(find.text('认证失败，请更新访问令牌'), findsOneWidget);
+      expect(find.text('重新尝试'), findsOneWidget);
+    });
+  }
+
+  testWidgets('Q&A failure is sanitized and preserves a retry action', (
+    tester,
+  ) async {
+    final env = AppEnv(baseUrl: 'https://example.invalid', token: 't');
+    env.client = FailingClient(todayBase());
+
+    await tester.pumpWidget(MaterialApp(home: QnAScreen(env: env)));
+    await tester.enterText(find.byType(TextField), '今天适合训练吗？');
+    await tester.tap(find.byIcon(Icons.send));
+    await tester.pumpAndSettle();
+
+    expect(find.text('认证失败，请更新访问令牌'), findsOneWidget);
+    expect(find.text('重新尝试'), findsOneWidget);
+    expect(find.textContaining('traceback'), findsNothing);
   });
 }

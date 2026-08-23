@@ -1,0 +1,4 @@
+storePassword=__LOCAL_KEYRING_VALUE__
+keyPassword=__LOCAL_KEYRING_VALUE__
+keyAlias=phe-release
+storeFile=D:/PersonalHealthEngine/secrets/android/phe-release.jks

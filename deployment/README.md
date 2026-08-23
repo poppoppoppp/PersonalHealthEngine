@@ -61,3 +61,22 @@ The Windows development PC is not part of the final production runtime.
 
 Definition JSON is also forced to LF by `.gitattributes`. Neither the restore
 tool nor runtime tooling ever updates `definition_registry` checksums.
+
+## Android production gateway
+
+The private Android client uses `https://47.111.229.39` on the Alibaba Cloud
+mainland-China ECS address. `install_mobile_gateway.sh` installs Nginx on 80/443,
+requests a publicly trusted Let's Encrypt short-lived IP certificate with Certbot
+5.4+, proxies only to `127.0.0.1:8707`, and enables twice-daily renewal. Cloud and
+host firewalls must expose 80/443 only; 8707 and 11434 remain private.
+
+`build_android_release.ps1` reads the existing L7 bearer token and Android signing
+password from Windows keyring service `personal-health-engine`, creates ignored
+temporary build inputs, and emits only
+`D:\PersonalHealthEngine\artifacts\PHE-Android-production.apk`. Keystores, tokens,
+temporary defines, and APKs are never committed.
+
+The bootstrap bearer token is compiled into this private APK and can be recovered
+by an attacker who obtains the artifact; Android secure storage protects the
+installed copy, not the build-time value. Keep the APK private and rotate the L7
+token immediately if the APK or a device is lost or shared outside the owner.

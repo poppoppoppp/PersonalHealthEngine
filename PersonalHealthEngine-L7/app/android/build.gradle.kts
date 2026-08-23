@@ -1,11 +1,11 @@
+import com.android.build.api.variant.LibraryAndroidComponentsExtension
+
 allprojects {
     repositories {
-        // China network: Aliyun mirrors first, official repos as fallback.
+        // Keep release builds independent of blocked Google/Maven endpoints.
         maven { url = uri("https://maven.aliyun.com/repository/google") }
         maven { url = uri("https://maven.aliyun.com/repository/public") }
         maven { url = uri("https://maven.aliyun.com/repository/gradle-plugin") }
-        google()
-        mavenCentral()
     }
 }
 
@@ -18,6 +18,13 @@ rootProject.layout.buildDirectory.value(newBuildDir)
 subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
+    pluginManager.withPlugin("com.android.library") {
+        extensions.configure<LibraryAndroidComponentsExtension> {
+            finalizeDsl { extension ->
+                extension.compileSdk = 36
+            }
+        }
+    }
 }
 subprojects {
     project.evaluationDependsOn(":app")

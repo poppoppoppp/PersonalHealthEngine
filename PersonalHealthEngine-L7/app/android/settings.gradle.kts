@@ -11,13 +11,10 @@ pluginManagement {
     includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
 
     repositories {
-        // China network: Aliyun mirrors first, official repos as fallback.
+        // Keep release builds independent of blocked Google/Maven endpoints.
         maven { url = uri("https://maven.aliyun.com/repository/google") }
         maven { url = uri("https://maven.aliyun.com/repository/public") }
         maven { url = uri("https://maven.aliyun.com/repository/gradle-plugin") }
-        google()
-        mavenCentral()
-        gradlePluginPortal()
     }
 }
 

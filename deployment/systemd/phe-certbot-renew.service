@@ -1,0 +1,10 @@
+[Unit]
+Description=Renew PHE public IP TLS certificate
+After=network-online.target nginx.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/phe-gateway-certbot/bin/certbot renew --quiet --deploy-hook "/usr/sbin/nginx -s reload"
+PrivateTmp=true
+NoNewPrivileges=true

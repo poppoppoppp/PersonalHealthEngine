@@ -36,6 +36,9 @@ dependencies:
   cupertino_icons: ^1.0.8
   http: ^1.2.0
   shared_preferences: ^2.3.0
+  flutter_secure_storage: 9.2.4
+  # 2.3.x requires NDK/JNI unavailable in the sealed Windows build toolchain.
+  path_provider_android: 2.2.15
 
 dev_dependencies:
   flutter_test:

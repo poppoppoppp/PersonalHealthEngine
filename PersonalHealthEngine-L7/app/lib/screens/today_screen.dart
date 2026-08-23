@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../api_client.dart';
 import '../main.dart';
+import '../widgets/api_error_view.dart';
 import 'context_screen.dart';
 import 'evidence_screen.dart';
 import 'qa_screen.dart';
@@ -26,7 +27,7 @@ class TodayScreen extends StatefulWidget {
 
 class _TodayScreenState extends State<TodayScreen> {
   TodayPayload? today;
-  String? error;
+  Object? error;
   bool loading = false;
   bool fromCache = false;
 
@@ -66,14 +67,17 @@ class _TodayScreenState extends State<TodayScreen> {
       if (mounted) {
         setState(() {
           loading = false;
-          error = '$e';
+          error = e;
         });
       }
     }
   }
 
   Future<void> _refresh() async {
-    setState(() => loading = true);
+    setState(() {
+      loading = true;
+      error = null;
+    });
     try {
       final r = await widget.env.client.refreshToday();
       final p = TodayPayload((r['today'] as Map).cast<String, dynamic>());
@@ -83,13 +87,14 @@ class _TodayScreenState extends State<TodayScreen> {
           today = p;
           fromCache = false;
           loading = false;
+          error = null;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           loading = false;
-          error = '$e';
+          error = e;
         });
       }
     }
@@ -109,9 +114,9 @@ class _TodayScreenState extends State<TodayScreen> {
               child: Center(
                 child: Text(
                   '更新于 ${p.updatedAtLocal}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.black54,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: Colors.black54),
                 ),
               ),
             ),
@@ -128,16 +133,23 @@ class _TodayScreenState extends State<TodayScreen> {
                 child: Row(
                   children: [
                     SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2)),
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
                     SizedBox(width: 8),
-                    Text('正在检查最新证据…',
-                        style: TextStyle(color: Colors.black54, fontSize: 12)),
+                    Text(
+                      '正在检查最新证据…',
+                      style: TextStyle(color: Colors.black54, fontSize: 12),
+                    ),
                   ],
                 ),
               ),
             if (error != null && p == null) _errorCard(context),
+            if (error != null && p != null) ...[
+              ApiErrorView(error: error!, onRetry: _refresh),
+              const SizedBox(height: 8),
+            ],
             if (p != null) ..._todayBody(context, p),
             if (p == null && error == null && loading)
               const Padding(
@@ -151,22 +163,7 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   Widget _errorCard(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('暂时无法连接健康引擎',
-                style: TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            Text(error!, style: const TextStyle(fontSize: 12, color: Colors.black54)),
-            const SizedBox(height: 12),
-            FilledButton.tonal(onPressed: _fetch, child: const Text('重试')),
-          ],
-        ),
-      ),
-    );
+    return ApiErrorView(error: error!, onRetry: _fetch);
   }
 
   List<Widget> _todayBody(BuildContext context, TodayPayload p) {
@@ -222,8 +219,10 @@ class _TodayScreenState extends State<TodayScreen> {
             Row(
               children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: color.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(999),
@@ -231,9 +230,10 @@ class _TodayScreenState extends State<TodayScreen> {
                   child: Text(
                     p.productStateLabel,
                     style: TextStyle(
-                        color: color,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14),
+                      color: color,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
                 const Spacer(),
@@ -279,14 +279,19 @@ class _TodayScreenState extends State<TodayScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('最可能原因',
-                style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.black54,
-                    fontWeight: FontWeight.w600)),
+            const Text(
+              '最可能原因',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.black54,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             const SizedBox(height: 8),
-            Text(p.causeText.isEmpty ? '（暂无）' : p.causeText,
-                style: const TextStyle(fontSize: 15, height: 1.5)),
+            Text(
+              p.causeText.isEmpty ? '（暂无）' : p.causeText,
+              style: const TextStyle(fontSize: 15, height: 1.5),
+            ),
             if (p.secondaryCause != null)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
@@ -312,11 +317,14 @@ class _TodayScreenState extends State<TodayScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('今日行动',
-                style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.black54,
-                    fontWeight: FontWeight.w600)),
+            const Text(
+              '今日行动',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.black54,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             const SizedBox(height: 8),
             for (final a in p.actions)
               Padding(
@@ -324,12 +332,15 @@ class _TodayScreenState extends State<TodayScreen> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.check_circle_outline,
-                        size: 18, color: Colors.black45),
+                    const Icon(
+                      Icons.check_circle_outline,
+                      size: 18,
+                      color: Colors.black45,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
-                        child:
-                            Text(a, style: const TextStyle(height: 1.4))),
+                      child: Text(a, style: const TextStyle(height: 1.4)),
+                    ),
                   ],
                 ),
               ),
@@ -353,23 +364,31 @@ class _TodayScreenState extends State<TodayScreen> {
             children: [
               Row(
                 children: [
-                  const Text('依据',
-                      style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.black54,
-                          fontWeight: FontWeight.w600)),
+                  const Text(
+                    '依据',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.black54,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   const Spacer(),
-                  Text('查看依据',
-                      style: TextStyle(
-                          fontSize: 13,
-                          color: Theme.of(context).colorScheme.primary)),
+                  Text(
+                    '查看依据',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
                   const Icon(Icons.chevron_right, size: 18),
                 ],
               ),
               const SizedBox(height: 8),
               if (p.evidenceLevel2.isEmpty)
-                const Text('当前没有明显的偏离证据。',
-                    style: TextStyle(color: Colors.black54))
+                const Text(
+                  '当前没有明显的偏离证据。',
+                  style: TextStyle(color: Colors.black54),
+                )
               else
                 for (final e in p.evidenceLevel2)
                   Padding(
@@ -377,12 +396,16 @@ class _TodayScreenState extends State<TodayScreen> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('· ',
-                            style: TextStyle(color: Colors.black45)),
+                        const Text(
+                          '· ',
+                          style: TextStyle(color: Colors.black45),
+                        ),
                         Expanded(
-                            child: Text(e,
-                                style: const TextStyle(
-                                    fontSize: 13.5, height: 1.4))),
+                          child: Text(
+                            e,
+                            style: const TextStyle(fontSize: 13.5, height: 1.4),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -400,8 +423,7 @@ class _TodayScreenState extends State<TodayScreen> {
           child: OutlinedButton.icon(
             onPressed: () => Navigator.of(context)
                 .push(
-                  MaterialPageRoute(
-                      builder: (_) => QnAScreen(env: widget.env)),
+                  MaterialPageRoute(builder: (_) => QnAScreen(env: widget.env)),
                 )
                 .then((_) => _fetch()),
             icon: const Icon(Icons.chat_bubble_outline, size: 18),
@@ -417,7 +439,8 @@ class _TodayScreenState extends State<TodayScreen> {
             onPressed: () => Navigator.of(context)
                 .push(
                   MaterialPageRoute(
-                      builder: (_) => ContextScreen(env: widget.env)),
+                    builder: (_) => ContextScreen(env: widget.env),
+                  ),
                 )
                 .then((_) => _fetch()),
             icon: const Icon(Icons.add_comment_outlined, size: 18),
@@ -440,9 +463,10 @@ class _TodayScreenState extends State<TodayScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${fp['prompt'] ?? '这个判断准确吗？'}',
-                style:
-                    const TextStyle(fontSize: 13, color: Colors.black54)),
+            Text(
+              '${fp['prompt'] ?? '这个判断准确吗？'}',
+              style: const TextStyle(fontSize: 13, color: Colors.black54),
+            ),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -460,12 +484,15 @@ class _TodayScreenState extends State<TodayScreen> {
                 child: Row(
                   children: [
                     SizedBox(
-                        width: 12,
-                        height: 12,
-                        child: CircularProgressIndicator(strokeWidth: 2)),
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
                     SizedBox(width: 8),
-                    Text('正在记录并重新评估…',
-                        style: TextStyle(fontSize: 12, color: Colors.black45)),
+                    Text(
+                      '正在记录并重新评估…',
+                      style: TextStyle(fontSize: 12, color: Colors.black45),
+                    ),
                   ],
                 ),
               ),
@@ -490,16 +517,21 @@ class _TodayScreenState extends State<TodayScreen> {
       final updated = re['judgment_updated'] == true;
       await _fetch(); // the engine already re-analyzed; pull the fresh Today
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(updated
-              ? '反馈已记录，今日判断已根据你的反馈更新。'
-              : '反馈已记录，引擎已复核，今日判断保持不变。'),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              updated ? '反馈已记录，今日判断已根据你的反馈更新。' : '反馈已记录，引擎已复核，今日判断保持不变。',
+            ),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('反馈提交失败：$e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(content: Text('反馈提交失败：${apiErrorMessage(e)}')),
+        );
       }
     } finally {
       if (mounted) setState(() => _feedbackBusy = false);
@@ -516,15 +548,17 @@ class _TodayScreenState extends State<TodayScreen> {
           controller: controller,
           maxLines: 3,
           autofocus: true,
-          decoration: const InputDecoration(
-              hintText: '例如：其实昨晚喝了酒 / 最近工作压力很大'),
+          decoration: const InputDecoration(hintText: '例如：其实昨晚喝了酒 / 最近工作压力很大'),
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context), child: const Text('取消')),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(context, controller.text),
-              child: const Text('提交')),
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: const Text('提交'),
+          ),
         ],
       ),
     );
@@ -548,16 +582,22 @@ class _VersionHistorySheet extends StatefulWidget {
 
 class _VersionHistorySheetState extends State<_VersionHistorySheet> {
   List<dynamic>? versions;
-  String? error;
+  Object? error;
 
   @override
   void initState() {
     super.initState();
-    widget.env.client.getTodayVersions().then((r) {
-      if (mounted) setState(() => versions = r['versions'] as List);
-    }).catchError((e) {
-      if (mounted) setState(() => error = '$e');
-    });
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => error = null);
+    try {
+      final result = await widget.env.client.getTodayVersions();
+      if (mounted) setState(() => versions = result['versions'] as List);
+    } catch (e) {
+      if (mounted) setState(() => error = e);
+    }
   }
 
   @override
@@ -569,31 +609,39 @@ class _VersionHistorySheetState extends State<_VersionHistorySheet> {
         children: [
           const Padding(
             padding: EdgeInsets.all(16),
-            child: Text('判断版本历史（旧判断不会被删除）',
-                style: TextStyle(fontWeight: FontWeight.w600)),
+            child: Text(
+              '判断版本历史（旧判断不会被删除）',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
           ),
           Expanded(
             child: error != null
-                ? Center(child: Text(error!))
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: ApiErrorView(error: error!, onRetry: _load),
+                    ),
+                  )
                 : versions == null
-                    ? const Center(child: CircularProgressIndicator())
-                    : ListView.builder(
-                        controller: scroll,
-                        itemCount: versions!.length,
-                        itemBuilder: (_, i) {
-                          final v =
-                              (versions![i] as Map).cast<String, dynamic>();
-                          return ListTile(
-                            leading: Text('#${v['id']}'),
-                            title: Text(
-                                '${v['analysis_date']} · 状态 ${v['product_state']}'),
-                            subtitle: Text(
-                                '${v['created_at_utc'] ?? ''} · ${v['trigger'] ?? ''}'
-                                '${(v['judgment_updated'] == 1) ? ' · 判断已更新' : ''}'),
-                            isThreeLine: false,
-                          );
-                        },
-                      ),
+                ? const Center(child: CircularProgressIndicator())
+                : ListView.builder(
+                    controller: scroll,
+                    itemCount: versions!.length,
+                    itemBuilder: (_, i) {
+                      final v = (versions![i] as Map).cast<String, dynamic>();
+                      return ListTile(
+                        leading: Text('#${v['id']}'),
+                        title: Text(
+                          '${v['analysis_date']} · 状态 ${v['product_state']}',
+                        ),
+                        subtitle: Text(
+                          '${v['created_at_utc'] ?? ''} · ${v['trigger'] ?? ''}'
+                          '${(v['judgment_updated'] == 1) ? ' · 判断已更新' : ''}',
+                        ),
+                        isThreeLine: false,
+                      );
+                    },
+                  ),
           ),
         ],
       ),
