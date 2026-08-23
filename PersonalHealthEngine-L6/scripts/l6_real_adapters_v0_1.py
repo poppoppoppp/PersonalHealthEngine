@@ -23,7 +23,7 @@ DEEPSEEK_MODEL_DEFAULT = "deepseek-v4-pro"
 # runtime; production can point MEDICAL_MODEL_ENDPOINT at a remote/cloud Ollama-compatible host.
 MEDGEMMA_MODEL_DEFAULT = "medgemma1.5"
 MEDGEMMA_OLLAMA_ENDPOINT_DEFAULT = "http://localhost:11434"
-MEDICAL_MODEL_TIMEOUT_S = 240
+MEDICAL_MODEL_TIMEOUT_S = 600
 
 DAILY_OUTPUT_SCHEMA_HINT = {
     "primary_hypothesis_type": "string (one of the allowed hypothesis types)",

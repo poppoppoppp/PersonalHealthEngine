@@ -43,9 +43,9 @@ class TodayService:
         """Evidence Level 3: raw values, baseline details and quality info for the metrics
         that actually deviate in the current bundle — nothing else (§47 dashboard boundary)."""
         l6 = open_readonly(self.cfg.l6_db)
-        l5 = open_readonly(self.cfg.l5_db)
-        l4 = open_readonly(self.cfg.l4_db)
-        l3 = open_readonly(self.cfg.l3_db)
+        l5 = open_readonly(self.cfg.l5_db, immutable_if_checkpointed=True)
+        l4 = open_readonly(self.cfg.l4_db, immutable_if_checkpointed=True)
+        l3 = open_readonly(self.cfg.l3_db, immutable_if_checkpointed=True)
         try:
             analysis_date = readers.latest_analysis_date(l5)
             if analysis_date is None:

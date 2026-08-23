@@ -5,40 +5,47 @@ MODEL_NAME="medgemma1.5"
 EXPECTED_SHA256="a051c2bd4ab8d5b7f4df8eec344f2fdd603efb2d098da799dc16c95e9e8bc838"
 
 CODE_ROOT="/opt/phe"
-MODEL_IMPORT_DIR="/srv/phe/model-import"
+DATA_ROOT="/srv/phe"
+MODEL_IMPORT_DIR="${DATA_ROOT}/model-import"
+OLLAMA_HOME="${DATA_ROOT}/ollama"
 
 GGUF="${MODEL_IMPORT_DIR}/medgemma1.5.gguf"
 MODELFILE_SOURCE="${CODE_ROOT}/deployment/models/medgemma1.5.Modelfile"
 MODELFILE_TARGET="${MODEL_IMPORT_DIR}/medgemma1.5.Modelfile"
-
-COMPOSE_FILE="${CODE_ROOT}/deployment/docker/docker-compose.production.yml"
+FIREWALL_SOURCE="${CODE_ROOT}/deployment/systemd/phe-ollama-firewall.service"
+OLLAMA_SERVICE_SOURCE="${CODE_ROOT}/deployment/systemd/ollama.service"
 
 if [[ "${EUID}" -ne 0 ]]; then
     echo "ERROR: run this script as root"
     exit 1
 fi
 
-echo "========== MEDGEMMA PROVISIONING =========="
+echo "========== HOST MEDGEMMA PROVISIONING =========="
 
-for command in docker sha256sum awk grep; do
+for command in ollama sha256sum awk grep systemctl curl; do
     if ! command -v "${command}" >/dev/null 2>&1; then
-        echo "ERROR: required command missing: ${command}"
+        echo "ERROR: required host command missing: ${command}"
         exit 1
     fi
 done
 
-if ! docker compose version >/dev/null 2>&1; then
-    echo "ERROR: Docker Compose plugin is unavailable"
-    exit 1
-fi
-
-if [[ ! -f "${COMPOSE_FILE}" ]]; then
-    echo "ERROR: compose file missing: ${COMPOSE_FILE}"
+if [[ ! -x /usr/local/bin/ollama ]]; then
+    echo "ERROR: host Ollama must be installed at /usr/local/bin/ollama"
     exit 1
 fi
 
 if [[ ! -f "${MODELFILE_SOURCE}" ]]; then
     echo "ERROR: committed Modelfile missing: ${MODELFILE_SOURCE}"
+    exit 1
+fi
+
+if [[ ! -f "${FIREWALL_SOURCE}" ]]; then
+    echo "ERROR: Ollama firewall unit missing: ${FIREWALL_SOURCE}"
+    exit 1
+fi
+
+if [[ ! -f "${OLLAMA_SERVICE_SOURCE}" ]]; then
+    echo "ERROR: Ollama service unit missing: ${OLLAMA_SERVICE_SOURCE}"
     exit 1
 fi
 
@@ -48,11 +55,7 @@ if [[ ! -f "${GGUF}" ]]; then
     exit 1
 fi
 
-actual_sha="$(
-    sha256sum "${GGUF}" |
-    awk '{print $1}'
-)"
-
+actual_sha="$(sha256sum "${GGUF}" | awk '{print $1}')"
 echo "GGUF SHA256 = ${actual_sha}"
 
 if [[ "${actual_sha}" != "${EXPECTED_SHA256}" ]]; then
@@ -62,74 +65,58 @@ fi
 
 echo "GGUF SHA256 CHECK = PASS"
 
-install \
-    -m 0640 \
-    -o phe \
-    -g phe \
-    "${MODELFILE_SOURCE}" \
-    "${MODELFILE_TARGET}"
+if ! id ollama >/dev/null 2>&1; then
+    useradd --system --home-dir "${OLLAMA_HOME}" --shell /usr/sbin/nologin ollama
+fi
 
-chown phe:phe "${GGUF}"
+install -d -m 0750 -o ollama -g ollama "${OLLAMA_HOME}" "${OLLAMA_HOME}/models"
+install -d -m 0750 -o ollama -g ollama "${MODEL_IMPORT_DIR}"
+install -m 0640 -o ollama -g ollama "${MODELFILE_SOURCE}" "${MODELFILE_TARGET}"
+chown ollama:ollama "${GGUF}"
 chmod 0640 "${GGUF}"
 
-echo "Starting Ollama..."
+install -m 0644 -o root -g root \
+    "${FIREWALL_SOURCE}" \
+    /etc/systemd/system/phe-ollama-firewall.service
+install -m 0644 -o root -g root \
+    "${OLLAMA_SERVICE_SOURCE}" \
+    /etc/systemd/system/ollama.service
 
-docker compose \
-    -f "${COMPOSE_FILE}" \
-    up -d medgemma
+systemctl daemon-reload
+systemctl enable --now phe-ollama-firewall.service
+systemctl enable --now ollama.service
 
 ready=0
-
 for _ in $(seq 1 60); do
-    if docker compose \
-        -f "${COMPOSE_FILE}" \
-        exec -T medgemma \
-        ollama list \
+    if curl --fail --silent --show-error \
+        http://127.0.0.1:11434/api/tags \
         >/dev/null 2>&1
     then
         ready=1
         break
     fi
-
     sleep 1
 done
 
 if [[ "${ready}" -ne 1 ]]; then
-    echo "ERROR: Ollama did not become ready within 60 seconds"
+    echo "ERROR: host Ollama did not become ready within 60 seconds"
     exit 1
 fi
 
-echo "OLLAMA = READY"
+echo "HOST OLLAMA = READY"
 
-docker compose \
-    -f "${COMPOSE_FILE}" \
-    exec -T medgemma \
-    ollama create "${MODEL_NAME}" \
-    -f /model-import/medgemma1.5.Modelfile
+ollama create "${MODEL_NAME}" -f "${MODELFILE_TARGET}"
+ollama show "${MODEL_NAME}" >/dev/null
 
-docker compose \
-    -f "${COMPOSE_FILE}" \
-    exec -T medgemma \
-    ollama show "${MODEL_NAME}" \
-    >/dev/null
-
-if ! docker compose \
-    -f "${COMPOSE_FILE}" \
-    exec -T medgemma \
-    ollama list |
-    grep -q '^medgemma1\.5:'
-then
+if ! ollama list | grep -q '^medgemma1\.5:'; then
     echo "ERROR: medgemma1.5 missing after creation"
     exit 1
 fi
 
 echo
-docker compose \
-    -f "${COMPOSE_FILE}" \
-    exec -T medgemma \
-    ollama list
+ollama list
 
 echo
-echo "MEDGEMMA PROVISIONING = PASS"
+echo "HOST MEDGEMMA PROVISIONING = PASS"
 echo "model = ${MODEL_NAME}"
 echo "gguf_sha256 = ${actual_sha}"

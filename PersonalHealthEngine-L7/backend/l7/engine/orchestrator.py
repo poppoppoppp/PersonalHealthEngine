@@ -20,8 +20,10 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from l7.config import Config, DEFINITION_FILES
@@ -87,9 +89,9 @@ class EngineOrchestrator:
         started = utc_now()
         local_date = datetime.now(ZoneInfo(self.cfg.timezone_name)).date().isoformat()
 
-        l3 = open_readonly(self.cfg.l3_db)
-        l4 = open_readonly(self.cfg.l4_db)
-        l5 = open_readonly(self.cfg.l5_db)
+        l3 = open_readonly(self.cfg.l3_db, immutable_if_checkpointed=True)
+        l4 = open_readonly(self.cfg.l4_db, immutable_if_checkpointed=True)
+        l5 = open_readonly(self.cfg.l5_db, immutable_if_checkpointed=True)
         l6 = open_readonly(self.cfg.l6_db)
         try:
             analysis_date = readers.latest_analysis_date(l5)
@@ -129,7 +131,7 @@ class EngineOrchestrator:
             model_calls = 0
             if need_model:
                 model_calls = self._run_reasoning_and_materialize(
-                    bundle, bhash, candidates, provenance, analysis_date
+                    bundle, bhash, candidates, provenance, analysis_date, sig
                 )
                 outcome = "REMATERIALIZED"
             else:
@@ -178,7 +180,9 @@ class EngineOrchestrator:
         }
         return EvaluationResult("FALLBACK_NO_DATA", 0, False, payload, run_id, None)
 
-    def _run_reasoning_and_materialize(self, bundle, bhash, candidates, provenance, analysis_date):
+    def _run_reasoning_and_materialize(
+        self, bundle, bhash, candidates, provenance, analysis_date, upstream_sig
+    ):
         """Mirror the sealed materializer flow with the configured adapters. Returns #model calls."""
         core = self.bridge.core
         mat = self.bridge.materializer
@@ -266,6 +270,12 @@ class EngineOrchestrator:
             if findings is not None:
                 review_state = "PERFORMED"
                 medical_findings = findings
+                invocations.append({
+                    "adapter_kind": "MEDICAL", "model_id": medical_model_id,
+                    "request_sha256": med_request_hash,
+                    "response_sha256": core.sha256_text(core.canonical_json(findings)),
+                    "status": "PASS",
+                })
             else:
                 review_state = "UNAVAILABLE"
                 invocations.append({
@@ -319,6 +329,56 @@ class EngineOrchestrator:
                 )
             result = mat.reconcile_daily(
                 l6w, analysis_date, bundle, bhash, ranked, daily, provenance, invocations, now
+            )
+            run_id = (
+                "l6-incremental-"
+                + datetime.now(ZoneInfo("UTC")).strftime("%Y%m%dT%H%M%SZ")
+                + "-"
+                + uuid.uuid4().hex[:8]
+            )
+            finished = utc_now()
+            details = dict(result)
+            details.update(
+                {
+                    "analysis_date": analysis_date,
+                    "bundle_sha256": bhash,
+                    "model_calls": model_calls,
+                }
+            )
+            l6w.execute(
+                "INSERT INTO pipeline_runs "
+                "(run_id,mode,status,source_l3_path,source_l4_path,source_l5_path,"
+                "started_at_utc,finished_at_utc,details_json) VALUES (?,?,?,?,?,?,?,?,?)",
+                (
+                    run_id,
+                    "INCREMENTAL",
+                    "PASS",
+                    str(Path(self.cfg.l3_db).resolve()),
+                    str(Path(self.cfg.l4_db).resolve()),
+                    str(Path(self.cfg.l5_db).resolve()),
+                    now,
+                    finished,
+                    core.canonical_json(details),
+                ),
+            )
+            l6w.execute(
+                "INSERT INTO processing_checkpoints "
+                "(pipeline_name,last_l5_analytic_id,last_l3_feature_id,last_l4_baseline_id,"
+                "last_successful_run_id,updated_at_utc) VALUES (?,?,?,?,?,?) "
+                "ON CONFLICT(pipeline_name) DO UPDATE SET "
+                "last_l5_analytic_id=excluded.last_l5_analytic_id,"
+                "last_l3_feature_id=excluded.last_l3_feature_id,"
+                "last_l4_baseline_id=excluded.last_l4_baseline_id,"
+                "last_successful_run_id=excluded.last_successful_run_id,"
+                "updated_at_utc=excluded.updated_at_utc",
+                (
+                    mat.PIPELINE,
+                    upstream_sig["l5_max_deviation_id"],
+                    upstream_sig["l3_max_feature_id"],
+                    upstream_sig["l4_max_baseline_id"],
+                    run_id,
+                    finished,
+                ),
             )
             l6w.commit()
         except Exception:

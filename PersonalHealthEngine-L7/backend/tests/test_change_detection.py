@@ -6,6 +6,7 @@ production L3/L4/L5), so assertions reflect the actual engine state, not synthet
 
 import json
 import sqlite3
+from pathlib import Path
 
 
 def read_l6_current(l6_path, analysis_date):
@@ -82,6 +83,53 @@ def test_irrelevant_context_change_does_not_rewrite_wording(env, l6_write):
     assert r2.today_payload["judgment_updated"] is False
 
 
+def test_rematerialization_records_current_l6_pipeline_metadata(env, l6_write):
+    l6_write.execute(
+        "UPDATE processing_checkpoints SET last_l5_analytic_id=0,last_l3_feature_id=0,"
+        "last_l4_baseline_id=0 WHERE pipeline_name='l6.daily_reasoning'"
+    )
+    l6_write.execute(
+        "INSERT INTO personal_context (context_date,context_type,body_part,severity,raw_text,"
+        "source,status,created_at_utc,updated_at_utc) VALUES (?,?,?,?,?,?,'CURRENT',?,?)",
+        ("2026-08-16", "STRESS", None, None, "最近工作压力大", "USER_REPORTED",
+         "2026-08-17T12:30:00+00:00", "2026-08-17T12:30:00+00:00"),
+    )
+    l6_write.commit()
+
+    result = env["orch"].evaluate("owner", "context_added")
+    assert result.outcome == "REMATERIALIZED"
+
+    upstreams = []
+    for path, query in (
+        (env["cfg"].l5_db, "SELECT COALESCE(MAX(id),0) FROM deviation_analytics"),
+        (env["cfg"].l3_db, "SELECT COALESCE(MAX(id),0) FROM derived_features"),
+        (env["cfg"].l4_db, "SELECT COALESCE(MAX(id),0) FROM rolling_baselines"),
+    ):
+        con = sqlite3.connect(Path(path).resolve().as_uri() + "?mode=ro", uri=True)
+        try:
+            upstreams.append(con.execute(query).fetchone()[0])
+        finally:
+            con.close()
+
+    con = sqlite3.connect(env["l6_copy"])
+    try:
+        checkpoint = con.execute(
+            "SELECT last_l5_analytic_id,last_l3_feature_id,last_l4_baseline_id,"
+            "last_successful_run_id FROM processing_checkpoints "
+            "WHERE pipeline_name='l6.daily_reasoning'"
+        ).fetchone()
+        latest_run = con.execute(
+            "SELECT run_id,mode,status FROM pipeline_runs "
+            "ORDER BY started_at_utc DESC LIMIT 1"
+        ).fetchone()
+    finally:
+        con.close()
+
+    assert checkpoint[:3] == tuple(upstreams)
+    assert checkpoint[3] == latest_run[0]
+    assert latest_run[1:] == ("INCREMENTAL", "PASS")
+
+
 def test_symptom_context_changes_judgment_and_marks_update(env, l6_write):
     """A safety-relevant fact must flip the product state to E, reorder information
     (conclusion -> action -> cause), and set judgment_updated."""
@@ -102,6 +150,16 @@ def test_symptom_context_changes_judgment_and_marks_update(env, l6_write):
     assert p["information_order"] == ["conclusion", "action", "cause"]
     assert p["judgment_updated"] is True
     assert p["version_id"] != r1.today_payload["version_id"]
+
+    con = sqlite3.connect(env["l6_copy"])
+    try:
+        medical_invocation = con.execute(
+            "SELECT status FROM model_invocations WHERE adapter_kind='MEDICAL' "
+            "ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+    finally:
+        con.close()
+    assert medical_invocation == ("PASS",)
 
     # Old version preserved (never overwritten, §17).
     versions = env["l7"].execute(

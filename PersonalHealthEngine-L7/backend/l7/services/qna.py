@@ -63,7 +63,7 @@ class QnAService:
 
     # -- conversation lifecycle --------------------------------------------
     def _sleep_exists_for(self, local_date: str) -> bool:
-        l3 = open_readonly(self.cfg.l3_db)
+        l3 = open_readonly(self.cfg.l3_db, immutable_if_checkpointed=True)
         try:
             row = l3.execute(
                 "SELECT COUNT(*) FROM derived_features WHERE local_date=? "
@@ -170,9 +170,9 @@ class QnAService:
             }
 
         core = self.bridge.core
-        l3 = open_readonly(self.cfg.l3_db)
-        l4 = open_readonly(self.cfg.l4_db)
-        l5 = open_readonly(self.cfg.l5_db)
+        l3 = open_readonly(self.cfg.l3_db, immutable_if_checkpointed=True)
+        l4 = open_readonly(self.cfg.l4_db, immutable_if_checkpointed=True)
+        l5 = open_readonly(self.cfg.l5_db, immutable_if_checkpointed=True)
         l6 = open_readonly(self.cfg.l6_db)
         try:
             analysis_date = readers.latest_analysis_date(l5)

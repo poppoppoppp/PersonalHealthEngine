@@ -6,3 +6,10 @@ deployment/**/*.yaml text eol=lf
 deployment/**/*.py text eol=lf
 deployment/**/*.conf text eol=lf
 deployment/**/*.txt text eol=lf
+
+# Definition registries hash the exact JSON bytes. Keep checkout bytes stable on
+# Windows and Linux so production never sees CRLF-only checksum drift.
+PersonalHealthEngine-L3/definitions/**/*.json text eol=lf
+PersonalHealthEngine-L4/definitions/**/*.json text eol=lf
+PersonalHealthEngine-L5/definitions/**/*.json text eol=lf
+PersonalHealthEngine-L6/definitions/**/*.json text eol=lf

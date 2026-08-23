@@ -3,7 +3,22 @@
 #
 # IMPORTANT: the sealed L1–L6 code+data are mounted read-only at runtime (see
 # docker-compose.yml). This image contains ONLY L7.
-FROM python:3.14-slim
+FROM m.daocloud.io/docker.io/library/python:3.13-slim
+
+# Mainland China build acceleration: use Aliyun Debian mirror.
+RUN set -eux; \
+    if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
+        sed -i \
+          -e 's|http://deb.debian.org/debian-security|http://mirrors.aliyun.com/debian-security|g' \
+          -e 's|http://deb.debian.org/debian|http://mirrors.aliyun.com/debian|g' \
+          /etc/apt/sources.list.d/debian.sources; \
+    fi; \
+    if [ -f /etc/apt/sources.list ]; then \
+        sed -i \
+          -e 's|http://deb.debian.org/debian-security|http://mirrors.aliyun.com/debian-security|g' \
+          -e 's|http://deb.debian.org/debian|http://mirrors.aliyun.com/debian|g' \
+          /etc/apt/sources.list; \
+    fi
 
 WORKDIR /srv/l7
 
@@ -12,7 +27,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY backend/requirements.txt /srv/l7/requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple -r requirements.txt
 
 COPY backend /srv/l7/backend
 # Sealed L6 code is import-only; ship a copy location that the compose volume overrides.

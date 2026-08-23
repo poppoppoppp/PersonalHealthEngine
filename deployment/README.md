@@ -33,3 +33,31 @@ Xiaomi Cloud
 -> Flutter App
 
 The Windows development PC is not part of the final production runtime.
+
+## Production runtime
+
+- Host systemd runs the Xiaomi-to-L5 daily pipeline as `phe`.
+- L7 runs in Docker and is published only on `127.0.0.1:8707`.
+- Ollama runs on the host. L7 reaches it through
+  `host.docker.internal:11434`; `phe-ollama-firewall.service` rejects
+  non-local, non-Docker traffic to that port.
+- L6 reasoning is materialized by the L7 orchestrator with DeepSeek and the
+  host MedGemma adapter.
+
+## Reproducible installation order
+
+1. Place a clean Git checkout at `/opt/phe` and run `bootstrap_server.sh`.
+2. Install host configuration with `install_server_config.sh`, then provision
+   the real secret values directly in `/etc/phe`.
+3. Restore the signed production-state bundle with `restore_vps_state.py`.
+   Restore automatically repairs Windows backslash filenames and CRLF drift
+   only when the repaired bytes exactly match each sealed definition registry.
+4. Install host Ollama, put the verified GGUF in `/srv/phe/model-import`, and
+   run `provision_medgemma.sh` to install its systemd service, firewall, and
+   model. The script does not deploy Docker Ollama.
+5. Build `docker-compose.production.yml`, install the committed systemd units,
+   run `phe-daily.service` once, and enable `phe-daily.timer` only after that
+   service succeeds.
+
+Definition JSON is also forced to LF by `.gitattributes`. Neither the restore
+tool nor runtime tooling ever updates `definition_registry` checksums.

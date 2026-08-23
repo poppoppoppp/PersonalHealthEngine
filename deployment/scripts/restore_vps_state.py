@@ -14,6 +14,11 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+try:
+    from deployment.scripts.prepare_definition_files import reconcile_definitions
+except ModuleNotFoundError:
+    from prepare_definition_files import reconcile_definitions
+
 
 EXPECTED_FORMAT = "phe.production.state.v1"
 PHE_UID = 10001
@@ -461,6 +466,12 @@ def main() -> int:
     )
 
     parser.add_argument(
+        "--code-root",
+        type=Path,
+        default=Path("/opt/phe"),
+    )
+
+    parser.add_argument(
         "--verify-only",
         action="store_true",
     )
@@ -510,6 +521,11 @@ def main() -> int:
             manifest,
             args.target_root,
             args.force,
+        )
+
+        reconcile_definitions(
+            args.code_root,
+            args.target_root,
         )
 
     print()

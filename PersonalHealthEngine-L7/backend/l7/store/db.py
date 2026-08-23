@@ -189,9 +189,16 @@ def _migrate(con: sqlite3.Connection) -> None:
     con.commit()
 
 
-def open_readonly(path: str) -> sqlite3.Connection:
+def open_readonly(
+    path: str, *, immutable_if_checkpointed: bool = False
+) -> sqlite3.Connection:
     """Open a sealed upstream database strictly read-only."""
-    uri = Path(path).resolve().as_uri() + "?mode=ro"
+    resolved = Path(path).resolve()
+    wal_path = Path(f"{resolved}-wal")
+    pending_wal = wal_path.exists() and wal_path.stat().st_size > 0
+    immutable = immutable_if_checkpointed and not pending_wal
+    query = "?mode=ro&immutable=1" if immutable else "?mode=ro"
+    uri = resolved.as_uri() + query
     con = sqlite3.connect(uri, uri=True)
     con.row_factory = sqlite3.Row
     return con
