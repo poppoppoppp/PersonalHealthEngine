@@ -21,13 +21,14 @@ import json
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-STATE_LABELS = {
-    "A": "整体稳定",
-    "B": "有变化，但无需特别处理",
-    "C": "今天值得调整",
-    "D": "目前无法可靠判断",
-    "E": "健康安全关注",
-}
+from l7.rendering.labels import (
+    CONFIDENCE_LABELS,
+    METRIC_LABELS,
+    STATE_LABELS,
+    feature_label,
+    hypothesis_label,
+    metric_label,
+)
 
 STATE_HEADLINES = {
     "A": "今天整体稳定，主要指标都在你自己的正常范围内。",
@@ -37,8 +38,6 @@ STATE_HEADLINES = {
     "E": "出现需要关注的健康安全信号。",
 }
 
-CONFIDENCE_LABELS = {"VERY_LOW": "很低", "LOW": "较低", "MODERATE": "中等", "HIGH": "较高"}
-
 HYPOTHESIS_FALLBACK_CAUSE = {
     "RECOVERY_STRAIN": "最可能是近期高强度活动后的恢复压力。",
     "SLEEP_DEFICIT": "最可能是近期睡眠不足或睡眠节律变化。",
@@ -47,21 +46,6 @@ HYPOTHESIS_FALLBACK_CAUSE = {
     "NO_SIGNIFICANT_FINDING": "没有发现明显的异常变化。",
     "UNKNOWN": "目前还不能可靠判断主要原因。",
 }
-
-METRIC_LABELS = {
-    "heart_rate": "心率",
-    "resting_heart_rate": "静息心率",
-    "spo2": "血氧",
-    "sleep": "睡眠",
-    "steps": "步数",
-    "calories": "卡路里消耗",
-    "xiaomi_stress_score": "压力",
-}
-
-
-def metric_label(metric: str | None) -> str:
-    return METRIC_LABELS.get(metric or "", metric or "该指标")
-
 
 def _metric_from_feature(feature_name: str) -> str:
     base = feature_name.split(".")[0]
@@ -117,16 +101,20 @@ def judgment_signature(dr: dict, product_state: str) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def evidence_level2(bundle: dict, max_items: int = 6) -> list[str]:
+def evidence_level2(
+    bundle: dict, max_items: int = 6, evidence_facts: list[dict] | None = None,
+) -> list[str]:
     """Plain-language evidence sentences (Evidence Level 2). No statistical jargon."""
+    if evidence_facts is not None:
+        return [fact["text"] for fact in evidence_facts if fact.get("text")][:max_items]
     items: list[str] = []
     seen: set[tuple] = set()
     for d in bundle.get("deviations", []):
         cls = d.get("deviation_class")
         if cls not in ("ABOVE_TYPICAL_RANGE", "BELOW_TYPICAL_RANGE"):
             continue
-        label = metric_label(d.get("metric"))
-        key = (label, cls)
+        label = feature_label(d.get("feature_name"))
+        key = (d.get("feature_name"), cls)
         if key in seen:
             continue
         seen.add(key)
@@ -138,8 +126,8 @@ def evidence_level2(bundle: dict, max_items: int = 6) -> list[str]:
             continue
         days = max(p.get("consecutive_above_typical") or 0, p.get("consecutive_below_typical") or 0)
         if days >= 2:
-            label = metric_label(_metric_from_feature(p.get("feature_name", "")))
-            key = ("persistence", label)
+            label = feature_label(p.get("feature_name"))
+            key = ("persistence", p.get("feature_name"))
             if key not in seen:
                 seen.add(key)
                 items.append(f"{label}的这种变化已经持续 {days} 天")
@@ -159,6 +147,7 @@ def render_today_payload(
     timezone_name: str,
     judgment_updated: bool,
     change_note: str | None,
+    evidence_facts: list[dict] | None = None,
 ) -> dict:
     """Pure function: identical inputs -> byte-identical payload (except version_id, which
     the service layer attaches)."""
@@ -180,16 +169,31 @@ def render_today_payload(
             "options": ["准确", "不太准确", "补充情况"],
         }
 
+    product_evidence = [
+        {k: fact[k] for k in (
+            "feature_name", "feature_label", "feature_date", "freshness_days",
+            "freshness_label", "deviation_class", "deviation_label",
+            "baseline_maturity_label", "evidence_status_label", "current_value_display",
+            "baseline_value_display", "l5_deviation_id", "l3_feature_id", "l4_baseline_id",
+            "text",
+        )}
+        for fact in (evidence_facts or [])
+    ]
     return {
         "schema": "l7.today/v1",
+        "presentation_contract_version": 2,
         "product_state": product_state,
         "product_state_label": STATE_LABELS[product_state],
         "headline": STATE_HEADLINES[product_state],
         "information_order": information_order,
         "cause": {
             "hypothesis_type": dr.get("primary_hypothesis_type"),
+            "hypothesis_label": hypothesis_label(dr.get("primary_hypothesis_type")),
             "text": cause_text,
-            "secondary": {"hypothesis_type": secondary} if secondary else None,
+            "secondary": {
+                "hypothesis_type": secondary,
+                "hypothesis_label": hypothesis_label(secondary),
+            } if secondary else None,
         },
         "actions": actions,
         "confidence": confidence,
@@ -201,7 +205,8 @@ def render_today_payload(
         "updated_at_local_hhmm": local_dt.strftime("%H:%M"),
         "judgment_updated": judgment_updated,
         "change_note": change_note,
-        "evidence_level2": evidence_level2(bundle),
+        "evidence_level2": evidence_level2(bundle, evidence_facts=evidence_facts),
+        "evidence": product_evidence,
         "feedback_prompt": feedback_prompt,
         "version_id": None,
     }

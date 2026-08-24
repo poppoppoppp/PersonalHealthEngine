@@ -296,7 +296,7 @@ class _TodayScreenState extends State<TodayScreen> {
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
-                  '次要可能：${p.secondaryCause!['hypothesis_type']}',
+                  '次要可能：${p.secondaryCause!['hypothesis_label'] ?? '暂无法确定原因'}',
                   style: const TextStyle(fontSize: 12, color: Colors.black45),
                 ),
               ),
@@ -630,12 +630,12 @@ class _VersionHistorySheetState extends State<_VersionHistorySheet> {
                     itemBuilder: (_, i) {
                       final v = (versions![i] as Map).cast<String, dynamic>();
                       return ListTile(
-                        leading: Text('#${v['id']}'),
+                        leading: const Icon(Icons.history, size: 20),
                         title: Text(
-                          '${v['analysis_date']} · 状态 ${v['product_state']}',
+                          '${v['analysis_date']} · ${v['product_state_label'] ?? '状态未知'}',
                         ),
                         subtitle: Text(
-                          '${v['created_at_utc'] ?? ''} · ${v['trigger'] ?? ''}'
+                          '${v['created_at_local'] ?? ''} · ${v['trigger_label'] ?? '系统更新'}'
                           '${(v['judgment_updated'] == 1) ? ' · 判断已更新' : ''}',
                         ),
                         isThreeLine: false,

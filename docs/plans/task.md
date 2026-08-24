@@ -21,6 +21,17 @@
 | Deploy VPS gateway and verify public production APIs | ECS page is logged in but browser control cannot read it; no SSH/CLI credential exists | Blocked external auth |
 | Build and validate final production APK | Release APK built; signature, package, permission, backup flags verified | Complete |
 | Full regression, secret audit, commit, push, and final acceptance | 171 passed, 2 skipped, 3 subtests; Git/production gates pending | In progress |
+| Audit original product contract and live production behavior | Formal L6/L7 derivatives, source trace, and authenticated production payload evidence | Complete |
+| Define contract-conformance repair architecture | Design preserves E/state semantics and selects L7 product/provenance boundary | Complete |
+| Lock backend presentation defects with red tests | 8 focused failures reproduce labels, provenance, time, Q&A, language, and protocol drift | Complete |
+| Implement canonical labels and exact evidence provenance | 42 focused/related tests green; exact L5→L3/L4 IDs and dated values verified | Complete |
+| Enforce Chinese model/Q&A output and adapter protocol | 15 focused tests green; zh-CN daily/Q&A and MedGemma protocol verified | Complete |
+| Repair legacy Today presentation and timestamp semantics | 103 L7 tests green; stable refresh and append-only presentation repair verified | Complete |
+| Remove raw implementation values from Flutter | 31 Flutter tests green; analyzer 0 errors/0 warnings and 17 baseline infos | Complete |
+| Run full local contract acceptance and audit | 182 Python + 31 Flutter tests; A-E scan PASS; audit artifact written | Complete |
+| Deploy and accept production backend | SSH private key absent; no credential/Recycle Bin/console/Chrome alternative available | Blocked external secret |
+| Build and verify final signed APK | V2 signature/package/permission/backup/HTTPS endpoint PASS; SHA-256 recorded | Complete |
+| Secret audit, integrate, commit, and push | Secret scan PASS; final commit/integration/push in progress | In progress |
 
 Verification snapshot (2026-08-24):
 

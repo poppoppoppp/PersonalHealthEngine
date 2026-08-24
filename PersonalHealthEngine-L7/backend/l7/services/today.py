@@ -4,12 +4,20 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from l7.config import Config
 from l7.engine.orchestrator import EngineOrchestrator, EvaluationResult
 from l7.store.db import open_readonly
 from l7.upstream import readers
-from l7.rendering.renderer import METRIC_LABELS, metric_label
+from l7.rendering.labels import (
+    context_label,
+    outcome_label,
+    pattern_status_label,
+    STATE_LABELS,
+    trigger_label,
+)
 
 
 class TodayService:
@@ -29,7 +37,18 @@ class TodayService:
             " FROM today_versions WHERE user_id=? ORDER BY id DESC LIMIT ?",
             (user_id, limit),
         ).fetchall()
-        return [dict(r) for r in rows]
+        versions = []
+        for row in rows:
+            item = dict(row)
+            item["product_state_label"] = STATE_LABELS.get(
+                item["product_state"], "状态未知",
+            )
+            item["trigger_label"] = trigger_label(item["trigger"])
+            item["created_at_local"] = datetime.fromisoformat(
+                item["created_at_utc"]
+            ).astimezone(ZoneInfo(self.cfg.timezone_name)).strftime("%m-%d %H:%M")
+            versions.append(item)
+        return versions
 
     def list_eval_runs(self, user_id: str, limit: int = 30) -> list[dict]:
         rows = self.l7.execute(
@@ -55,26 +74,27 @@ class TodayService:
                 return {"analysis_date": analysis_date, "metrics": []}
             bundle = stored["bundle"]
             metrics: list[dict] = []
-            seen_features: set[str] = set()
-            for d in bundle.get("deviations", []):
-                feature_name = d.get("feature_name")
-                if not feature_name or feature_name in seen_features:
-                    continue
-                if d.get("deviation_class") not in (
-                    "ABOVE_TYPICAL_RANGE", "BELOW_TYPICAL_RANGE"
-                ):
-                    continue
-                seen_features.add(feature_name)
+            facts = readers.exact_bundle_evidence(
+                l6, l5, l4, l3, stored["id"], bundle, analysis_date,
+            )
+            for fact in facts:
+                deviation = dict(fact["deviation"])
+                baseline = dict(fact["baseline"])
                 metrics.append({
-                    "feature_name": feature_name,
-                    "metric": d.get("metric"),
-                    "metric_label": metric_label(d.get("metric")),
-                    "deviation_class": d.get("deviation_class"),
-                    "baseline_maturity": d.get("baseline_maturity"),
-                    "evidence_status": d.get("evidence_status"),
-                    "series": readers.feature_series(l3, feature_name),
-                    "deviations": readers.deviation_detail(l5, feature_name),
-                    "baselines": readers.baseline_detail(l4, feature_name, analysis_date),
+                    **{k: fact[k] for k in (
+                        "metric", "feature_name", "feature_label", "feature_date", "freshness_days",
+                        "freshness_label", "deviation_class", "deviation_label",
+                        "baseline_maturity", "baseline_maturity_label", "evidence_status",
+                        "evidence_status_label", "current_value", "baseline_median", "unit",
+                        "current_value_display", "baseline_value_display", "text",
+                        "l5_deviation_id", "l3_feature_id", "l4_baseline_id",
+                    )},
+                    "metric_label": fact["feature_label"],
+                    "series": readers.exact_feature_series(
+                        l3, fact["feature_name"], fact["source_sid"],
+                    ),
+                    "deviations": [deviation],
+                    "baselines": [baseline],
                 })
             return {
                 "analysis_date": analysis_date,
@@ -117,7 +137,9 @@ class TodayService:
             shown.append({
                 "pattern_key": p["pattern_key"],
                 "trigger": p["trigger_context_type"],
+                "trigger_label": context_label(p["trigger_context_type"]),
                 "outcome": p["outcome_signal"],
+                "outcome_label": outcome_label(p["outcome_signal"]),
                 "support_count": support,
                 "total_count": total,
                 "counter_examples": max(total - support, 0),
@@ -125,9 +147,10 @@ class TodayService:
                 "last_seen_date": p["last_seen_date"],
                 "maturity": p["maturity"],
                 "display_status": display,
+                "display_status_label": pattern_status_label(display),
                 "description": (
-                    f"过去 {total} 次「{p['trigger_context_type']}」之后，"
-                    f"{support} 次出现「{p['outcome_signal']}」。"
+                    f"过去 {total} 次「{context_label(p['trigger_context_type'])}」之后，"
+                    f"{support} 次出现「{outcome_label(p['outcome_signal'])}」。"
                 ),
             })
         return {

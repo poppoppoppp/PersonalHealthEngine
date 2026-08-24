@@ -31,6 +31,7 @@ from l7.engine import model_cache
 from l7.store.db import open_readonly, utc_now
 from l7.upstream import readers
 from l7.upstream.l6_bridge import L6Bridge
+from l7.upstream.l6_bridge import ProductDeepSeekReasoningAdapter
 
 CONFIDENCE_ORDER = ("VERY_LOW", "LOW", "MODERATE", "HIGH")
 
@@ -69,7 +70,7 @@ class EngineOrchestrator:
     def reasoning_adapter(self):
         if self._reasoning_adapter is None:
             if self.cfg.reasoning_adapter == "deepseek":
-                self._reasoning_adapter = self.bridge.real_adapters.RealDeepSeekReasoningModelAdapter()
+                self._reasoning_adapter = ProductDeepSeekReasoningAdapter()
             else:
                 self._reasoning_adapter = self.bridge.adapters.MockReasoningModelAdapter()
         return self._reasoning_adapter
@@ -105,9 +106,16 @@ class EngineOrchestrator:
                 (user_id,),
             ).fetchone()
             if last is not None and json.loads(last["upstream_sig_json"]) == sig:
-                payload = self._render_current_today(user_id, analysis_date, trigger, l6, l3, l4, l5)
-                self._insert_eval_run(user_id, started, trigger, sig, None, "NO_UPSTREAM_CHANGE", 0, None)
-                return EvaluationResult("NO_UPSTREAM_CHANGE", 0, False, payload)
+                payload, presentation_calls, version_id = self._render_current_today(
+                    user_id, analysis_date, trigger, l6, l3, l4, l5,
+                )
+                run_id = self._insert_eval_run(
+                    user_id, started, trigger, sig, None, "NO_UPSTREAM_CHANGE",
+                    presentation_calls, version_id,
+                )
+                return EvaluationResult(
+                    "NO_UPSTREAM_CHANGE", presentation_calls, False, payload, run_id, version_id,
+                )
 
             # --- Recompute threshold passed: assemble deterministic bundle ---
             recent_context = readers.read_recent_context(l6, analysis_date)
@@ -137,9 +145,10 @@ class EngineOrchestrator:
             else:
                 outcome = "BUNDLE_UNCHANGED"
 
-            payload, judgment_updated, version_id = self._materialize_today_version(
-                user_id, analysis_date, trigger, bundle, bhash
+            payload, judgment_updated, version_id, presentation_calls = self._materialize_today_version(
+                user_id, analysis_date, trigger, bundle, bhash, l3, l4, l5,
             )
+            model_calls += presentation_calls
             run_id = self._insert_eval_run(
                 user_id, started, trigger, sig, bhash, outcome, model_calls, version_id
             )
@@ -159,11 +168,13 @@ class EngineOrchestrator:
         run_id = self._insert_eval_run(user_id, started, trigger, sig, None, "FALLBACK_NO_DATA", 0, None)
         payload = {
             "schema": "l7.today/v1",
+            "presentation_contract_version": 2,
             "product_state": "D",
             "product_state_label": "目前无法可靠判断",
             "headline": "目前还没有足够的健康数据可以分析。",
             "information_order": ["conclusion", "cause", "action"],
-            "cause": {"hypothesis_type": "UNKNOWN", "text": "等待首批数据同步后开始建立你的个人基线。", "secondary": None},
+            "cause": {"hypothesis_type": "UNKNOWN", "hypothesis_label": "暂无法确定原因",
+                      "text": "等待首批数据同步后开始建立你的个人基线。", "secondary": None},
             "actions": [],
             "confidence": "VERY_LOW",
             "confidence_label": "很低",
@@ -175,6 +186,7 @@ class EngineOrchestrator:
             "judgment_updated": False,
             "change_note": None,
             "evidence_level2": [],
+            "evidence": [],
             "feedback_prompt": None,
             "version_id": None,
         }
@@ -192,7 +204,13 @@ class EngineOrchestrator:
         primary = ranked[0] if ranked else {"hypothesis_type": "UNKNOWN", "confidence": "VERY_LOW"}
         secondary = ranked[1] if len(ranked) > 1 else None
 
-        request_payload = {"bundle": bundle, "candidates": [c["hypothesis_type"] for c in ranked]}
+        request_payload = {
+            "bundle": bundle,
+            "candidates": [c["hypothesis_type"] for c in ranked],
+            "adapter_contract_version": getattr(
+                self.reasoning_adapter, "contract_version", "l6-v0.1",
+            ),
+        }
         request_hash = core.sha256_text(core.canonical_json(request_payload))
 
         invocations = []
@@ -390,92 +408,181 @@ class EngineOrchestrator:
         self._last_reconcile_result = result
         return model_calls
 
-    def _materialize_today_version(self, user_id, analysis_date, trigger, bundle, bhash):
-        from l7.rendering.renderer import (
-            judgment_signature, map_product_state, render_today_payload,
-        )
+    def _materialize_today_version(
+        self, user_id, analysis_date, trigger, bundle, bhash, l3, l4, l5,
+    ):
+        from l7.rendering.renderer import judgment_signature, map_product_state
+
         l6 = open_readonly(self.cfg.l6_db)
         try:
             dr = readers.read_current_daily_reasoning(l6, analysis_date)
             if dr is None:
                 raise RuntimeError("no CURRENT daily_reasoning after materialization")
             symptom_active = readers.symptom_context_active(l6, analysis_date)
+            stored = readers.read_current_bundle(l6, analysis_date)
+            facts = self._exact_evidence(l6, l5, l4, l3, stored, analysis_date)
         finally:
             l6.close()
 
         product_state = map_product_state(dr, symptom_active)
         sig_sha = judgment_signature(dr, product_state)
-
         latest = self.l7.execute(
             "SELECT * FROM today_versions WHERE user_id=? ORDER BY id DESC LIMIT 1", (user_id,)
         ).fetchone()
-        judgment_updated = False
-        if latest is not None and latest["signature_sha256"] == sig_sha and latest["analysis_date"] == analysis_date:
-            rendered = json.loads(latest["rendered_json"])
-            version_id = latest["id"]
-        else:
-            judgment_updated = latest is not None
-            rendered = render_today_payload(
-                dr=dr, bundle=bundle, product_state=product_state,
-                analysis_date=analysis_date, generated_at_utc=utc_now(),
-                timezone_name=self.cfg.timezone_name,
-                judgment_updated=judgment_updated,
-                change_note=self._change_note(latest, dr) if latest is not None else "首次生成 Today 判断。",
+        same_judgment = (
+            latest is not None
+            and latest["signature_sha256"] == sig_sha
+            and latest["analysis_date"] == analysis_date
+        )
+        if same_judgment:
+            prior = json.loads(latest["rendered_json"])
+            if prior.get("presentation_contract_version") == 2:
+                return self._touch_rendered(prior, latest["id"]), False, latest["id"], 0
+            rendered, calls, complete = self._render_product_copy(
+                dr, bundle, product_state, analysis_date, facts, prior, False,
+                "产品展示已恢复为中文与精确证据，健康判断未改变。",
             )
-            cur = self.l7.execute(
-                "INSERT INTO today_versions (user_id, analysis_date, l6_daily_reasoning_id,"
-                " bundle_sha256, product_state, signature_sha256, rendered_json, judgment_updated,"
-                " change_note, trigger, created_at_utc) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                (user_id, analysis_date, dr["id"], bhash, product_state, sig_sha,
-                 json.dumps(rendered, ensure_ascii=False), 1 if judgment_updated else 0,
-                 rendered.get("change_note"), trigger, utc_now()),
+            if not complete:
+                return self._touch_rendered(rendered, latest["id"]), False, latest["id"], calls
+            version_id = self._insert_today_version(
+                user_id, analysis_date, dr["id"], bhash, product_state, sig_sha,
+                rendered, False, trigger,
             )
-            version_id = cur.lastrowid
-            self.l7.commit()
-        rendered = dict(rendered)
-        rendered["version_id"] = version_id
-        return rendered, judgment_updated, version_id
+            return self._touch_rendered(rendered, version_id), False, version_id, calls
+
+        judgment_updated = latest is not None
+        rendered, calls, complete = self._render_product_copy(
+            dr, bundle, product_state, analysis_date, facts, None, judgment_updated,
+            self._change_note(latest, dr) if latest is not None else "首次生成 Today 判断。",
+        )
+        if not complete:
+            return self._touch_rendered(rendered, None), False, None, calls
+        version_id = self._insert_today_version(
+            user_id, analysis_date, dr["id"], bhash, product_state, sig_sha,
+            rendered, judgment_updated, trigger,
+        )
+        return (
+            self._touch_rendered(rendered, version_id, judgment_updated),
+            judgment_updated,
+            version_id,
+            calls,
+        )
 
     def _render_current_today(self, user_id, analysis_date, trigger, l6, l3, l4, l5):
-        """No upstream change: rebuild the payload from the existing version/render state."""
+        """Serve stable semantic copy while refreshing response-only time fields."""
+        from l7.rendering.renderer import judgment_signature, map_product_state
+
         latest = self.l7.execute(
             "SELECT * FROM today_versions WHERE user_id=? ORDER BY id DESC LIMIT 1", (user_id,)
         ).fetchone()
         if latest is not None and latest["analysis_date"] == analysis_date:
-            rendered = json.loads(latest["rendered_json"])
-            rendered["version_id"] = latest["id"]
-            rendered["judgment_updated"] = False
-            return rendered
-        # First evaluation for this analysis date without upstream movement since the last
-        # signature (e.g. fresh L7 db over an existing L6 judgment): render without any model call.
-        from l7.rendering.renderer import (
-            judgment_signature, map_product_state, render_today_payload,
-        )
+            prior = json.loads(latest["rendered_json"])
+            if prior.get("presentation_contract_version") == 2:
+                return self._touch_rendered(prior, latest["id"]), 0, latest["id"]
+
         dr = readers.read_current_daily_reasoning(l6, analysis_date)
         if dr is None:
-            return self._record_no_data(user_id, trigger, utc_now(), analysis_date).today_payload
+            payload = self._record_no_data(user_id, trigger, utc_now(), analysis_date).today_payload
+            return payload, 0, None
         stored = readers.read_current_bundle(l6, analysis_date)
         bundle = stored["bundle"] if stored else {}
-        symptom_active = readers.symptom_context_active(l6, analysis_date)
-        product_state = map_product_state(dr, symptom_active)
-        sig_sha = judgment_signature(dr, product_state)
-        rendered = render_today_payload(
-            dr=dr, bundle=bundle, product_state=product_state,
-            analysis_date=analysis_date, generated_at_utc=utc_now(),
-            timezone_name=self.cfg.timezone_name,
-            judgment_updated=False, change_note=None,
+        facts = self._exact_evidence(l6, l5, l4, l3, stored, analysis_date)
+        product_state = map_product_state(
+            dr, readers.symptom_context_active(l6, analysis_date),
         )
+        sig_sha = judgment_signature(dr, product_state)
+        presentation_repair = latest is not None and latest["analysis_date"] == analysis_date
+        source = json.loads(latest["rendered_json"]) if presentation_repair else None
+        change_note = (
+            "产品展示已恢复为中文与精确证据，健康判断未改变。"
+            if presentation_repair else None
+        )
+        rendered, calls, complete = self._render_product_copy(
+            dr, bundle, product_state, analysis_date, facts, source, False, change_note,
+        )
+        if not complete:
+            prior_id = latest["id"] if presentation_repair else None
+            return self._touch_rendered(rendered, prior_id), calls, prior_id
+        version_id = self._insert_today_version(
+            user_id, analysis_date, dr["id"], stored["bundle_sha256"] if stored else "",
+            product_state, sig_sha, rendered, False, trigger,
+        )
+        return self._touch_rendered(rendered, version_id), calls, version_id
+
+    def _exact_evidence(self, l6, l5, l4, l3, stored, analysis_date):
+        if stored is None:
+            return []
+        return readers.exact_bundle_evidence(
+            l6, l5, l4, l3, stored["id"], stored["bundle"], analysis_date,
+        )
+
+    def _render_product_copy(
+        self, dr, bundle, product_state, analysis_date, facts, source,
+        judgment_updated, change_note,
+    ):
+        from l7.rendering.renderer import render_today_payload
+        from l7.upstream.l6_bridge import _is_chinese_product_text
+
+        display_dr = dict(dr)
+        if source is None:
+            source_text = (dr.get("reasoning_summary") or "").strip()
+            try:
+                source_actions = json.loads(dr.get("recommended_actions_json") or "[]")
+            except json.JSONDecodeError:
+                source_actions = []
+        else:
+            source_text = str((source.get("cause") or {}).get("text") or "").strip()
+            source_actions = source.get("actions") or []
+        if not isinstance(source_actions, list):
+            source_actions = []
+        product_texts = [source_text, *[a for a in source_actions if isinstance(a, str)]]
+        needs_translation = any(text and not _is_chinese_product_text(text) for text in product_texts)
+        calls = 0
+        complete = True
+        if needs_translation and hasattr(self.reasoning_adapter, "translate_product_copy"):
+            calls = 1
+            try:
+                translated = self.reasoning_adapter.translate_product_copy(source_text, source_actions)
+                source_text = translated["reasoning_summary"]
+                source_actions = translated["recommended_actions"]
+            except Exception:
+                source_text, source_actions = "", []
+                complete = False
+        elif needs_translation:
+            source_text, source_actions = "", []
+            complete = False
+        display_dr["reasoning_summary"] = source_text
+        display_dr["recommended_actions_json"] = json.dumps(source_actions, ensure_ascii=False)
+        return render_today_payload(
+            dr=display_dr, bundle=bundle, product_state=product_state,
+            analysis_date=analysis_date, generated_at_utc=utc_now(),
+            timezone_name=self.cfg.timezone_name, judgment_updated=judgment_updated,
+            change_note=change_note, evidence_facts=facts,
+        ), calls, complete
+
+    def _insert_today_version(
+        self, user_id, analysis_date, dr_id, bhash, product_state, sig_sha,
+        rendered, judgment_updated, trigger,
+    ):
         cur = self.l7.execute(
             "INSERT INTO today_versions (user_id, analysis_date, l6_daily_reasoning_id,"
             " bundle_sha256, product_state, signature_sha256, rendered_json, judgment_updated,"
             " change_note, trigger, created_at_utc) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-            (user_id, analysis_date, dr["id"], stored["bundle_sha256"] if stored else "",
-             product_state, sig_sha, json.dumps(rendered, ensure_ascii=False), 0, None,
-             trigger, utc_now()),
+            (user_id, analysis_date, dr_id, bhash, product_state, sig_sha,
+             json.dumps(rendered, ensure_ascii=False), 1 if judgment_updated else 0,
+             rendered.get("change_note"), trigger, utc_now()),
         )
         self.l7.commit()
-        rendered["version_id"] = cur.lastrowid
-        return rendered
+        return cur.lastrowid
+
+    def _touch_rendered(self, rendered, version_id, judgment_updated=False):
+        refreshed = dict(rendered)
+        now = utc_now()
+        refreshed["updated_at_utc"] = now
+        refreshed["updated_at_local_hhmm"] = self._hhmm(now)
+        refreshed["judgment_updated"] = judgment_updated
+        refreshed["version_id"] = version_id
+        return refreshed
 
     def _change_note(self, latest_version_row, dr) -> str:
         return "判断已更新：依据或结论发生了变化，可查看版本历史了解来源。"

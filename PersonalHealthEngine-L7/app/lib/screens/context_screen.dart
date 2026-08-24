@@ -256,8 +256,8 @@ class _ContextScreenState extends State<ContextScreen> {
                   child: const Icon(Icons.event_note,
                       size: 16, color: Colors.black54),
                 ),
-                title: Text('${ctx['context_type']}'
-                    '${ctx['body_part'] != null ? ' · ${ctx['body_part']}' : ''}'),
+                title: Text('${ctx['context_type_label'] ?? '其他个人情况'}'
+                    '${ctx['body_part_label'] != null ? ' · ${ctx['body_part_label']}' : ''}'),
                 subtitle: Text(
                   '${ctx['context_date']} · ${ctx['raw_text'] ?? ''}',
                   maxLines: 2,
@@ -287,7 +287,7 @@ class _ContextScreenState extends State<ContextScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('关于 Context 的几个原则',
+                  Text('关于个人情况的几个原则',
                       style: TextStyle(fontWeight: FontWeight.w600)),
                   SizedBox(height: 8),
                   Text(

@@ -18,6 +18,7 @@ from datetime import date, timedelta
 
 from l7.config import Config
 from l7.engine.orchestrator import EngineOrchestrator
+from l7.rendering.labels import body_part_label, context_label, status_label
 from l7.store.db import open_readonly, utc_now
 from l7.upstream.l6_bridge import L6Bridge
 
@@ -145,6 +146,9 @@ class ContextService:
         items = []
         for r in rows:
             d = dict(r)
+            d["context_type_label"] = context_label(d["context_type"])
+            d["body_part_label"] = body_part_label(d["body_part"])
+            d["status_label"] = status_label(d["status"])
             m = metas.get(d["id"])
             d["time_meta"] = {
                 "ongoing": bool(m["ongoing"]) if m else None,

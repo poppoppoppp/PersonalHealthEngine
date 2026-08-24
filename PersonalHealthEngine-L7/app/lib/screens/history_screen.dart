@@ -329,7 +329,7 @@ class _EpisodeDetailScreenState extends State<_EpisodeDetailScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '${ev['event_date']} · ${ev['kind']}',
+                                '${ev['event_date']} · ${ev['kind_label'] ?? '事件记录'}',
                                 style: const TextStyle(
                                   fontSize: 11,
                                   color: Colors.black45,
@@ -358,15 +358,16 @@ class _EpisodeDetailScreenState extends State<_EpisodeDetailScreen> {
     if (detail is! Map) return '$detail';
     final m = detail.cast<String, dynamic>();
     if (m.containsKey('overall_state')) {
-      return '判断：${m['overall_state']}，主因 ${m['primary'] ?? '未确定'}'
-          '${m['version_status'] == 'STALE' ? '（已被更新版本取代）' : ''}';
+      return '判断：${m['overall_state_label'] ?? '状态有变化'}，'
+          '主因 ${m['primary_label'] ?? '暂无法确定原因'}'
+          '${m['version_status_label'] == '历史版本' ? '（已被更新版本取代）' : ''}';
     }
     if (m.containsKey('context_type')) {
-      return '情况：${m['context_type']}'
+      return '情况：${m['context_type_label'] ?? '其他个人情况'}'
           '${m['raw_text'] != null ? ' · ${m['raw_text']}' : ''}';
     }
     if (m.containsKey('feedback_status')) {
-      return '反馈：${m['feedback_status']}'
+      return '反馈：${m['feedback_status_label'] ?? '已记录反馈'}'
           '${m['correction'] == true ? '（含纠正）' : ''}';
     }
     return '$detail';

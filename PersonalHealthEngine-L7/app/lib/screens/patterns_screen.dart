@@ -107,13 +107,7 @@ class _PatternsScreenState extends State<PatternsScreen> {
       );
     } else {
       for (final p in patterns) {
-        final display = p['display_status'] ?? p['maturity'];
-        final displayLabel = switch ('$display') {
-          'ESTABLISHED' => '已确立',
-          'WEAKENED' => '正在减弱',
-          'INVALIDATED' => '已被反例否定',
-          _ => '观察中',
-        };
+        final displayLabel = p['display_status_label'] ?? '正在观察';
         widgets.add(
           Card(
             margin: const EdgeInsets.only(bottom: 12),

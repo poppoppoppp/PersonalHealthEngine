@@ -12,27 +12,21 @@ import json
 import sqlite3
 
 from l7.config import Config
+from l7.rendering.labels import (
+    confidence_label,
+    context_label,
+    feedback_status_label,
+    hypothesis_label,
+    status_label,
+)
 from l7.store.db import open_readonly, utc_now
-
-HYPOTHESIS_LABELS = {
-    "SLEEP_DEFICIT": "睡眠不足",
-    "SLEEP_EXCESS": "睡眠过多",
-    "HIGH_TRAINING_LOAD": "训练负荷偏高",
-    "INSUFFICIENT_RECOVERY": "恢复不足",
-    "ALCOHOL_EFFECT": "酒精影响",
-    "ACUTE_ILLNESS_SUSPECTED": "疑似急性疾病",
-    "STRESS_LOAD": "压力负荷",
-    "CIRCADIAN_DISRUPTION": "作息紊乱",
-    "INACTIVITY": "活动量不足",
-    "UNKNOWN": "未确定原因",
-}
 
 NOTABLE_STATES = ("NOTABLE_CHANGE",)  # sealed L6 vocabulary; MILD_CHANGE never opens an episode
 EPISODE_GAP_DAYS = 1  # a one-day data gap does not split an episode
 
 
 def _label(htype: str | None) -> str:
-    return HYPOTHESIS_LABELS.get(htype or "", htype or "未确定原因")
+    return hypothesis_label(htype)
 
 
 class HistoryService:
@@ -104,7 +98,8 @@ class HistoryService:
             summary = (
                 f"{_label(ep['primary'])}：{ep['start_date']} 起"
                 + (f"，持续到 {ep['end_date']}。" if ep['end_date'] != ep['start_date'] else "。")
-                + (f"最新判断置信度 {last_row['confidence']}。" if last_row.get('confidence') else "")
+                + (f"最新判断置信度{confidence_label(last_row['confidence'])}。"
+                   if last_row.get('confidence') else "")
             )
             projected.append({
                 "episode_key": f"{ep['primary']}:{ep['start_date']}",
@@ -164,8 +159,15 @@ class HistoryService:
                     "detail_json,created_at_utc) VALUES (?,?,?,?,?,?,?)",
                     (ids[key], row["analysis_date"], "JUDGMENT", "L6", row["id"],
                      json.dumps({"overall_state": row["overall_state"],
+                                 "overall_state_label": (
+                                     "变化较明显" if row["overall_state"] == "NOTABLE_CHANGE"
+                                     else "状态变化"
+                                 ),
                                  "primary": row["primary_hypothesis_type"],
-                                 "version_status": row["status"]}, ensure_ascii=False), now))
+                                 "primary_label": hypothesis_label(row["primary_hypothesis_type"]),
+                                 "version_status": row["status"],
+                                 "version_status_label": status_label(row["status"])},
+                                ensure_ascii=False), now))
             for c in contexts:
                 key = self._episode_for(c["context_date"], projected)
                 if key is None:
@@ -175,8 +177,10 @@ class HistoryService:
                     "detail_json,created_at_utc) VALUES (?,?,?,?,?,?,?)",
                     (ids[key], c["context_date"], "CONTEXT", "L6", c["id"],
                      json.dumps({"context_type": c["context_type"],
+                                 "context_type_label": context_label(c["context_type"]),
                                  "raw_text": c["raw_text"],
-                                 "status": c["status"]}, ensure_ascii=False), now))
+                                 "status": c["status"],
+                                 "status_label": status_label(c["status"])}, ensure_ascii=False), now))
             for f in feedback:
                 if f["subject_type"] != "DAILY_REASONING":
                     continue
@@ -191,6 +195,7 @@ class HistoryService:
                     "detail_json,created_at_utc) VALUES (?,?,?,?,?,?,?)",
                     (ids[key], date, "FEEDBACK", "L6", f["id"],
                      json.dumps({"feedback_status": f["feedback_status"],
+                                 "feedback_status_label": feedback_status_label(f["feedback_status"]),
                                  "correction": bool(f["correction_text"])}, ensure_ascii=False), now))
             self.l7.commit()
         except Exception:
@@ -230,6 +235,11 @@ class HistoryService:
             " WHERE episode_id=? ORDER BY event_date, id", (episode_id,))]
         for e in events:
             e["detail"] = json.loads(e.pop("detail_json"))
+            e["kind_label"] = {
+                "JUDGMENT": "健康判断",
+                "CONTEXT": "个人情况",
+                "FEEDBACK": "用户反馈",
+            }.get(e["kind"], "事件记录")
         return {
             "episode": dict(row),
             "timeline": events,

@@ -86,9 +86,6 @@ class _EvidenceScreenState extends State<EvidenceScreen> {
     final baselines = (m['baselines'] as List)
         .map((e) => (e as Map).cast<String, dynamic>())
         .toList();
-    final devs = (m['deviations'] as List)
-        .map((e) => (e as Map).cast<String, dynamic>())
-        .toList();
     final above = m['deviation_class'] == 'ABOVE_TYPICAL_RANGE';
 
     return Card(
@@ -100,9 +97,11 @@ class _EvidenceScreenState extends State<EvidenceScreen> {
           children: [
             Row(
               children: [
-                Text('${m['metric_label']}',
+                Expanded(
+                  child: Text('${m['feature_label'] ?? m['metric_label'] ?? '相关指标'}',
                     style: const TextStyle(
                         fontWeight: FontWeight.w700, fontSize: 15)),
+                ),
                 const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -113,18 +112,20 @@ class _EvidenceScreenState extends State<EvidenceScreen> {
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
-                    above ? '高于通常水平' : '低于通常水平',
+                    '${m['deviation_label'] ?? (above ? '高于个人近期基线' : '低于个人近期基线')}',
                     style: TextStyle(
                         fontSize: 11,
                         color:
                             (above ? Colors.deepOrange : Colors.indigo)[800]),
                   ),
                 ),
-                const Spacer(),
-                Text('${m['baseline_maturity'] ?? ''}',
-                    style:
-                        const TextStyle(fontSize: 10, color: Colors.black38)),
               ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '${m['baseline_maturity_label'] ?? '个人基线状态未知'} · '
+              '${m['evidence_status_label'] ?? '证据状态未知'}',
+              style: const TextStyle(fontSize: 11, color: Colors.black54),
             ),
             const SizedBox(height: 12),
             SizedBox(
@@ -137,26 +138,15 @@ class _EvidenceScreenState extends State<EvidenceScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            if (baselines.isNotEmpty)
-              Text(
-                '你的基线（${baselines.first['window_days']} 天窗口）：'
-                '中位数 ${_fmt(baselines.first['median'])}'
-                '${baselines.first['mad'] != null ? ' · 波动幅度 ${_fmt(baselines.first['mad'])}' : ''}'
-                ' · ${baselines.first['unit'] ?? ''}',
-                style: const TextStyle(fontSize: 12, color: Colors.black54),
-              ),
-            if (devs.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(
-                '最新值 ${_fmt(devs.first['current_value'])}（${devs.first['feature_date']}）'
-                ' · 数据质量：${devs.first['evidence_status'] ?? '-'}',
-                style: const TextStyle(fontSize: 12, color: Colors.black54),
-              ),
-            ],
+            Text(
+              '当前 ${m['current_value_display'] ?? '暂无数值'} · '
+              '个人近期基线 ${m['baseline_value_display'] ?? '暂无数值'}',
+              style: const TextStyle(fontSize: 12.5, color: Colors.black87),
+            ),
             const SizedBox(height: 4),
-            const Text(
-              '统计方法（MAD / robust z / Theil-Sen）仅在后台使用，不用于打分。',
-              style: TextStyle(fontSize: 10, color: Colors.black38),
+            Text(
+              '${m['feature_date'] ?? ''} · ${m['freshness_label'] ?? '数据日期未知'}',
+              style: const TextStyle(fontSize: 11.5, color: Colors.black54),
             ),
           ],
         ),
@@ -164,9 +154,4 @@ class _EvidenceScreenState extends State<EvidenceScreen> {
     );
   }
 
-  String _fmt(Object? v) {
-    if (v == null) return '-';
-    final d = (v as num).toDouble();
-    return d == d.roundToDouble() ? d.toStringAsFixed(0) : d.toStringAsFixed(1);
-  }
 }

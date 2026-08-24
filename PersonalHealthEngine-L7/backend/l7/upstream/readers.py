@@ -8,7 +8,16 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from datetime import date
 from typing import Any
+
+from l7.rendering.labels import (
+    baseline_maturity_label,
+    deviation_direction_label,
+    evidence_status_label,
+    feature_label,
+    format_health_value,
+)
 
 SYMPTOM_CONTEXT_TYPES = ("ILLNESS", "FEVER", "SORE_THROAT", "NASAL_CONGESTION", "MEDICATION")
 
@@ -180,4 +189,132 @@ def baseline_detail(l4: sqlite3.Connection, feature_name: str, as_of_date: str |
     else:
         sql += " ORDER BY b.as_of_date DESC LIMIT 3"
     rows = l4.execute(sql, params).fetchall()
+    return [dict(r) for r in rows]
+
+
+def _rows_by_ids(connection: sqlite3.Connection, sql: str, ids: list[int]) -> list[dict]:
+    if not ids:
+        return []
+    placeholders = ",".join("?" for _ in ids)
+    return [dict(r) for r in connection.execute(sql.format(ids=placeholders), ids).fetchall()]
+
+
+def exact_bundle_evidence(
+    l6: sqlite3.Connection,
+    l5: sqlite3.Connection,
+    l4: sqlite3.Connection,
+    l3: sqlite3.Connection,
+    bundle_id: int,
+    bundle: dict,
+    analysis_date: str,
+) -> list[dict]:
+    """Resolve bundle evidence through its exact L5 -> L3/L4 provenance chain."""
+    provenance = l6.execute(
+        "SELECT upstream_id FROM reasoning_provenance WHERE subject_type='EVIDENCE_BUNDLE'"
+        " AND subject_id=? AND upstream_layer='L5' AND upstream_type='DEVIATION'",
+        (bundle_id,),
+    ).fetchall()
+    l5_ids = [int(r[0]) for r in provenance]
+    deviations = _rows_by_ids(
+        l5,
+        """
+        SELECT d.*, s.feature_name, s.unit, s.source_sid, s.source_class,
+               s.provider, s.observation_semantics
+        FROM deviation_analytics d JOIN analytics_series s ON s.id=d.series_id
+        WHERE d.id IN ({ids}) ORDER BY d.id
+        """,
+        l5_ids,
+    )
+    buckets: dict[tuple, list[dict]] = {}
+    for row in deviations:
+        key = (
+            row["feature_name"], row["feature_date"], row["window_days"],
+            row["source_class"], row["deviation_class"],
+        )
+        buckets.setdefault(key, []).append(row)
+
+    facts: list[dict] = []
+    for item in bundle.get("deviations", []):
+        if item.get("deviation_class") not in (
+            "ABOVE_TYPICAL_RANGE", "BELOW_TYPICAL_RANGE",
+        ):
+            continue
+        key = (
+            item.get("feature_name"), item.get("feature_date"), item.get("window_days"),
+            item.get("source_class"), item.get("deviation_class"),
+        )
+        matches = buckets.get(key) or []
+        if not matches:
+            continue
+        deviation = matches.pop(0)
+        l3_row = l3.execute(
+            "SELECT * FROM derived_features WHERE id=?", (deviation["l3_feature_id"],)
+        ).fetchone()
+        l4_row = l4.execute(
+            """
+            SELECT b.*, s.feature_name, s.source_sid, s.unit
+            FROM rolling_baselines b JOIN baseline_series s ON s.id=b.series_id
+            WHERE b.id=?
+            """,
+            (deviation["l4_baseline_id"],),
+        ).fetchone()
+        if l3_row is None or l4_row is None:
+            continue
+        feature_date = deviation["feature_date"]
+        age_days = max((date.fromisoformat(analysis_date) - date.fromisoformat(feature_date)).days, 0)
+        freshness = "当日数据" if age_days == 0 else f"{age_days} 天前的数据"
+        current_display = format_health_value(
+            deviation["feature_name"], deviation["current_value"], deviation["unit"],
+        )
+        baseline_display = format_health_value(
+            deviation["feature_name"], deviation["baseline_median"], deviation["unit"],
+        )
+        label = feature_label(deviation["feature_name"])
+        direction_label = deviation_direction_label(deviation["deviation_class"])
+        facts.append({
+            "metric": item.get("metric"),
+            "feature_name": deviation["feature_name"],
+            "feature_label": label,
+            "feature_date": feature_date,
+            "freshness_days": age_days,
+            "freshness_label": freshness,
+            "deviation_class": deviation["deviation_class"],
+            "deviation_label": direction_label,
+            "baseline_maturity": deviation["baseline_maturity"],
+            "baseline_maturity_label": baseline_maturity_label(deviation["baseline_maturity"]),
+            "evidence_status": deviation["evidence_status"],
+            "evidence_status_label": evidence_status_label(deviation["evidence_status"]),
+            "current_value": deviation["current_value"],
+            "baseline_median": deviation["baseline_median"],
+            "current_value_display": current_display,
+            "baseline_value_display": baseline_display,
+            "unit": deviation["unit"],
+            "text": (
+                f"{label}{direction_label}：{current_display}，个人近期基线约 "
+                f"{baseline_display}（{feature_date}，{freshness}）"
+            ),
+            "source_sid": deviation["source_sid"],
+            "l5_deviation_id": deviation["id"],
+            "l3_feature_id": deviation["l3_feature_id"],
+            "l4_baseline_id": deviation["l4_baseline_id"],
+            "deviation": deviation,
+            "feature": dict(l3_row),
+            "baseline": dict(l4_row),
+        })
+    return facts
+
+
+def exact_feature_series(
+    l3: sqlite3.Connection, feature_name: str, source_sid: str, limit: int = 28,
+) -> list[dict]:
+    rows = l3.execute(
+        """
+        SELECT id, local_date, value_num, value_code, unit, sample_count, coverage_status,
+               provider, source_sid, source_class
+        FROM derived_features
+        WHERE feature_name=? AND source_sid=? AND status='CURRENT'
+        ORDER BY local_date DESC LIMIT ?
+        """,
+        (feature_name, source_sid, limit),
+    ).fetchall()
     return [dict(r) for r in rows]

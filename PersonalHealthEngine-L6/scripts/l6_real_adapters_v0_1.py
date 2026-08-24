@@ -385,6 +385,6 @@ class RealMedGemmaMedicalModelAdapter:
             raise RealModelError(f"Ollama returned empty message content: {resp}")
         return self._parse_response(content)
 
-    def review(self, review_bundle, question_text=None):
+    def review(self, review_bundle, hypothesis_types=None, question_text=None):
         """Run a real MedGemma Medical Review. Returns the structured review object."""
         return self._chat(review_bundle, question_text)

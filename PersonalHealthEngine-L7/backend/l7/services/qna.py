@@ -226,7 +226,12 @@ class QnAService:
                 direct = "目前不能可靠判断。"
             else:
                 direct = direct.strip()
-            reason = None
+            raw_reason = result.get("reasoning_summary")
+            reason = (
+                raw_reason.strip()
+                if isinstance(raw_reason, str) and raw_reason.strip() and raw_reason.strip() != direct
+                else None
+            )
             actions = [a for a in (result.get("recommended_actions") or []) if isinstance(a, str)][:3]
 
         # Persist through the sealed qa_sessions / medical_reviews semantics.

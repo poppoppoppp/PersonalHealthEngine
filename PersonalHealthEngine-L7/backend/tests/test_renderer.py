@@ -88,7 +88,7 @@ def test_information_order_medical_safety():
 
 def test_evidence_level2_plain_language():
     items = evidence_level2(BUNDLE)
-    assert "睡眠比你最近自己的通常水平低一些" in items
+    assert "深睡占比比你最近自己的通常水平低一些" in items
     assert "静息心率比你最近自己的通常水平高一些" in items
     assert "静息心率的这种变化已经持续 2 天" in items
     for sentence in items:

@@ -149,6 +149,115 @@ class FailingClient extends FakeClient {
   }) async => _failure();
 }
 
+class ProductConformanceClient extends FakeClient {
+  ProductConformanceClient(super.today);
+
+  @override
+  Future<Map<String, dynamic>> getTodayVersions() async => {
+        'versions': [
+          {
+            'id': 2,
+            'analysis_date': '2026-08-24',
+            'product_state': 'E',
+            'product_state_label': '健康安全关注',
+            'created_at_utc': '2026-08-24T02:00:00+00:00',
+            'trigger': 'app_open',
+            'trigger_label': '打开应用',
+            'judgment_updated': 0,
+          }
+        ],
+      };
+
+  @override
+  Future<Map<String, dynamic>> getEvidence() async => {
+        'analysis_date': '2026-08-24',
+        'provenance_note': '精确证据链',
+        'metrics': [
+          {
+            'feature_label': 'REM 睡眠占比',
+            'metric_label': 'REM 睡眠占比',
+            'deviation_class': 'BELOW_TYPICAL_RANGE',
+            'deviation_label': '低于个人近期基线',
+            'baseline_maturity': 'PROVISIONAL',
+            'baseline_maturity_label': '个人基线初步可用',
+            'evidence_status': 'PROVISIONAL',
+            'evidence_status_label': '初步证据',
+            'current_value_display': '12.0%',
+            'baseline_value_display': '20.0%',
+            'feature_date': '2026-08-22',
+            'freshness_label': '2 天前的数据',
+            'series': const <dynamic>[],
+            'baselines': const <dynamic>[],
+            'deviations': const <dynamic>[],
+          }
+        ],
+      };
+
+  @override
+  Future<Map<String, dynamic>> listContext() async => {
+        'contexts': [
+          {
+            'id': 1,
+            'context_type': 'HIGH_INTENSITY_TRAINING',
+            'context_type_label': '高强度训练',
+            'body_part': 'LEG',
+            'body_part_label': '腿部',
+            'context_date': '2026-08-24',
+            'raw_text': '昨天练腿很累',
+          }
+        ],
+      };
+
+  @override
+  Future<Map<String, dynamic>> getEpisodes() async => {
+        'episodes': [
+          {
+            'id': 1,
+            'start_date': '2026-08-24',
+            'end_date': '2026-08-24',
+            'phase': 'DEVELOPING',
+            'summary': '恢复压力：2026-08-24 起。',
+          }
+        ],
+        'stable_days_hidden': 0,
+      };
+
+  @override
+  Future<Map<String, dynamic>> getEpisode(int id) async => {
+        'episode': {'summary': '恢复压力：2026-08-24 起。'},
+        'timeline': [
+          {
+            'event_date': '2026-08-24',
+            'kind': 'JUDGMENT',
+            'kind_label': '健康判断',
+            'detail': {
+              'overall_state': 'NOTABLE_CHANGE',
+              'overall_state_label': '变化较明显',
+              'primary': 'RECOVERY_STRAIN',
+              'primary_label': '恢复压力',
+              'version_status': 'CURRENT',
+              'version_status_label': '当前有效',
+            },
+          }
+        ],
+      };
+
+  @override
+  Future<Map<String, dynamic>> getPatterns() async => {
+        'patterns': [
+          {
+            'description': '过去 4 次「晚睡」之后，3 次出现「睡眠偏低」。',
+            'display_status': 'ESTABLISHED',
+            'display_status_label': '较稳定规律',
+            'first_seen_date': '2026-08-01',
+            'last_seen_date': '2026-08-24',
+            'counter_examples': 1,
+          }
+        ],
+        'observing_count': 0,
+      };
+}
+
 AppEnv envWith(Map<String, dynamic> today) {
   final env = AppEnv(baseUrl: 'http://localhost:0', token: 't');
   env.client = FakeClient(today);
@@ -228,6 +337,78 @@ void main() {
     expect(find.text('查看依据'), findsOneWidget);
     expect(find.text('问问我的状态'), findsOneWidget);
     expect(find.text('补充我的情况'), findsOneWidget);
+  });
+
+  testWidgets('Today and version history display labels, never machine enums',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final payload = todayBase();
+    payload['judgment_updated'] = true;
+    payload['cause'] = {
+      ...(payload['cause'] as Map),
+      'secondary': {
+        'hypothesis_type': 'RECOVERY_STRAIN',
+        'hypothesis_label': '恢复压力',
+      },
+    };
+    final env = AppEnv(baseUrl: 'http://localhost:0', token: 't');
+    env.client = ProductConformanceClient(payload);
+
+    await tester.pumpWidget(MaterialApp(home: TodayScreen(env: env)));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('次要可能：恢复压力'), findsOneWidget);
+    expect(find.textContaining('RECOVERY_STRAIN'), findsNothing);
+
+    await tester.tap(find.text('查看变化来源'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('健康安全关注'), findsOneWidget);
+    expect(find.textContaining('打开应用'), findsOneWidget);
+    expect(find.textContaining('app_open'), findsNothing);
+  });
+
+  testWidgets('Evidence displays exact interpreted values and no status enums',
+      (tester) async {
+    final env = AppEnv(baseUrl: 'http://localhost:0', token: 't');
+    env.client = ProductConformanceClient(todayBase());
+    await tester.pumpWidget(MaterialApp(home: EvidenceScreen(env: env)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('REM 睡眠占比'), findsOneWidget);
+    expect(find.textContaining('当前 12.0%'), findsOneWidget);
+    expect(find.textContaining('个人近期基线 20.0%'), findsOneWidget);
+    expect(find.textContaining('2 天前的数据'), findsOneWidget);
+    expect(find.textContaining('PROVISIONAL'), findsNothing);
+    expect(find.textContaining('BELOW_TYPICAL_RANGE'), findsNothing);
+  });
+
+  testWidgets('Context displays canonical context and body labels', (tester) async {
+    final env = AppEnv(baseUrl: 'http://localhost:0', token: 't');
+    env.client = ProductConformanceClient(todayBase());
+    await tester.pumpWidget(MaterialApp(home: ContextScreen(env: env)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('高强度训练 · 腿部'), findsOneWidget);
+    expect(find.textContaining('HIGH_INTENSITY_TRAINING'), findsNothing);
+  });
+
+  testWidgets('History timeline and Patterns use backend display labels',
+      (tester) async {
+    final env = AppEnv(baseUrl: 'http://localhost:0', token: 't');
+    env.client = ProductConformanceClient(todayBase());
+    await tester.pumpWidget(MaterialApp(home: HistoryScreen(env: env)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('恢复压力：'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('健康判断'), findsOneWidget);
+    expect(find.textContaining('变化较明显'), findsOneWidget);
+    expect(find.textContaining('NOTABLE_CHANGE'), findsNothing);
+
+    await tester.pumpWidget(
+      MaterialApp(key: UniqueKey(), home: PatternsScreen(env: env)),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('状态：较稳定规律'), findsOneWidget);
+    expect(find.textContaining('ESTABLISHED'), findsNothing);
   });
 
   testWidgets('medical safety puts action before cause', (tester) async {
