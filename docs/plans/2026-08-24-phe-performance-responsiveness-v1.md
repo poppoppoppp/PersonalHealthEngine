@@ -118,7 +118,7 @@
 
 ### Task 5: Flutter stale-while-revalidate repository and immediate navigation
 
-**Status:** In progress
+**Status:** Complete
 
 **Files:**
 - Create: `PersonalHealthEngine-L7/app/lib/read_cache.dart`
@@ -152,6 +152,8 @@
 **Step 8: Review and commit.** Commit `perf: render cached app data immediately`.
 
 ### Task 6: Production model benchmark and resource isolation
+
+**Status:** In progress
 
 **Files:**
 - Create: `deployment/scripts/benchmark_medgemma.py`

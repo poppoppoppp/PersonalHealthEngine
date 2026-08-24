@@ -4,13 +4,15 @@
 /// never re-derives state, never computes scores, and never stores model credentials.
 library;
 
-import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_client.dart';
 import 'connection_store.dart';
+import 'data_repository.dart';
+import 'read_cache.dart';
 import 'screens/history_screen.dart';
 import 'screens/me_screen.dart';
 import 'screens/patterns_screen.dart';
@@ -32,12 +34,16 @@ class AppEnv extends ChangeNotifier {
   String token;
   late L7Client client;
   final ConnectionStore? _connectionStore;
+  final SharedPreferences? _preferences;
+  DataRepository? _repository;
 
   AppEnv({
     required this.baseUrl,
     required this.token,
     ConnectionStore? connectionStore,
-  }) : _connectionStore = connectionStore {
+    SharedPreferences? preferences,
+  }) : _connectionStore = connectionStore,
+       _preferences = preferences {
     client = HttpApiClient(baseUrl: baseUrl, token: token);
   }
 
@@ -55,17 +61,30 @@ class AppEnv extends ChangeNotifier {
       baseUrl: settings.baseUrl,
       token: settings.token,
       connectionStore: store,
+      preferences: prefs,
     );
+  }
+
+  Future<DataRepository> repository() async {
+    final existing = _repository;
+    if (existing != null) return existing;
+    final prefs = _preferences ?? await SharedPreferences.getInstance();
+    final created = DataRepository(ReadCache(prefs, serverId: baseUrl));
+    _repository = created;
+    return created;
   }
 
   Future<void> updateConnection(String newUrl, String newToken) async {
     baseUrl = newUrl.trim();
     token = newToken.trim();
     client = HttpApiClient(baseUrl: baseUrl, token: token);
+    _repository = null;
     final store = _connectionStore;
     if (store != null) await store.save(baseUrl, token);
     notifyListeners();
   }
+
+  void notifyDataChanged() => notifyListeners();
 }
 
 class HealthEngineApp extends StatelessWidget {
@@ -127,7 +146,7 @@ class _RootLoaderState extends State<RootLoader> {
           ),
         );
       }
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const _ShellSkeleton();
     }
     return HomeShell(env: e);
   }
@@ -142,17 +161,75 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int index = 0;
+  final List<Widget?> _screens = List<Widget?>.filled(4, null);
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_prefetch()));
+  }
+
+  Widget _screen(int i) {
+    return _screens[i] ??= switch (i) {
+      0 => TodayScreen(env: widget.env),
+      1 => HistoryScreen(env: widget.env),
+      2 => PatternsScreen(env: widget.env),
+      _ => MeScreen(env: widget.env),
+    };
+  }
+
+  Future<void> _prefetch() async {
+    final repository = await widget.env.repository();
+    try {
+      final history = await repository.refreshUsing(
+        'history',
+        client: widget.env.client,
+        path: '/history/episodes?limit=30',
+        fallback: widget.env.client.getEpisodes,
+        versionOf: (data) => data['projection_version'] as int? ?? 1,
+      );
+      await repository.refreshUsing(
+        'patterns',
+        client: widget.env.client,
+        path: '/patterns',
+        fallback: widget.env.client.getPatterns,
+        versionOf: (_) => DateTime.now().millisecondsSinceEpoch,
+      );
+      await repository.refreshUsing(
+        'context',
+        client: widget.env.client,
+        path: '/context?limit=30',
+        fallback: widget.env.client.listContext,
+        versionOf: (_) => DateTime.now().millisecondsSinceEpoch,
+      );
+      final episodes = history?['episodes'] as List?;
+      if (episodes != null && episodes.isNotEmpty) {
+        final id = (episodes.first as Map)['id'] as int;
+        await repository.refreshUsing(
+          'timeline.$id',
+          client: widget.env.client,
+          path: '/history/episodes/$id?limit=30',
+          fallback: () => widget.env.client.getEpisode(id),
+          versionOf: (_) => DateTime.now().millisecondsSinceEpoch,
+        );
+      }
+    } catch (_) {
+      // Prefetch is opportunistic; each screen retains its own visible retry state.
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final screens = [
-      TodayScreen(env: widget.env),
-      HistoryScreen(env: widget.env),
-      PatternsScreen(env: widget.env),
-      MeScreen(env: widget.env),
-    ];
     return Scaffold(
-      body: IndexedStack(index: index, children: screens),
+      body: IndexedStack(
+        index: index,
+        children: [
+          for (var i = 0; i < 4; i++)
+            i == index || _screens[i] != null
+                ? _screen(i)
+                : const SizedBox.shrink(),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (i) => setState(() => index = i),
@@ -183,23 +260,52 @@ class _HomeShellState extends State<HomeShell> {
   }
 }
 
-/// Local cache helpers: last Today payload for instant open.
-class TodayCache {
-  static const _key = 'cache.today.v1';
+class _ShellSkeleton extends StatelessWidget {
+  const _ShellSkeleton();
 
-  static Future<void> store(TodayPayload p) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_key, jsonEncode(p.raw));
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('今日')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: const [
+          _SkeletonBlock(height: 150),
+          SizedBox(height: 12),
+          _SkeletonBlock(height: 96),
+          SizedBox(height: 12),
+          _SkeletonBlock(height: 120),
+        ],
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: 0,
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.today), label: '今日'),
+          NavigationDestination(
+            icon: Icon(Icons.history_outlined),
+            label: '历史',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.insights_outlined),
+            label: '我的规律',
+          ),
+          NavigationDestination(icon: Icon(Icons.person_outline), label: '我的'),
+        ],
+      ),
+    );
   }
+}
 
-  static Future<TodayPayload?> read() async {
-    final prefs = await SharedPreferences.getInstance();
-    final s = prefs.getString(_key);
-    if (s == null) return null;
-    try {
-      return TodayPayload((jsonDecode(s) as Map).cast<String, dynamic>());
-    } catch (_) {
-      return null;
-    }
-  }
+class _SkeletonBlock extends StatelessWidget {
+  final double height;
+  const _SkeletonBlock({required this.height});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    height: height,
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(12),
+    ),
+  );
 }

@@ -130,4 +130,53 @@ void main() {
     final result = await client.qaAsk('今天能训练吗？');
     expect(result['direct_answer'], 'ok');
   });
+
+  test('conditional reads send ETag and accept 304 without decoding', () async {
+    final client = HttpApiClient(
+      baseUrl: 'https://47.111.229.39',
+      token: 'test-token',
+      client: MockClient((request) async {
+        expect(request.headers['If-None-Match'], '"today-v1"');
+        return http.Response('', 304);
+      }),
+    );
+    final result = await client.conditionalGet('/today', etag: '"today-v1"');
+    expect(result.notModified, isTrue);
+  });
+
+  test('async writes preserve idempotency key and accept 202', () async {
+    var calls = 0;
+    final client = HttpApiClient(
+      baseUrl: 'https://47.111.229.39',
+      token: 'test-token',
+      client: MockClient((request) async {
+        calls += 1;
+        expect(request.headers['Idempotency-Key'], 'context-retry-1');
+        return http.Response(
+          jsonEncode({'accepted': true, 'job_id': 7, 'status': 'PENDING'}),
+          202,
+        );
+      }),
+    );
+    final first = await client.addContext(
+      '今天头疼', idempotencyKey: 'context-retry-1',
+    );
+    final retry = await client.addContext(
+      '今天头疼', idempotencyKey: 'context-retry-1',
+    );
+    expect(first['job_id'], retry['job_id']);
+    expect(calls, 2);
+  });
+
+  test('cursor reads request the bounded next page', () async {
+    final client = HttpApiClient(
+      baseUrl: 'https://47.111.229.39',
+      token: 'test-token',
+      client: MockClient((request) async {
+        expect(request.url.queryParameters, {'limit': '20', 'cursor': '42'});
+        return http.Response(jsonEncode({'episodes': [], 'next_cursor': null}), 200);
+      }),
+    );
+    await client.getEpisodes(cursor: 42, limit: 20);
+  });
 }

@@ -1,6 +1,8 @@
 /// 今日 — Today-first / Conclusion-first screen.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../api_client.dart';
@@ -34,14 +36,24 @@ class _TodayScreenState extends State<TodayScreen> {
   @override
   void initState() {
     super.initState();
+    widget.env.addListener(_onDataChanged);
     _boot();
   }
 
+  @override
+  void dispose() {
+    widget.env.removeListener(_onDataChanged);
+    super.dispose();
+  }
+
+  void _onDataChanged() => unawaited(_fetch());
+
   Future<void> _boot() async {
-    final cached = await TodayCache.read();
+    final repository = await widget.env.repository();
+    final cached = await repository.cached('today');
     if (cached != null && mounted) {
       setState(() {
-        today = cached;
+        today = TodayPayload(cached);
         fromCache = true;
       });
     }
@@ -54,8 +66,16 @@ class _TodayScreenState extends State<TodayScreen> {
       error = null;
     });
     try {
-      final p = await widget.env.client.getToday();
-      await TodayCache.store(p);
+      final repository = await widget.env.repository();
+      final raw = await repository.refreshUsing(
+        'today',
+        client: widget.env.client,
+        path: '/today',
+        fallback: () async => (await widget.env.client.getToday()).raw,
+        versionOf: (data) => data['version_id'] as int? ?? 0,
+      );
+      if (raw == null) throw const FormatException('missing Today payload');
+      final p = TodayPayload(raw);
       if (mounted) {
         setState(() {
           today = p;
@@ -81,7 +101,8 @@ class _TodayScreenState extends State<TodayScreen> {
     try {
       final r = await widget.env.client.refreshToday();
       final p = TodayPayload((r['today'] as Map).cast<String, dynamic>());
-      await TodayCache.store(p);
+      final repository = await widget.env.repository();
+      await repository.cache.store('today', p.raw, version: p.versionId ?? 0);
       if (mounted) {
         setState(() {
           today = p;
@@ -490,7 +511,7 @@ class _TodayScreenState extends State<TodayScreen> {
                     ),
                     SizedBox(width: 8),
                     Text(
-                      '正在记录并重新评估…',
+                      '正在保存反馈…',
                       style: TextStyle(fontSize: 12, color: Colors.black45),
                     ),
                   ],
@@ -503,6 +524,8 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   bool _feedbackBusy = false;
+  String? _feedbackRetryKey;
+  String? _feedbackRetryPayload;
 
   Future<void> _sendFeedback(String verdict) async {
     String? text;
@@ -511,30 +534,70 @@ class _TodayScreenState extends State<TodayScreen> {
       if (text == null || text.trim().isEmpty) return;
     }
     setState(() => _feedbackBusy = true);
+    final payloadKey = '$verdict\n${text ?? ''}';
+    final idempotencyKey = _feedbackRetryPayload == payloadKey && _feedbackRetryKey != null
+        ? _feedbackRetryKey!
+        : 'feedback-${DateTime.now().microsecondsSinceEpoch}';
+    _feedbackRetryPayload = payloadKey;
+    _feedbackRetryKey = idempotencyKey;
     try {
-      final r = await widget.env.client.submitFeedback(verdict, text: text);
-      final re = (r['re_evaluation'] as Map?) ?? const {};
-      final updated = re['judgment_updated'] == true;
-      await _fetch(); // the engine already re-analyzed; pull the fresh Today
+      final r = await widget.env.client.submitFeedback(
+        verdict,
+        text: text,
+        idempotencyKey: idempotencyKey,
+      );
+      _feedbackRetryPayload = null;
+      _feedbackRetryKey = null;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              updated ? '反馈已记录，今日判断已根据你的反馈更新。' : '反馈已记录，引擎已复核，今日判断保持不变。',
-            ),
-          ),
+          const SnackBar(content: Text('反馈已保存，正在后台复核今日判断。')),
         );
       }
+      final jobId = r['job_id'] as int?;
+      if (jobId != null) unawaited(_finishFeedbackJob(jobId));
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(
-          SnackBar(content: Text('反馈提交失败：${apiErrorMessage(e)}')),
-        );
+        ).showSnackBar(SnackBar(content: Text('反馈提交失败：${apiErrorMessage(e)}')));
       }
     } finally {
       if (mounted) setState(() => _feedbackBusy = false);
+    }
+  }
+
+  Future<void> _finishFeedbackJob(int jobId) async {
+    var delay = const Duration(milliseconds: 500);
+    for (var attempt = 0; attempt < 6; attempt++) {
+      await Future<void>.delayed(delay);
+      try {
+        final status = await widget.env.client.getJobStatus(jobId);
+        if (status['status'] == 'SUCCEEDED') {
+          final repository = await widget.env.repository();
+          await repository.cache.invalidate('today');
+          await repository.cache.invalidate('history');
+          await repository.cache.invalidate('patterns');
+          widget.env.notifyDataChanged();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('后台复核已完成，今日判断已刷新。')),
+            );
+          }
+          return;
+        }
+        if (status['status'] == 'FAILED') {
+          throw const ApiException(ApiErrorKind.server, '后台复核失败，请重新提交反馈');
+        }
+      } catch (e) {
+        if (attempt == 5 && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(apiErrorMessage(e))),
+          );
+        }
+      }
+      delay = Duration(
+        milliseconds: (delay.inMilliseconds * 2).clamp(500, 4000).toInt(),
+      );
     }
   }
 

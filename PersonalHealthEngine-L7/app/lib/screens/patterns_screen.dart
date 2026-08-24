@@ -3,6 +3,8 @@
 /// patterns, and counterevidence is always visible.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../main.dart';
@@ -18,24 +20,52 @@ class PatternsScreen extends StatefulWidget {
 class _PatternsScreenState extends State<PatternsScreen> {
   Map<String, dynamic>? data;
   Object? error;
+  bool loading = false;
 
   @override
   void initState() {
     super.initState();
+    widget.env.addListener(_onDataChanged);
     _load();
   }
 
+  void _onDataChanged() => unawaited(_load());
+
+  @override
+  void dispose() {
+    widget.env.removeListener(_onDataChanged);
+    super.dispose();
+  }
+
   Future<void> _load() async {
+    final repository = await widget.env.repository();
+    final cached = await repository.cached('patterns');
+    if (cached != null && mounted && data == null) {
+      setState(() => data = cached);
+    }
+    if (mounted) setState(() => loading = true);
     try {
-      final r = await widget.env.client.getPatterns();
+      final r = await repository.refreshUsing(
+        'patterns',
+        client: widget.env.client,
+        path: '/patterns',
+        fallback: widget.env.client.getPatterns,
+        versionOf: (_) => DateTime.now().millisecondsSinceEpoch,
+      );
       if (mounted) {
         setState(() {
-          data = r;
+          data = r ?? data;
           error = null;
+          loading = false;
         });
       }
     } catch (e) {
-      if (mounted) setState(() => error = e);
+      if (mounted) {
+        setState(() {
+          error = e;
+          loading = false;
+        });
+      }
     }
   }
 
@@ -58,6 +88,8 @@ class _PatternsScreenState extends State<PatternsScreen> {
               ),
             ),
             const SizedBox(height: 12),
+            if (loading && data != null)
+              const LinearProgressIndicator(minHeight: 2),
             if (error != null) ApiErrorView(error: error!, onRetry: _load),
             if (data == null && error == null)
               const Padding(

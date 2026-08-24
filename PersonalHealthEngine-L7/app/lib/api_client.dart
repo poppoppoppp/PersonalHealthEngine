@@ -30,6 +30,22 @@ class ApiException implements Exception {
   String toString() => userMessage;
 }
 
+class ApiReadResponse {
+  final Map<String, dynamic>? data;
+  final String? etag;
+  final bool notModified;
+
+  const ApiReadResponse({required this.data, this.etag}) : notModified = false;
+  const ApiReadResponse.notModified()
+    : data = null,
+      etag = null,
+      notModified = true;
+}
+
+abstract class ConditionalL7Client {
+  Future<ApiReadResponse> conditionalGet(String path, {String? etag});
+}
+
 /// Parsed Current Today State (l7.today/v1).
 class TodayPayload {
   final Map<String, dynamic> raw;
@@ -77,23 +93,35 @@ abstract class L7Client {
   Future<Map<String, dynamic>> health();
   // Phase E
   Future<Map<String, dynamic>> qaOpenConversation();
-  Future<Map<String, dynamic>> qaConversation(int id);
+  Future<Map<String, dynamic>> qaConversation(int id, {int? cursor, int limit = 30});
   Future<Map<String, dynamic>> qaAsk(String question, {int? conversationId});
-  Future<Map<String, dynamic>> listContext();
-  Future<Map<String, dynamic>> addContext(String text);
-  Future<Map<String, dynamic>> correctContext(int id, String text);
-  Future<void> deleteContext(int id);
-  Future<Map<String, dynamic>> submitFeedback(String verdict, {String? text});
+  Future<Map<String, dynamic>> listContext({int? cursor, int limit = 30});
+  Future<Map<String, dynamic>> addContext(
+    String text, {
+    String? idempotencyKey,
+  });
+  Future<Map<String, dynamic>> correctContext(
+    int id,
+    String text, {
+    String? idempotencyKey,
+  });
+  Future<Map<String, dynamic>> deleteContext(int id, {String? idempotencyKey});
+  Future<Map<String, dynamic>> submitFeedback(
+    String verdict, {
+    String? text,
+    String? idempotencyKey,
+  });
+  Future<Map<String, dynamic>> getJobStatus(int id);
   // Phase F
-  Future<Map<String, dynamic>> getEpisodes();
-  Future<Map<String, dynamic>> getEpisode(int id);
+  Future<Map<String, dynamic>> getEpisodes({int? cursor, int limit = 30});
+  Future<Map<String, dynamic>> getEpisode(int id, {int? cursor, int limit = 30});
   Future<Map<String, dynamic>> searchHistory(String q);
   // Phase G
   Future<Map<String, dynamic>> getNotifications();
   Future<Map<String, dynamic>> getNotificationDecisions();
 }
 
-class HttpApiClient implements L7Client {
+class HttpApiClient implements L7Client, ConditionalL7Client {
   String baseUrl;
   String token;
   final http.Client _client;
@@ -104,7 +132,7 @@ class HttpApiClient implements L7Client {
     required this.baseUrl,
     required this.token,
     http.Client? client,
-    this.normalTimeout = const Duration(seconds: 30),
+    this.normalTimeout = const Duration(seconds: 15),
     this.inferenceTimeout = const Duration(minutes: 12),
   }) : _client = client ?? http.Client();
 
@@ -112,6 +140,7 @@ class HttpApiClient implements L7Client {
   Map<String, String> get _headers => {
     'Authorization': 'Bearer $token',
     'Content-Type': 'application/json',
+    'Accept-Encoding': 'gzip',
   };
 
   ApiException _statusError(int status) {
@@ -126,7 +155,7 @@ class HttpApiClient implements L7Client {
   }
 
   Map<String, dynamic> _decode(http.Response response) {
-    if (response.statusCode != 200) {
+    if (response.statusCode != 200 && response.statusCode != 202) {
       throw _statusError(response.statusCode);
     }
     final decoded = jsonDecode(utf8.decode(response.bodyBytes));
@@ -168,15 +197,31 @@ class HttpApiClient implements L7Client {
     );
   }
 
+  @override
+  Future<ApiReadResponse> conditionalGet(String path, {String? etag}) {
+    return _guard(() async {
+      final headers = {..._headers};
+      if (etag != null) headers['If-None-Match'] = etag;
+      final response = await _client.get(_u(path), headers: headers);
+      if (response.statusCode == 304) {
+        return const ApiReadResponse.notModified();
+      }
+      final data = _decode(response);
+      return ApiReadResponse(data: data, etag: response.headers['etag']);
+    }, normalTimeout);
+  }
+
   Future<Map<String, dynamic>> _send(
     String method,
     String path, [
     Map<String, dynamic>? body,
     Duration? timeout,
+    Map<String, String>? extraHeaders,
   ]) async {
     return _guard(() async {
       final req = http.Request(method, _u(path));
       req.headers.addAll(_headers);
+      if (extraHeaders != null) req.headers.addAll(extraHeaders);
       if (body != null) req.body = jsonEncode(body);
       final streamed = await _client.send(req);
       return _decode(await http.Response.fromStream(streamed));
@@ -218,8 +263,9 @@ class HttpApiClient implements L7Client {
       _send('POST', '/qa/conversations');
 
   @override
-  Future<Map<String, dynamic>> qaConversation(int id) =>
-      _get('/qa/conversations/$id');
+  Future<Map<String, dynamic>> qaConversation(
+    int id, {int? cursor, int limit = 30}
+  ) => _get('/qa/conversations/$id?limit=$limit${cursor == null ? '' : '&cursor=$cursor'}');
 
   @override
   Future<Map<String, dynamic>> qaAsk(String question, {int? conversationId}) =>
@@ -229,40 +275,71 @@ class HttpApiClient implements L7Client {
       }, inferenceTimeout);
 
   @override
-  Future<Map<String, dynamic>> listContext() => _get('/context');
+  Future<Map<String, dynamic>> listContext({int? cursor, int limit = 30}) =>
+      _get('/context?limit=$limit${cursor == null ? '' : '&cursor=$cursor'}');
 
   @override
-  Future<Map<String, dynamic>> addContext(String text) =>
-      _send('POST', '/context', {'text': text}, inferenceTimeout);
+  Future<Map<String, dynamic>> addContext(
+    String text, {
+    String? idempotencyKey,
+  }) => _send(
+    'POST',
+    '/context',
+    {'text': text},
+    normalTimeout,
+    idempotencyKey == null ? null : {'Idempotency-Key': idempotencyKey},
+  );
 
   @override
-  Future<Map<String, dynamic>> correctContext(int id, String text) =>
-      _send('PUT', '/context/$id', {'text': text}, inferenceTimeout);
+  Future<Map<String, dynamic>> correctContext(
+    int id,
+    String text, {
+    String? idempotencyKey,
+  }) => _send(
+    'PUT',
+    '/context/$id',
+    {'text': text},
+    normalTimeout,
+    idempotencyKey == null ? null : {'Idempotency-Key': idempotencyKey},
+  );
 
   @override
-  Future<void> deleteContext(int id) async {
-    await _guard(() async {
-      final req = http.Request('DELETE', _u('/context/$id'));
-      req.headers.addAll(_headers);
-      final streamed = await _client.send(req);
-      _decode(await http.Response.fromStream(streamed));
-    }, inferenceTimeout);
-  }
+  Future<Map<String, dynamic>> deleteContext(
+    int id, {
+    String? idempotencyKey,
+  }) => _send(
+    'DELETE',
+    '/context/$id',
+    null,
+    normalTimeout,
+    idempotencyKey == null ? null : {'Idempotency-Key': idempotencyKey},
+  );
 
   @override
-  Future<Map<String, dynamic>> submitFeedback(String verdict, {String? text}) =>
-      _send('POST', '/feedback', {
-        'verdict': verdict,
-        if (text != null && text.isNotEmpty) 'text': text,
-      }, inferenceTimeout);
+  Future<Map<String, dynamic>> submitFeedback(
+    String verdict, {
+    String? text,
+    String? idempotencyKey,
+  }) => _send(
+    'POST',
+    '/feedback',
+    {'verdict': verdict, if (text != null && text.isNotEmpty) 'text': text},
+    normalTimeout,
+    idempotencyKey == null ? null : {'Idempotency-Key': idempotencyKey},
+  );
+
+  @override
+  Future<Map<String, dynamic>> getJobStatus(int id) => _get('/jobs/$id');
 
   // ---------------- Phase F ----------------
   @override
-  Future<Map<String, dynamic>> getEpisodes() => _get('/history/episodes');
+  Future<Map<String, dynamic>> getEpisodes({int? cursor, int limit = 30}) =>
+      _get('/history/episodes?limit=$limit${cursor == null ? '' : '&cursor=$cursor'}');
 
   @override
-  Future<Map<String, dynamic>> getEpisode(int id) =>
-      _get('/history/episodes/$id');
+  Future<Map<String, dynamic>> getEpisode(
+    int id, {int? cursor, int limit = 30}
+  ) => _get('/history/episodes/$id?limit=$limit${cursor == null ? '' : '&cursor=$cursor'}');
 
   @override
   Future<Map<String, dynamic>> searchHistory(String q) =>
