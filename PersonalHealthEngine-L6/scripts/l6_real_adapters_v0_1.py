@@ -437,6 +437,8 @@ class RealMedGemmaMedicalModelAdapter:
             "prompt_eval_count": resp.get("prompt_eval_count"),
             "total_duration_ns": resp.get("total_duration"),
             "load_duration_ns": resp.get("load_duration"),
+            "prompt_eval_duration_ns": resp.get("prompt_eval_duration"),
+            "eval_duration_ns": resp.get("eval_duration"),
             "latency_ms": int((time.time() - t0) * 1000),
         }
         message = resp.get("message") or {}

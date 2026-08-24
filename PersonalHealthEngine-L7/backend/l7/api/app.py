@@ -7,6 +7,8 @@ web/CLI). No secrets are ever exposed; model credentials never reach this layer.
 from __future__ import annotations
 
 import json
+import re
+import uuid
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,6 +17,7 @@ from fastapi.responses import JSONResponse
 from l7 import __version__
 from l7.config import Config
 from l7.engine.orchestrator import EngineOrchestrator
+from l7.performance import RequestMetrics, current_request_metrics, persist_request_metrics
 from l7.services.context import ContextService
 from l7.services.feedback import FeedbackService
 from l7.services.history import HistoryService
@@ -73,6 +76,56 @@ def create_app(config: Config | None = None, orchestrator: EngineOrchestrator | 
     app.state.today_service = today_service
 
     token = cfg.resolve_api_token()
+
+    @app.middleware("http")
+    async def performance_telemetry(request: Request, call_next):
+        supplied_id = request.headers.get("X-Request-ID", "")
+        request_id = (
+            supplied_id
+            if re.fullmatch(r"[A-Za-z0-9._-]{1,64}", supplied_id)
+            else uuid.uuid4().hex
+        )
+        metrics = RequestMetrics(
+            request_id=request_id,
+            method=request.method,
+            endpoint=request.url.path,
+        )
+        context_token = current_request_metrics.set(metrics)
+        response = None
+        status_code = 500
+        error_category = None
+        try:
+            response = await call_next(request)
+            status_code = response.status_code
+            route = request.scope.get("route")
+            metrics.endpoint = getattr(route, "path", request.url.path)
+            response.headers["X-Request-ID"] = request_id
+            return response
+        except Exception as exc:
+            error_category = type(exc).__name__
+            raise
+        finally:
+            current_request_metrics.reset(context_token)
+            response_bytes = 0
+            if response is not None:
+                try:
+                    response_bytes = int(response.headers.get("content-length", 0))
+                except (TypeError, ValueError):
+                    response_bytes = 0
+            try:
+                persist_request_metrics(
+                    l7,
+                    metrics,
+                    status_code=status_code,
+                    response_bytes=response_bytes,
+                    error_category=error_category,
+                )
+            except Exception:
+                # Observability is best-effort and must never take the product API down.
+                try:
+                    l7.rollback()
+                except Exception:
+                    pass
 
     def require_auth(request: Request):
         header = request.headers.get("Authorization", "")

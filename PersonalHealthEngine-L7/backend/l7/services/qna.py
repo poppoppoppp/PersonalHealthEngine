@@ -13,6 +13,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from l7.config import Config
+from l7.performance import measure_stage, record_model_meta
 from l7.engine.qna_orchestration import (
     PRODUCT_META_TEXT,
     REFUSAL_TEXT,
@@ -226,11 +227,12 @@ class QnAService:
             "context_write_state": None,
         }
         try:
-            classification = validate_semantic_classification(
-                self.reasoning_adapter.classify_question(
-                    question, self._conversation_semantics(conversation_id),
+            with measure_stage("deepseek_semantic"):
+                classification = validate_semantic_classification(
+                    self.reasoning_adapter.classify_question(
+                        question, self._conversation_semantics(conversation_id),
+                    )
                 )
-            )
         except Exception:
             return self._audited({
                 "answer_first": True,
@@ -324,8 +326,9 @@ class QnAService:
             recent_feedback = [dict(r) for r in l6.execute(
                 "SELECT subject_type,subject_id,feedback_status FROM user_feedback"
                 " ORDER BY id DESC LIMIT 20")]
-            full_bundle, _prov = self.bridge.assemble_evidence(
-                l3, l4, l5, analysis_date, recent_context, recent_feedback, [])
+            with measure_stage("bundle_assembly"):
+                full_bundle, _prov = self.bridge.assemble_evidence(
+                    l3, l4, l5, analysis_date, recent_context, recent_feedback, [])
             full_bundle["overall_state"] = core.overall_state(full_bundle)
             patterns = readers.read_patterns(l6)
             today_row = self.l7.execute(
@@ -366,7 +369,8 @@ class QnAService:
             candidate_method = getattr(self.reasoning_adapter, "answer_question_candidate", None)
             if candidate_method is None:
                 candidate_method = self.reasoning_adapter.answer_question
-            result = candidate_method(question, bundle, candidates)
+            with measure_stage("deepseek_reasoning"):
+                result = candidate_method(question, bundle, candidates)
         except Exception:
             result = None
 
@@ -415,8 +419,12 @@ class QnAService:
                         "candidate_safety_issues": candidate_issues,
                     }
                     try:
-                        raw_medical = self.medical_adapter.review(
-                            review_bundle, hypothesis_types, question,
+                        with measure_stage("medgemma_total"):
+                            raw_medical = self.medical_adapter.review(
+                                review_bundle, hypothesis_types, question,
+                            )
+                        record_model_meta(
+                            "medgemma", getattr(self.medical_adapter, "last_meta", None),
                         )
                         if "review_status" not in raw_medical and "findings" in raw_medical:
                             raw_medical = {

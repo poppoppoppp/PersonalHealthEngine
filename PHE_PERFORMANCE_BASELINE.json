@@ -19,7 +19,8 @@
   "qa_external_latency_ms": {
     "product_meta": {"elapsed": 1301.08, "scope": "PRODUCT_META", "medical_review": "BYPASSED"},
     "health_data": {"elapsed": 1166.06, "scope": "HEALTH_DATA", "medical_review": "BYPASSED"},
-    "health_decision": {"elapsed": 500407.7, "scope": "HEALTH_DECISION", "medical_review": "PERFORMED"}
+    "health_decision": {"elapsed": 500407.7, "scope": "HEALTH_DECISION", "medical_review": "PERFORMED"},
+    "health_decision_repeat": {"elapsed": 618992.61, "scope": "HEALTH_DECISION", "medical_review": "PERFORMED"}
   },
   "medgemma_interference": {
     "idle_health_p95_ms": 138.17,

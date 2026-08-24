@@ -12,6 +12,8 @@
 
 ### Task 1: Sanitized performance instrumentation and baseline harness
 
+**Status:** Complete (2026-08-24)
+
 **Files:**
 - Create: `PersonalHealthEngine-L7/backend/l7/performance.py`
 - Create: `PersonalHealthEngine-L7/backend/scripts/performance_report.py`
@@ -32,6 +34,8 @@
 **Step 5: Review and commit.** Review privacy fields and diff scope; commit `feat: add sanitized performance telemetry`.
 
 ### Task 2: Fast bounded read models, pagination, and conditional HTTP
+
+**Status:** In progress
 
 **Files:**
 - Modify: `PersonalHealthEngine-L7/backend/l7/store/db.py`
@@ -189,4 +193,3 @@
 **Step 6: Final review.** Compare every acceptance item and actual target; do not claim PASS for unmeasured fields. Calculate minimum hardware only if software optimization still cannot preserve acceptable interaction.
 
 **Step 7: Integrate.** Merge `codex/phe-performance-v1` to main without reset, push main, verify remote HEAD and clean worktree.
-

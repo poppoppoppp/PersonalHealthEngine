@@ -13,7 +13,7 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 MIGRATION_001 = """
 CREATE TABLE IF NOT EXISTS schema_migrations_l7 (
@@ -176,6 +176,34 @@ CREATE INDEX IF NOT EXISTS idx_qna_audits_conversation
     ON qna_audits(user_id, conversation_id, id);
 """
 
+MIGRATION_003 = """
+CREATE TABLE IF NOT EXISTS performance_requests (
+    id                         INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_id                 TEXT NOT NULL UNIQUE,
+    method                     TEXT NOT NULL,
+    endpoint                   TEXT NOT NULL,
+    status_code                INTEGER NOT NULL,
+    total_ms                   REAL NOT NULL,
+    db_ms                      REAL NOT NULL DEFAULT 0,
+    bundle_assembly_ms         REAL NOT NULL DEFAULT 0,
+    deepseek_semantic_ms       REAL NOT NULL DEFAULT 0,
+    deepseek_reasoning_ms      REAL NOT NULL DEFAULT 0,
+    medgemma_load_ms           REAL NOT NULL DEFAULT 0,
+    medgemma_prompt_eval_ms    REAL NOT NULL DEFAULT 0,
+    medgemma_eval_ms           REAL NOT NULL DEFAULT 0,
+    medgemma_total_ms          REAL NOT NULL DEFAULT 0,
+    finalizer_ms               REAL NOT NULL DEFAULT 0,
+    response_serialization_ms  REAL NOT NULL DEFAULT 0,
+    prompt_eval_count          INTEGER,
+    eval_count                 INTEGER,
+    response_bytes             INTEGER NOT NULL DEFAULT 0,
+    error_category             TEXT,
+    created_at_utc             TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_performance_requests_endpoint_time
+    ON performance_requests(endpoint, created_at_utc DESC);
+"""
+
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -213,6 +241,13 @@ def _migrate(con: sqlite3.Connection) -> None:
         con.execute(
             "INSERT INTO schema_migrations_l7 (version, name, applied_at_utc) "
             "VALUES (2, 'qna_orchestration_audit', ?)",
+            (utc_now(),),
+        )
+    if 3 not in applied:
+        con.executescript(MIGRATION_003)
+        con.execute(
+            "INSERT INTO schema_migrations_l7 (version, name, applied_at_utc) "
+            "VALUES (3, 'performance_telemetry', ?)",
             (utc_now(),),
         )
     con.execute("INSERT OR IGNORE INTO users (id, created_at_utc) VALUES ('owner', ?)", (utc_now(),))
