@@ -152,3 +152,15 @@ def test_deepseek_public_paths_assign_audit_operations(monkeypatch):
     adapter.extract_context("昨晚睡得很晚", "2026-08-24")
 
     assert operations == ["today", "qna", "context"]
+
+
+def test_deepseek_context_requires_complete_sealed_event_shape(monkeypatch):
+    adapter = RealDeepSeekReasoningModelAdapter(api_key="secret-test-key")
+    monkeypatch.setattr(
+        adapter,
+        "_chat",
+        lambda *args, **kwargs: '{"events": [{"context_type": "LATE_SLEEP"}]}',
+    )
+
+    with pytest.raises(Exception, match="context_date"):
+        adapter.extract_context("昨晚睡得很晚", "2026-08-24")

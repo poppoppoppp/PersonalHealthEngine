@@ -15,12 +15,18 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from datetime import date
 
 from l6_core_v0_1 import CONFIDENCE_LEVELS, HYPOTHESIS_TYPES, canonical_json
 
 DEEPSEEK_BASE_URL = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
 DEEPSEEK_MODEL_DEFAULT = "deepseek-v4-flash"
 DEEPSEEK_THINKING = {"type": "disabled"}
+CONTEXT_TYPES = (
+    "HIGH_INTENSITY_TRAINING", "ALCOHOL_USE", "LATE_SLEEP", "CAFFEINE", "STRESS",
+    "TRAVEL", "ILLNESS", "SORE_THROAT", "FEVER", "NASAL_CONGESTION", "MEDICATION",
+    "FATIGUE", "FEELING_GOOD", "DIET_CHANGE", "SCHEDULE_CHANGE",
+)
 # Ollama model tag (resolves to medgemma1.5:latest). This is the development-time real MedGemma
 # runtime; production can point MEDICAL_MODEL_ENDPOINT at a remote/cloud Ollama-compatible host.
 MEDGEMMA_MODEL_DEFAULT = "medgemma1.5"
@@ -180,6 +186,25 @@ def _extract_json(text):
     return json.loads(stripped[start : end + 1])
 
 
+def _validate_context_events(payload):
+    events = payload.get("events") if isinstance(payload, dict) else None
+    if not isinstance(events, list):
+        raise RealModelError("DeepSeek context output must contain an events array")
+    for event in events:
+        if not isinstance(event, dict):
+            raise RealModelError("DeepSeek context event must be an object")
+        if event.get("context_type") not in CONTEXT_TYPES:
+            raise RealModelError("DeepSeek context event has an invalid context_type")
+        context_date = event.get("context_date")
+        if not isinstance(context_date, str):
+            raise RealModelError("DeepSeek context event must contain context_date")
+        try:
+            date.fromisoformat(context_date)
+        except ValueError as exc:
+            raise RealModelError("DeepSeek context event context_date must be ISO-8601") from exc
+    return events
+
+
 def _post_json(url, payload, api_key, timeout_s=120):
     data = json.dumps(payload).encode("utf-8")
     request = urllib.request.Request(url, data=data, method="POST")
@@ -288,17 +313,18 @@ class RealDeepSeekReasoningModelAdapter:
     def extract_context(self, text, today):
         system = (
             "Extract structured personal-health context events from the user's natural-language text. "
-            "Return STRICT JSON: {\"events\": [{\"context_type\": string, \"body_part\": string|null}]}. "
-            "context_type must be one of: HIGH_INTENSITY_TRAINING, ALCOHOL_USE, LATE_SLEEP, CAFFEINE, STRESS, "
-            "TRAVEL, ILLNESS, SORE_THROAT, FEVER, NASAL_CONGESTION, MEDICATION, FATIGUE, FEELING_GOOD, "
-            "DIET_CHANGE, SCHEDULE_CHANGE. Only include fields the user actually said; never invent values."
+            "Use the provided today date to resolve relative expressions such as today, yesterday, or last night. "
+            "Return STRICT JSON: {\"events\": [{\"context_type\": string, "
+            "\"context_date\": \"YYYY-MM-DD\", \"body_part\": string|null}]}. "
+            "context_type must be one of: " + ", ".join(CONTEXT_TYPES) + ". "
+            "Only include events the user actually reported; never invent health facts."
         )
         content = self._chat(
             system,
             json.dumps({"text": text, "today": today}, ensure_ascii=False),
             operation="context",
         )
-        return _extract_json(content).get("events", [])
+        return _validate_context_events(_extract_json(content))
 
 
 class RealMedGemmaMedicalModelAdapter:

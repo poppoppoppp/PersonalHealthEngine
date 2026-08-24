@@ -216,6 +216,9 @@ def run_real_paths() -> dict:
             today = orchestrator.evaluate("flash-acceptance", "deepseek_flash_acceptance")
             if today.outcome != "REMATERIALIZED" or today.model_calls < 1:
                 raise RuntimeError(f"Today real path did not call the model: {today.outcome}")
+            today_text = today.today_payload.get("cause", {}).get("text") or ""
+            if not today_text.strip() or "推理模型暂不可用" in today_text:
+                raise RuntimeError("Today real path returned fallback product copy")
             if adapter._base.last_invocation.get("operation") != "today":
                 raise RuntimeError("Today invocation audit missing")
             records.append(dict(adapter._base.last_invocation))
@@ -227,12 +230,16 @@ def run_real_paths() -> dict:
                 reasoning_adapter=adapter,
                 medical_adapter=medical_adapter,
             )
-            qna.ask("flash-acceptance", "根据现有数据，今天适合进行高强度训练吗？")
+            answer = qna.ask("flash-acceptance", "根据现有数据，今天适合进行高强度训练吗？")
+            if not answer.get("reason") or "推理模型暂不可用" in answer.get("direct_answer", ""):
+                raise RuntimeError("Q&A real path returned fallback product copy")
             if adapter._base.last_invocation.get("operation") != "qna":
                 raise RuntimeError("Q&A invocation audit missing")
             records.append(dict(adapter._base.last_invocation))
 
-            adapter.extract_context("昨晚睡得比平时晚", analysis_date)
+            context_events = adapter.extract_context("昨晚睡得比平时晚", analysis_date)
+            if not context_events:
+                raise RuntimeError("Context real path returned no structured event")
             if adapter._base.last_invocation.get("operation") != "context":
                 raise RuntimeError("Context invocation audit missing")
             records.append(dict(adapter._base.last_invocation))
