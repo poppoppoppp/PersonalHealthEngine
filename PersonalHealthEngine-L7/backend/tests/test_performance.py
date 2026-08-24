@@ -1,9 +1,13 @@
 import sqlite3
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 
 from fastapi.testclient import TestClient
 
 import l7.api.app as app_module
 from l7.api.app import create_app
+from l7.services.qna import QnAService
 from l7.performance import (
     RequestMetrics,
     current_request_metrics,
@@ -143,3 +147,32 @@ def test_percentile_summary_is_deterministic(tmp_path):
         "p99_ms": 50.0,
         "error_rate": 0.0,
     }
+
+
+def test_slow_qna_never_blocks_health_event_loop(env, monkeypatch):
+    started = threading.Event()
+    release = threading.Event()
+
+    def slow_ask(self, user_id, question, conversation_id=None):
+        started.set()
+        release.wait(timeout=2)
+        return {"scope": "HEALTH_DECISION", "direct_answer": "test"}
+
+    monkeypatch.setattr(QnAService, "ask", slow_ask)
+    app = create_app(env["cfg"], env["orch"])
+    with TestClient(app) as client, ThreadPoolExecutor(max_workers=1) as pool:
+        inference = pool.submit(
+            client.post,
+            "/qa/ask",
+            json={"question": "我今天适合跑步吗？"},
+            headers={"Authorization": "Bearer dev-local-token"},
+        )
+        assert started.wait(timeout=1)
+        before = time.perf_counter()
+        health = client.get("/health")
+        elapsed = time.perf_counter() - before
+        release.set()
+        assert inference.result(timeout=3).status_code == 200
+
+    assert health.status_code == 200
+    assert elapsed < 0.5

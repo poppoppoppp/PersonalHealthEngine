@@ -14,6 +14,7 @@ import uuid
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 
 from l7 import __version__
 from l7.config import Config
@@ -248,7 +249,12 @@ def create_app(config: Config | None = None, orchestrator: EngineOrchestrator | 
         if not question:
             raise HTTPException(status_code=400, detail="question required")
         try:
-            return qna_service.ask(user_id, question, body.get("conversation_id"))
+            return await run_in_threadpool(
+                qna_service.ask,
+                user_id,
+                question,
+                body.get("conversation_id"),
+            )
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
 
