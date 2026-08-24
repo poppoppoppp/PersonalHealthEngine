@@ -38,7 +38,8 @@
 | Route L7 operations through shared transport | 19 focused L6/L7 tests pass | Complete |
 | Align active DeepSeek configuration and static audit | 133 Python tests and model audit PASS | Complete |
 | Add isolated real-call Flash acceptance harness | 4 harness tests pass; temporary L6 cleanup verified | Complete |
-| Run full DeepSeek cutover regressions and integrate | Python/Flutter/static audit/secret scan and branch integration | In progress |
+| Run full DeepSeek cutover regressions and integrate | 196 Python + 31 Flutter tests; analyzer 0 errors/warnings; static audit PASS | Complete |
+| Deploy and accept DeepSeek V4 Flash on VPS | Effective env, real Today/Q&A/Context audit, public access, zero Pro calls | In progress |
 
 Verification snapshot (2026-08-24):
 
