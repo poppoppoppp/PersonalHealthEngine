@@ -45,8 +45,8 @@ class ProductDeepSeekReasoningAdapter:
         self._base = real.RealDeepSeekReasoningModelAdapter(**kwargs)
         self.model_id = self._base.model_id
 
-    def _chat(self, system, user, reasoning_effort=None):
-        return self._base._chat(system, user, reasoning_effort=reasoning_effort)
+    def _chat(self, system, user, operation):
+        return self._base._chat(system, user, operation=operation)
 
     def _daily_system(self, candidates):
         return self._base._daily_system(candidates) + (
@@ -76,7 +76,7 @@ class ProductDeepSeekReasoningAdapter:
             "hypothesis_candidates": candidates,
         })
         content = self._chat(
-            self._daily_system(candidates), user, reasoning_effort=self._base.reasoning_effort,
+            self._daily_system(candidates), user, operation="today",
         )
         return self._validated_product_json(content, ("reasoning_summary",))
 
@@ -98,7 +98,7 @@ class ProductDeepSeekReasoningAdapter:
             "evidence_bundle": bundle,
             "hypothesis_candidates": candidates,
         })
-        content = self._chat(system, user, reasoning_effort="low")
+        content = self._chat(system, user, operation="qna")
         return self._validated_product_json(content, ("answer_text", "reasoning_summary"))
 
     def translate_product_copy(self, reasoning_summary, recommended_actions):
@@ -118,7 +118,7 @@ class ProductDeepSeekReasoningAdapter:
                 "reasoning_summary": reasoning_summary,
                 "recommended_actions": recommended_actions,
             }, ensure_ascii=False),
-            reasoning_effort="low",
+            operation="product_translation",
         )
         result = self._validated_product_json(content, ("reasoning_summary",))
         if len(result["recommended_actions"]) != len(recommended_actions):

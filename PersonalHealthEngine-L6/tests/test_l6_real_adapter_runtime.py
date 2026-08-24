@@ -126,3 +126,22 @@ def test_deepseek_transport_rejects_mismatched_response_model(monkeypatch):
         adapter._chat("system", "user", operation="qna")
 
     assert not hasattr(adapter, "last_invocation") or adapter.last_invocation is None
+
+
+def test_deepseek_public_paths_assign_audit_operations(monkeypatch):
+    adapter = RealDeepSeekReasoningModelAdapter(api_key="secret-test-key")
+    operations = []
+
+    def fake_chat(system, user, operation):
+        operations.append(operation)
+        if operation == "context":
+            return '{"events": []}'
+        return "{}"
+
+    monkeypatch.setattr(adapter, "_chat", fake_chat)
+
+    adapter.reason_daily({}, [])
+    adapter.answer_question("今天可以训练吗？", {}, [])
+    adapter.extract_context("昨晚睡得很晚", "2026-08-24")
+
+    assert operations == ["today", "qna", "context"]
