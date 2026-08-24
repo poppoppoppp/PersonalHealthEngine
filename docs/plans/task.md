@@ -49,12 +49,12 @@
 | Q&A V2 Task 4 — post-candidate medical review and finalizer | 22 focused tests cover order, gate, all statuses, and fail-closed | Complete |
 | Q&A V2 Task 5 — audit, context, and persistence integration | 34 L7 + 9 L6 tests cover migration, stage audit, context, and ownership | Complete |
 | Q&A V2 Task 6 — Flutter staged processing UX | Red/green widget test covers understanding, evidence, optional safety, success | Complete |
-| Q&A V2 Task 7 — regression, production deployment, and release | 216 Python tests, 31 Flutter tests, signed APK and local secret audit pass; VPS acceptance in progress | In progress |
-| Deploy and seal PHE Q&A Orchestration V2 | Full regression, real VPS cases, APK, secret audit, commit, and push | In progress |
+| Q&A V2 Task 7 — regression, production deployment, and release | 216 Python tests, 31 Flutter tests, signed APK, secret audit, five live Q&A cases, and VPS gates pass | Complete |
+| Deploy and seal PHE Q&A Orchestration V2 | Deployed c153f04; production audit, rollback backups, staging cleanup, and five live cases verified | Complete |
 
 Verification snapshot (2026-08-24):
 
-- Python: `171 passed, 2 skipped, 3 subtests passed`.
-- Flutter: `26 passed`; analyzer has 0 errors, 0 warnings, and 17 pre-existing info-level lints.
+- Python: `216 passed, 2 skipped, 982 warnings, 3 subtests passed`.
+- Flutter: `31 passed`; analyzer has 0 errors, 0 warnings, and 17 pre-existing info-level lints.
 - APK: V2 signature valid, signer `CN=Personal Health Engine, O=Private, C=CN`, package `com.personalhealthengine.phe_app`, INTERNET present, backup disabled.
-- Public ports before gateway deployment: 80/443 closed; protected 8707/11434 closed.
+- Production: commit `c153f04` healthy; five required Q&A cases pass; protected 8707/11434 closed; daily timer active and enabled.

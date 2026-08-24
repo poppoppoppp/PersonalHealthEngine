@@ -86,12 +86,22 @@
     "detail": "1 controlled DeepSeek call (Phase C real-gate on throwaway copy). MedGemma availability verified via digest-confirmed local Ollama; L7 invokes it only behind the sealed trigger policy. All automated tests use deterministic mock adapters labeled mock-* per contract §61."
   },
 
+  "qna_orchestration_v2_addendum": {
+    "date_utc": "2026-08-24T10:28:38Z",
+    "verdict": "PASS — PRODUCTION DEPLOYED AND RE-SEALED",
+    "deployed_commit": "c153f045a4af7e9631f7a7e4f0f237197da416a6",
+    "audit_artifact": "docs/PHE_QNA_ORCHESTRATION_V2_AUDIT.json",
+    "local_regression": "216 passed, 2 skipped, 3 subtests passed; Flutter 31 passed",
+    "real_acceptance": "All five required public-HTTPS Q&A cases PASS; reviewed decisions persist SEMANTIC -> EVIDENCE -> REASONING -> MEDICAL -> FINALIZER",
+    "production_model": "deepseek-v4-flash; thinking disabled; zero Pro production rows",
+    "medical_runtime": "medgemma1.5 risk-gated; measured CPU timeout defect repaired and reaccepted",
+    "android": "release-signed APK accepted; reinstall required"
+  },
+
   "known_limitations": [
-    "Real DeepSeek reasoning summary is English (sealed L6 prompt does not force zh); L7 presents model text verbatim per semantic-stability rule. Forcing zh-CN requires a sealed-L6 prompt change = future interface extension needing layer-owner approval.",
+    "Risk-gated MedGemma reviews take about eight minutes on the current 2-vCPU host; ordinary semantic, product-meta, deterministic-data, and out-of-scope paths bypass this cost.",
     "Context question budget returns none until a learning loop exists (post-seal roadmap).",
-    "OS-level push transport is post-MVP; the in-app feed + decision audit is live. Gate logic is transport-agnostic.",
-    "APK is debug-signed; release signing is a distribution task.",
-    "Docker not installed on dev PC: final `docker compose up -d --build` runs on the VPS (everything it executes is covered by packaging smoke tests).",
-    "History NL search is deterministic keyword match; semantic search is post-seal."
+    "OS-level push transport is post-MVP; the in-app feed and decision audit remain live.",
+    "History natural-language search remains deterministic keyword matching outside the Q&A semantic classifier."
   ]
 }

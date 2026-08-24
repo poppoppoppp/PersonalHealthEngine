@@ -1,0 +1,145 @@
+{
+  "title": "PHE Q&A Orchestration V2 — Production Acceptance Audit",
+  "date_utc": "2026-08-24T10:28:38Z",
+  "verdict": "PASS — PRODUCTION DEPLOYED AND RE-SEALED",
+  "deployed_commit": "c153f045a4af7e9631f7a7e4f0f237197da416a6",
+  "architecture": {
+    "keyword_only_authority_removed": "PASS",
+    "semantic_classifier": "deepseek-v4-flash",
+    "thinking": "disabled",
+    "pro_production_references": 0,
+    "scopes": [
+      "HEALTH_DECISION",
+      "HEALTH_DATA",
+      "HEALTH_CONTEXT",
+      "PRODUCT_META",
+      "OUT_OF_SCOPE"
+    ],
+    "question_specific_evidence": "PASS",
+    "deterministic_engine_data": "PASS",
+    "candidate_before_medical_review": "PASS",
+    "risk_gated_medgemma": "PASS",
+    "safe_finalizer": "PASS"
+  },
+  "ordered_stage_evidence": {
+    "reviewed_decision": [
+      "SEMANTIC",
+      "EVIDENCE",
+      "REASONING",
+      "MEDICAL",
+      "FINALIZER"
+    ],
+    "product_meta": [
+      "SEMANTIC",
+      "FINALIZER"
+    ],
+    "health_data": [
+      "SEMANTIC",
+      "ENGINE_DATA",
+      "FINALIZER"
+    ],
+    "out_of_scope": [
+      "SEMANTIC",
+      "FINALIZER"
+    ],
+    "production_audit_table": "qna_audits",
+    "schema_migration": 2
+  },
+  "real_production_cases": [
+    {
+      "question_case": "今天要散步吗？",
+      "scope": "HEALTH_DECISION",
+      "reasoning_session": true,
+      "medical_review_state": "PERFORMED",
+      "evidence_grounded": true,
+      "final_language": "Chinese",
+      "elapsed_seconds": 480.0,
+      "result": "PASS"
+    },
+    {
+      "question_case": "你是谁？",
+      "scope": "PRODUCT_META",
+      "reasoning_session": false,
+      "medical_review_state": "BYPASSED",
+      "fixed_product_copy": true,
+      "elapsed_seconds": 1.7,
+      "result": "PASS"
+    },
+    {
+      "question_case": "我昨晚睡了多久？",
+      "scope": "HEALTH_DATA",
+      "reasoning_session": false,
+      "medical_review_state": "BYPASSED",
+      "data_authority": "L3",
+      "elapsed_seconds": 1.1,
+      "result": "PASS"
+    },
+    {
+      "question_case": "今天适合高强度训练吗？",
+      "scope": "HEALTH_DECISION",
+      "reasoning_session": true,
+      "medical_review_state": "PERFORMED",
+      "evidence_grounded": true,
+      "final_language": "Chinese",
+      "elapsed_seconds": 481.8,
+      "result": "PASS"
+    },
+    {
+      "question_case": "法国首都是什么？",
+      "scope": "OUT_OF_SCOPE",
+      "reasoning_session": false,
+      "medical_review_state": "BYPASSED",
+      "elapsed_seconds": 1.4,
+      "result": "PASS"
+    }
+  ],
+  "fail_safe_evidence": {
+    "initial_high_intensity_attempt": "MedGemma exceeded the original 600-second adapter budget and returned the fixed UNAVAILABLE response without exposing the candidate.",
+    "root_cause": "Ollama generated 265 structured tokens at 0.70 tokens/second on the 2-vCPU host, completing just beyond the adapter cutoff.",
+    "repair": "The risk-gated MedGemma adapter budget was raised to 690 seconds; the 720-second app and 900-second gateway budgets were unchanged.",
+    "retest": "PASS at 481.8 seconds with medical_review_state=PERFORMED."
+  },
+  "automated_verification": {
+    "python_matrix": "216 passed, 2 skipped, 982 warnings, 3 subtests passed",
+    "focused_latency_repair": "37 passed",
+    "flutter_tests": "31 passed",
+    "flutter_analyzer": "0 errors, 0 warnings; 17 pre-existing info notices",
+    "deepseek_static_audit": "PASS",
+    "upstream_integrity": "PASS",
+    "secret_audit": "PASS"
+  },
+  "production_regression": {
+    "today": "PASS",
+    "history": "PASS",
+    "patterns": "PASS",
+    "context": "PASS",
+    "feedback": "PASS — automated API/service regression",
+    "public_https": "PASS",
+    "public_8707": "CLOSED",
+    "public_11434": "CLOSED",
+    "daily_service_last_result": "success; ExecMainStatus=0",
+    "daily_timer": "active and enabled",
+    "certificate_renewal_timer": "active"
+  },
+  "backups": {
+    "database_snapshot": "/srv/phe/backups/20260824_173802",
+    "pre_cutover_code": "/srv/phe/backups/code/phe-code-pre-qna-v2-20260824T093800Z.tar.gz"
+  },
+  "android_artifact": {
+    "path": "D:\\PersonalHealthEngine\\artifacts\\PHE-Android-production.apk",
+    "bytes": 50337217,
+    "sha256": "866676997BC7F0790566D069EA18F46695939FD17EE64BF4071E23F194B55D48",
+    "signature": "APK Signature Scheme v2 valid; one RSA-3072 signer",
+    "package": "com.personalhealthengine.phe_app",
+    "internet_permission": true,
+    "backup_disabled": true,
+    "production_https_endpoint_embedded": true,
+    "reinstall_required": true
+  },
+  "privacy": {
+    "raw_answers_recorded_in_audit_artifact": false,
+    "raw_model_output_exposed": false,
+    "chain_of_thought_exposed": false,
+    "credentials_recorded": false
+  }
+}
