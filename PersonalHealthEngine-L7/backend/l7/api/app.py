@@ -7,10 +7,11 @@ web/CLI). No secrets are ever exposed; model credentials never reach this layer.
 from __future__ import annotations
 
 import json
+import hashlib
 import re
 import uuid
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -60,6 +61,13 @@ def create_app(config: Config | None = None, orchestrator: EngineOrchestrator | 
                              medical_adapter=orch._medical_adapter,
                              context_writer=context_service)
 
+    # Build projections at process startup, never on latency-sensitive GET paths.
+    if l7.execute(
+        "SELECT 1 FROM today_versions WHERE user_id=? LIMIT 1", (cfg.default_user_id,),
+    ).fetchone() is None:
+        orch.evaluate(cfg.default_user_id, trigger="startup_bootstrap")
+    history_service.rebuild(cfg.default_user_id)
+
     app = FastAPI(title="Personal Health Engine — L7 Product API", version=__version__)
     if cfg.environment == "local":
         # Dev convenience only: the Flutter web/desktop client runs from another origin.
@@ -76,6 +84,19 @@ def create_app(config: Config | None = None, orchestrator: EngineOrchestrator | 
     app.state.today_service = today_service
 
     token = cfg.resolve_api_token()
+
+    def conditional_json(request: Request, payload: dict) -> Response:
+        canonical = json.dumps(
+            payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        ).encode("utf-8")
+        etag = f'"{hashlib.sha256(canonical).hexdigest()}"'
+        headers = {
+            "ETag": etag,
+            "Cache-Control": "private, max-age=0, must-revalidate",
+        }
+        if request.headers.get("If-None-Match") == etag:
+            return Response(status_code=304, headers=headers)
+        return JSONResponse(payload, headers=headers)
 
     @app.middleware("http")
     async def performance_telemetry(request: Request, call_next):
@@ -138,8 +159,10 @@ def create_app(config: Config | None = None, orchestrator: EngineOrchestrator | 
         return {"status": "ok", "version": __version__, "environment": cfg.environment}
 
     @app.get("/today")
-    def get_today(user_id: str = Depends(require_auth)):
-        return today_service.get_today(user_id, trigger="app_open")
+    def get_today(request: Request, user_id: str = Depends(require_auth)):
+        return conditional_json(
+            request, today_service.get_today(user_id, trigger="app_open"),
+        )
 
     @app.post("/today/refresh")
     def refresh_today(user_id: str = Depends(require_auth)):
@@ -164,8 +187,8 @@ def create_app(config: Config | None = None, orchestrator: EngineOrchestrator | 
         return today_service.evidence_detail(user_id)
 
     @app.get("/patterns")
-    def patterns(user_id: str = Depends(require_auth)):
-        return today_service.patterns(user_id)
+    def patterns(request: Request, user_id: str = Depends(require_auth)):
+        return conditional_json(request, today_service.patterns(user_id))
 
     @app.get("/usage")
     def usage(user_id: str = Depends(require_auth)):
@@ -205,9 +228,14 @@ def create_app(config: Config | None = None, orchestrator: EngineOrchestrator | 
         return qna_service.open_or_roll_conversation(user_id)
 
     @app.get("/qa/conversations/{conversation_id}")
-    def qa_conversation(conversation_id: int, user_id: str = Depends(require_auth)):
+    def qa_conversation(conversation_id: int,
+                        limit: int = Query(30, ge=1, le=50),
+                        cursor: int | None = Query(None, ge=1),
+                        user_id: str = Depends(require_auth)):
         try:
-            return qna_service.conversation_state(user_id, conversation_id)
+            return qna_service.conversation_state(
+                user_id, conversation_id, limit=limit, cursor=cursor,
+            )
         except LookupError as e:
             raise HTTPException(status_code=404, detail=str(e))
 
@@ -224,8 +252,10 @@ def create_app(config: Config | None = None, orchestrator: EngineOrchestrator | 
 
     # ---------------- Context (§23–§29) ----------------
     @app.get("/context")
-    def context_list(user_id: str = Depends(require_auth)):
-        return context_service.list_current(user_id)
+    def context_list(limit: int = Query(30, ge=1, le=50),
+                     cursor: int | None = Query(None, ge=1),
+                     user_id: str = Depends(require_auth)):
+        return context_service.list_current(user_id, limit=limit, cursor=cursor)
 
     @app.post("/context")
     async def context_add(request: Request, user_id: str = Depends(require_auth)):
@@ -282,13 +312,24 @@ def create_app(config: Config | None = None, orchestrator: EngineOrchestrator | 
 
     # ---------------- History / Episodes (§37–§40) ----------------
     @app.get("/history/episodes")
-    def history_episodes(user_id: str = Depends(require_auth)):
-        return history_service.list_episodes(user_id)
+    def history_episodes(request: Request,
+                         limit: int = Query(30, ge=1, le=50),
+                         cursor: int | None = Query(None, ge=1),
+                         user_id: str = Depends(require_auth)):
+        return conditional_json(
+            request,
+            history_service.list_episodes(user_id, limit=limit, cursor=cursor),
+        )
 
     @app.get("/history/episodes/{episode_id}")
-    def history_episode(episode_id: int, user_id: str = Depends(require_auth)):
+    def history_episode(episode_id: int,
+                        limit: int = Query(30, ge=1, le=50),
+                        cursor: int | None = Query(None, ge=1),
+                        user_id: str = Depends(require_auth)):
         try:
-            return history_service.episode_detail(user_id, episode_id)
+            return history_service.episode_detail(
+                user_id, episode_id, limit=limit, cursor=cursor,
+            )
         except LookupError as e:
             raise HTTPException(status_code=404, detail=str(e))
 

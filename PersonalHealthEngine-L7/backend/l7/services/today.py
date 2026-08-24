@@ -27,6 +27,14 @@ class TodayService:
         self.orch = orchestrator
 
     def get_today(self, user_id: str, trigger: str = "app_open") -> dict:
+        if trigger == "app_open":
+            row = self.l7.execute(
+                "SELECT rendered_json FROM today_versions WHERE user_id=? ORDER BY id DESC LIMIT 1",
+                (user_id,),
+            ).fetchone()
+            if row is None:
+                raise LookupError("today projection is not ready")
+            return json.loads(row["rendered_json"])
         result: EvaluationResult = self.orch.evaluate(user_id, trigger)
         return result.today_payload
 

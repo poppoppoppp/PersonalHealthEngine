@@ -13,7 +13,7 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 MIGRATION_001 = """
 CREATE TABLE IF NOT EXISTS schema_migrations_l7 (
@@ -204,6 +204,23 @@ CREATE INDEX IF NOT EXISTS idx_performance_requests_endpoint_time
     ON performance_requests(endpoint, created_at_utc DESC);
 """
 
+MIGRATION_004 = """
+CREATE TABLE IF NOT EXISTS read_projection_versions (
+    user_id         TEXT NOT NULL REFERENCES users(id),
+    projection      TEXT NOT NULL,
+    version         INTEGER NOT NULL,
+    metadata_json   TEXT NOT NULL,
+    updated_at_utc  TEXT NOT NULL,
+    PRIMARY KEY (user_id, projection)
+);
+CREATE INDEX IF NOT EXISTS idx_health_episodes_user_status_id
+    ON health_episodes(user_id, status, id DESC);
+CREATE INDEX IF NOT EXISTS idx_episode_events_episode_id_id
+    ON episode_events(episode_id, id DESC);
+CREATE INDEX IF NOT EXISTS idx_qa_turns_conversation_id_id
+    ON qa_turns(conversation_id, id DESC);
+"""
+
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -248,6 +265,13 @@ def _migrate(con: sqlite3.Connection) -> None:
         con.execute(
             "INSERT INTO schema_migrations_l7 (version, name, applied_at_utc) "
             "VALUES (3, 'performance_telemetry', ?)",
+            (utc_now(),),
+        )
+    if 4 not in applied:
+        con.executescript(MIGRATION_004)
+        con.execute(
+            "INSERT INTO schema_migrations_l7 (version, name, applied_at_utc) "
+            "VALUES (4, 'bounded_read_indexes', ?)",
             (utc_now(),),
         )
     con.execute("INSERT OR IGNORE INTO users (id, created_at_utc) VALUES ('owner', ?)", (utc_now(),))

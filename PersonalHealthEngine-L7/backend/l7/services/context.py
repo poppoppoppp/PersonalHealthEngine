@@ -130,16 +130,26 @@ class ContextService:
         }
 
     # ------------------------------------------------------------------
-    def list_current(self, user_id: str) -> dict:
+    def list_current(self, user_id: str, *, limit: int = 30,
+                     cursor: int | None = None) -> dict:
         l6 = open_readonly(self.cfg.l6_db)
         try:
+            params: list = []
+            cursor_sql = ""
+            if cursor is not None:
+                cursor_sql = " AND id<?"
+                params.append(cursor)
+            params.append(limit + 1)
             rows = l6.execute(
                 "SELECT id, context_date, context_type, body_part, severity, raw_text,"
                 " status, created_at_utc FROM personal_context WHERE status='CURRENT'"
-                " ORDER BY context_date DESC, id DESC"
+                + cursor_sql + " ORDER BY id DESC LIMIT ?",
+                params,
             ).fetchall()
         finally:
             l6.close()
+        has_more = len(rows) > limit
+        rows = rows[:limit]
         metas = {
             r["l6_context_id"]: dict(r)
             for r in self.l7.execute(
@@ -159,7 +169,10 @@ class ContextService:
                 "ended_on": m["ended_on"] if m else None,
             }
             items.append(d)
-        return {"contexts": items}
+        return {
+            "contexts": items,
+            "next_cursor": items[-1]["id"] if has_more else None,
+        }
 
     # ------------------------------------------------------------------
     def correct(self, user_id: str, context_id: int, text: str, today: str | None = None) -> dict:

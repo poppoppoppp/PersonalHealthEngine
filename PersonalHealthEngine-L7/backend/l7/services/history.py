@@ -197,6 +197,19 @@ class HistoryService:
                      json.dumps({"feedback_status": f["feedback_status"],
                                  "feedback_status_label": feedback_status_label(f["feedback_status"]),
                                  "correction": bool(f["correction_text"])}, ensure_ascii=False), now))
+            metadata = {
+                "stable_days_hidden": len(stable_days),
+                "note": ("稳定日默认隐藏，但完整保存。" if stable_days else None),
+            }
+            self.l7.execute(
+                "INSERT INTO read_projection_versions "
+                "(user_id,projection,version,metadata_json,updated_at_utc) "
+                "VALUES (?,'history_episodes',1,?,?) "
+                "ON CONFLICT(user_id,projection) DO UPDATE SET "
+                "version=read_projection_versions.version+1,"
+                "metadata_json=excluded.metadata_json,updated_at_utc=excluded.updated_at_utc",
+                (user_id, json.dumps(metadata, ensure_ascii=False), now),
+            )
             self.l7.commit()
         except Exception:
             self.l7.rollback()
@@ -220,19 +233,58 @@ class HistoryService:
         return None
 
     # ------------------------------------------------------------------
-    def list_episodes(self, user_id: str) -> dict:
-        return self.rebuild(user_id)
+    def list_episodes(self, user_id: str, *, limit: int = 30,
+                      cursor: int | None = None) -> dict:
+        params: list = [user_id]
+        cursor_sql = ""
+        if cursor is not None:
+            cursor_sql = " AND id<?"
+            params.append(cursor)
+        params.append(limit + 1)
+        rows = self.l7.execute(
+            "SELECT id,episode_key,start_date,end_date,phase,summary"
+            " FROM health_episodes WHERE user_id=? AND status='CURRENT'"
+            + cursor_sql + " ORDER BY id DESC LIMIT ?",
+            params,
+        ).fetchall()
+        has_more = len(rows) > limit
+        page = rows[:limit]
+        projection = self.l7.execute(
+            "SELECT version,metadata_json FROM read_projection_versions "
+            "WHERE user_id=? AND projection='history_episodes'", (user_id,),
+        ).fetchone()
+        metadata = json.loads(projection["metadata_json"]) if projection else {}
+        return {
+            "episodes": [dict(row) for row in page],
+            "next_cursor": page[-1]["id"] if has_more else None,
+            "stable_days_hidden": metadata.get("stable_days_hidden", 0),
+            "note": metadata.get("note"),
+            "projection_version": projection["version"] if projection else 0,
+        }
 
-    def episode_detail(self, user_id: str, episode_id: int) -> dict:
+    def episode_detail(self, user_id: str, episode_id: int, *, limit: int = 30,
+                       cursor: int | None = None) -> dict:
         row = self.l7.execute(
             "SELECT * FROM health_episodes WHERE id=? AND user_id=? AND status='CURRENT'",
             (episode_id, user_id),
         ).fetchone()
         if row is None:
             raise LookupError("episode not found")
-        events = [dict(e) for e in self.l7.execute(
-            "SELECT event_date, kind, ref_layer, ref_id, detail_json FROM episode_events"
-            " WHERE episode_id=? ORDER BY event_date, id", (episode_id,))]
+        params: list = [episode_id]
+        cursor_sql = ""
+        if cursor is not None:
+            cursor_sql = " AND id<?"
+            params.append(cursor)
+        params.append(limit + 1)
+        event_rows = self.l7.execute(
+            "SELECT id,event_date,kind,ref_layer,ref_id,detail_json FROM episode_events"
+            " WHERE episode_id=?" + cursor_sql + " ORDER BY id DESC LIMIT ?", params,
+        ).fetchall()
+        has_more = len(event_rows) > limit
+        event_rows = event_rows[:limit]
+        next_cursor = event_rows[-1]["id"] if has_more else None
+        event_rows = list(reversed(event_rows))
+        events = [dict(e) for e in event_rows]
         for e in events:
             e["detail"] = json.loads(e.pop("detail_json"))
             e["kind_label"] = {
@@ -243,6 +295,7 @@ class HistoryService:
         return {
             "episode": dict(row),
             "timeline": events,
+            "next_cursor": next_cursor,
         }
 
     def search(self, user_id: str, q: str) -> dict:

@@ -124,20 +124,34 @@ class QnAService:
             return {"conversation_id": cur.lastrowid, "rolled_over": True}
         return {"conversation_id": row["id"], "rolled_over": False}
 
-    def conversation_state(self, user_id: str, conversation_id: int) -> dict:
+    def conversation_state(self, user_id: str, conversation_id: int, *, limit: int = 30,
+                           cursor: int | None = None) -> dict:
         owner = self.l7.execute(
             "SELECT 1 FROM conversations WHERE id=? AND user_id=?",
             (conversation_id, user_id),
         ).fetchone()
         if owner is None:
             raise LookupError("conversation not found")
+        params: list = [conversation_id]
+        cursor_sql = ""
+        if cursor is not None:
+            cursor_sql = " AND id<?"
+            params.append(cursor)
+        params.append(limit + 1)
         turns = self.l7.execute(
-            "SELECT role, text, created_at_utc FROM qa_turns WHERE conversation_id=?"
-            " ORDER BY id",
-            (conversation_id,),
+            "SELECT id,role,text,created_at_utc FROM qa_turns WHERE conversation_id=?"
+            + cursor_sql + " ORDER BY id DESC LIMIT ?",
+            params,
         ).fetchall()
-        return {"conversation_id": conversation_id,
-                "turns": [dict(t) for t in turns]}
+        has_more = len(turns) > limit
+        page = turns[:limit]
+        next_cursor = page[-1]["id"] if has_more else None
+        page = list(reversed(page))
+        return {
+            "conversation_id": conversation_id,
+            "turns": [dict(t) for t in page],
+            "next_cursor": next_cursor,
+        }
 
     # -- answering ----------------------------------------------------------
     def ask(self, user_id: str, question: str, conversation_id: int | None = None,

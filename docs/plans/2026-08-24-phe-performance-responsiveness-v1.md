@@ -35,7 +35,7 @@
 
 ### Task 2: Fast bounded read models, pagination, and conditional HTTP
 
-**Status:** In progress
+**Status:** Complete (2026-08-24)
 
 **Files:**
 - Modify: `PersonalHealthEngine-L7/backend/l7/store/db.py`
@@ -59,6 +59,8 @@
 **Step 6: Review and commit.** Commit `perf: serve bounded versioned read projections`.
 
 ### Task 3: Durable asynchronous Context and Feedback pipeline
+
+**Status:** In progress
 
 **Files:**
 - Create: `PersonalHealthEngine-L7/backend/l7/jobs.py`
