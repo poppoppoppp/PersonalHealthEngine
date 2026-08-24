@@ -13,7 +13,7 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 MIGRATION_001 = """
 CREATE TABLE IF NOT EXISTS schema_migrations_l7 (
@@ -221,6 +221,43 @@ CREATE INDEX IF NOT EXISTS idx_qa_turns_conversation_id_id
     ON qa_turns(conversation_id, id DESC);
 """
 
+MIGRATION_005 = """
+CREATE TABLE IF NOT EXISTS write_submissions (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id         TEXT NOT NULL REFERENCES users(id),
+    kind            TEXT NOT NULL,
+    input_json      TEXT NOT NULL,
+    input_sha256    TEXT NOT NULL,
+    status          TEXT NOT NULL,
+    result_json     TEXT,
+    error_category  TEXT,
+    created_at_utc  TEXT NOT NULL,
+    updated_at_utc  TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS durable_jobs (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id           TEXT NOT NULL REFERENCES users(id),
+    kind              TEXT NOT NULL,
+    submission_id     INTEGER NOT NULL REFERENCES write_submissions(id),
+    idempotency_key   TEXT NOT NULL,
+    input_sha256      TEXT NOT NULL,
+    status            TEXT NOT NULL CHECK (status IN ('PENDING','RUNNING','SUCCEEDED','FAILED')),
+    attempts          INTEGER NOT NULL DEFAULT 0,
+    available_at_utc  TEXT NOT NULL,
+    locked_at_utc     TEXT,
+    worker_id         TEXT,
+    queue_latency_ms  REAL,
+    run_latency_ms    REAL,
+    result_version    INTEGER,
+    error_category    TEXT,
+    created_at_utc    TEXT NOT NULL,
+    updated_at_utc    TEXT NOT NULL,
+    UNIQUE (user_id, idempotency_key)
+);
+CREATE INDEX IF NOT EXISTS idx_durable_jobs_claim
+    ON durable_jobs(status, available_at_utc, id);
+"""
+
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -272,6 +309,13 @@ def _migrate(con: sqlite3.Connection) -> None:
         con.execute(
             "INSERT INTO schema_migrations_l7 (version, name, applied_at_utc) "
             "VALUES (4, 'bounded_read_indexes', ?)",
+            (utc_now(),),
+        )
+    if 5 not in applied:
+        con.executescript(MIGRATION_005)
+        con.execute(
+            "INSERT INTO schema_migrations_l7 (version, name, applied_at_utc) "
+            "VALUES (5, 'durable_jobs', ?)",
             (utc_now(),),
         )
     con.execute("INSERT OR IGNORE INTO users (id, created_at_utc) VALUES ('owner', ?)", (utc_now(),))

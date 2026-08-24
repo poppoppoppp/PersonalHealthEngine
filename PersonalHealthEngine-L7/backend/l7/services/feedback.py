@@ -14,6 +14,7 @@ import sqlite3
 
 from l7.config import Config
 from l7.engine.orchestrator import EngineOrchestrator
+from l7.jobs import JobRepository
 from l7.store.db import open_readonly, utc_now
 from l7.upstream.l6_bridge import L6Bridge
 
@@ -50,6 +51,39 @@ class FeedbackService:
         if self._adapter is None:
             self._adapter = self.orch.reasoning_adapter
         return self._adapter
+
+    def enqueue_submit(self, user_id: str, *, verdict: str, text: str | None,
+                       subject_type: str, subject_id: int | None,
+                       analysis_date: str | None, idempotency_key: str,
+                       jobs: JobRepository) -> dict:
+        if verdict not in VERDICT_MAP:
+            raise ValueError(f"unknown verdict {verdict!r}")
+        queued = jobs.enqueue(
+            user_id=user_id,
+            kind="FEEDBACK_SUBMIT",
+            input_data={
+                "verdict": verdict,
+                "text": text,
+                "subject_type": subject_type,
+                "subject_id": subject_id,
+                "analysis_date": analysis_date,
+            },
+            idempotency_key=idempotency_key,
+        )
+        category = VERDICT_MAP[verdict]
+        feedback_status = {
+            "judgment_confirmed": "CONFIRMED",
+            "judgment_rejected": "REJECTED",
+            "context_added": "CORRECTED",
+        }[category]
+        return {
+            **queued,
+            "feedback_id": None,
+            "category": category,
+            "feedback_status": feedback_status,
+            "corrected_context_ids": [],
+            "re_evaluation": None,
+        }
 
     # ------------------------------------------------------------------
     def submit(self, user_id: str, verdict: str, text: str | None = None,

@@ -60,7 +60,7 @@
 
 ### Task 3: Durable asynchronous Context and Feedback pipeline
 
-**Status:** In progress
+**Status:** Complete (2026-08-24)
 
 **Files:**
 - Create: `PersonalHealthEngine-L7/backend/l7/jobs.py`
@@ -76,7 +76,7 @@
 
 **Step 2: Verify RED.** Run the two focused test files.
 
-**Step 3: Implement migration and repository.** Jobs carry kind, user, sanitized payload reference, idempotency key, status, attempts, timestamps, result version, and error category. Persist raw Context only in its existing authoritative health table; job telemetry stores no raw text.
+**Step 3: Implement migration and repository.** Jobs carry kind, user, sanitized payload reference, idempotency key, status, attempts, timestamps, result version, and error category. Persist unstructured input in a private L7 submission row until the worker turns it into an authoritative L6 fact; job and performance telemetry store no raw text.
 
 **Step 4: Implement worker.** One process claims one job using a short `BEGIN IMMEDIATE`, releases the transaction, performs extraction/recompute, writes result, and refreshes dependent projections. Duplicate submissions return the existing job.
 
@@ -87,6 +87,8 @@
 **Step 7: Review and commit.** Commit `feat: move health recompute to durable jobs`.
 
 ### Task 4: Q&A fast paths, compact MedicalReviewBundle, and exact review cache
+
+**Status:** In progress
 
 **Files:**
 - Modify: `PersonalHealthEngine-L7/backend/l7/engine/qna_orchestration.py`

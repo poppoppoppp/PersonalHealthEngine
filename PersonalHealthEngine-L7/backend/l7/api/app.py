@@ -18,6 +18,7 @@ from fastapi.responses import JSONResponse
 from l7 import __version__
 from l7.config import Config
 from l7.engine.orchestrator import EngineOrchestrator
+from l7.jobs import JobRepository
 from l7.performance import RequestMetrics, current_request_metrics, persist_request_metrics
 from l7.services.context import ContextService
 from l7.services.feedback import FeedbackService
@@ -60,6 +61,7 @@ def create_app(config: Config | None = None, orchestrator: EngineOrchestrator | 
                              reasoning_adapter=orch._reasoning_adapter,
                              medical_adapter=orch._medical_adapter,
                              context_writer=context_service)
+    jobs = JobRepository(l7)
 
     # Build projections at process startup, never on latency-sensitive GET paths.
     if l7.execute(
@@ -264,9 +266,15 @@ def create_app(config: Config | None = None, orchestrator: EngineOrchestrator | 
         if not text:
             raise HTTPException(status_code=400, detail="text required")
         try:
-            return context_service.ingest(user_id, text, body.get("date"))
+            result = context_service.enqueue_ingest(
+                user_id, text, today=body.get("date"),
+                idempotency_key=request.headers.get("Idempotency-Key") or uuid.uuid4().hex,
+                jobs=jobs,
+            )
+            return JSONResponse(result, status_code=202)
         except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            status = 409 if "idempotency key reused" in str(e) else 400
+            raise HTTPException(status_code=status, detail=str(e))
 
     @app.put("/context/{context_id}")
     async def context_correct(context_id: int, request: Request,
@@ -276,16 +284,29 @@ def create_app(config: Config | None = None, orchestrator: EngineOrchestrator | 
         if not text:
             raise HTTPException(status_code=400, detail="text required")
         try:
-            return context_service.correct(user_id, context_id, text, body.get("date"))
-        except LookupError as e:
-            raise HTTPException(status_code=404, detail=str(e))
+            result = context_service.enqueue_correct(
+                user_id, context_id, text, today=body.get("date"),
+                idempotency_key=request.headers.get("Idempotency-Key") or uuid.uuid4().hex,
+                jobs=jobs,
+            )
+            return JSONResponse(result, status_code=202)
+        except ValueError as e:
+            status = 409 if "idempotency key reused" in str(e) else 400
+            raise HTTPException(status_code=status, detail=str(e))
 
     @app.delete("/context/{context_id}")
-    def context_delete(context_id: int, user_id: str = Depends(require_auth)):
+    def context_delete(context_id: int, request: Request,
+                       user_id: str = Depends(require_auth)):
         try:
-            return context_service.delete(user_id, context_id)
-        except LookupError as e:
-            raise HTTPException(status_code=404, detail=str(e))
+            result = context_service.enqueue_delete(
+                user_id, context_id,
+                idempotency_key=request.headers.get("Idempotency-Key") or uuid.uuid4().hex,
+                jobs=jobs,
+            )
+            return JSONResponse(result, status_code=202)
+        except ValueError as e:
+            status = 409 if "idempotency key reused" in str(e) else 400
+            raise HTTPException(status_code=status, detail=str(e))
 
     @app.get("/context/pending-question")
     def context_pending_question(user_id: str = Depends(require_auth)):
@@ -299,14 +320,27 @@ def create_app(config: Config | None = None, orchestrator: EngineOrchestrator | 
         if not verdict:
             raise HTTPException(status_code=400, detail="verdict required")
         try:
-            return feedback_service.submit(
-                user_id, verdict, body.get("text"),
+            result = feedback_service.enqueue_submit(
+                user_id,
+                verdict=verdict,
+                text=body.get("text"),
                 subject_type=body.get("subject_type", "DAILY_REASONING"),
                 subject_id=body.get("subject_id"),
                 analysis_date=body.get("analysis_date"),
+                idempotency_key=request.headers.get("Idempotency-Key") or uuid.uuid4().hex,
+                jobs=jobs,
             )
+            return JSONResponse(result, status_code=202)
         except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            status = 409 if "idempotency key reused" in str(e) else 400
+            raise HTTPException(status_code=status, detail=str(e))
+        except LookupError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+
+    @app.get("/jobs/{job_id}")
+    def job_status(job_id: int, user_id: str = Depends(require_auth)):
+        try:
+            return jobs.status(user_id=user_id, job_id=job_id)
         except LookupError as e:
             raise HTTPException(status_code=404, detail=str(e))
 

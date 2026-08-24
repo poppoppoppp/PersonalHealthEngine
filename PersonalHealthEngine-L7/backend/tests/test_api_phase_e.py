@@ -23,21 +23,21 @@ def client(env):
 
 def test_context_endpoints(client):
     r = client.post("/context", headers=AUTH, json={"text": "昨晚熬夜了", "date": "2026-08-17"})
-    assert r.status_code == 200, r.text
+    assert r.status_code == 202, r.text
     body = r.json()
-    assert body["status"] == "SAVED"
-    ctx_id = body["context_ids"][0]
+    assert body["accepted"] is True and body["status"] == "PENDING"
+    assert client.get(f"/jobs/{body['job_id']}", headers=AUTH).json()["status"] == "PENDING"
 
     lst = client.get("/context", headers=AUTH).json()
-    assert any(c["id"] == ctx_id for c in lst["contexts"])
+    ctx_id = lst["contexts"][0]["id"]
 
     c = client.put(f"/context/{ctx_id}", headers=AUTH, json={"text": "其实是喝酒了"})
-    assert c.status_code == 200
-    assert c.json()["status"] == "CORRECTED"
+    assert c.status_code == 202
+    assert c.json()["status"] == "PENDING"
 
     d = client.delete(f"/context/{ctx_id}", headers=AUTH)
-    # ctx_id is now SUPERSEDED -> 404 is the correct contract answer.
-    assert d.status_code == 404
+    assert d.status_code == 202
+    assert d.json()["status"] == "PENDING"
 
 
 def test_context_requires_text(client):
@@ -72,8 +72,8 @@ def test_qa_requires_question(client):
 def test_feedback_endpoint(client):
     client.get("/today", headers=AUTH)
     r = client.post("/feedback", headers=AUTH, json={"verdict": "准确"})
-    assert r.status_code == 200, r.text
-    assert r.json()["category"] == "judgment_confirmed"
+    assert r.status_code == 202, r.text
+    assert r.json()["accepted"] is True
     bad = client.post("/feedback", headers=AUTH, json={"verdict": "五星好评"})
     assert bad.status_code == 400
 

@@ -18,6 +18,7 @@ from datetime import date, timedelta
 
 from l7.config import Config
 from l7.engine.orchestrator import EngineOrchestrator
+from l7.jobs import JobRepository
 from l7.rendering.labels import body_part_label, context_label, status_label
 from l7.store.db import open_readonly, utc_now
 from l7.upstream.l6_bridge import L6Bridge
@@ -46,6 +47,49 @@ class ContextService:
         if self._adapter is None:
             self._adapter = self.orch.reasoning_adapter
         return self._adapter
+
+    def enqueue_ingest(self, user_id: str, text: str, *, today: str | None,
+                       idempotency_key: str, jobs: JobRepository) -> dict:
+        text = (text or "").strip()
+        if not text:
+            raise ValueError("empty context text")
+        queued = jobs.enqueue(
+            user_id=user_id,
+            kind="CONTEXT_INGEST",
+            input_data={"text": text, "date": today},
+            idempotency_key=idempotency_key,
+        )
+        return {
+            **queued, "events": [], "context_ids": [],
+            "needs_confirmation": False, "re_evaluation": None,
+        }
+
+    def enqueue_correct(self, user_id: str, context_id: int, text: str, *,
+                        today: str | None, idempotency_key: str,
+                        jobs: JobRepository) -> dict:
+        text = (text or "").strip()
+        if not text:
+            raise ValueError("empty correction text")
+        queued = jobs.enqueue(
+            user_id=user_id,
+            kind="CONTEXT_CORRECT",
+            input_data={"context_id": context_id, "text": text, "date": today},
+            idempotency_key=idempotency_key,
+        )
+        return {
+            **queued, "superseded": context_id, "new_context_ids": [],
+            "re_evaluation": None,
+        }
+
+    def enqueue_delete(self, user_id: str, context_id: int, *,
+                       idempotency_key: str, jobs: JobRepository) -> dict:
+        queued = jobs.enqueue(
+            user_id=user_id,
+            kind="CONTEXT_DELETE",
+            input_data={"context_id": context_id},
+            idempotency_key=idempotency_key,
+        )
+        return {**queued, "deleted": context_id, "re_evaluation": None}
 
     # ------------------------------------------------------------------
     def ingest(self, user_id: str, text: str, today: str | None = None) -> dict:
