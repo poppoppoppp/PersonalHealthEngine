@@ -1,6 +1,6 @@
 """Layer 6 REAL model adapters (integration layer, additive to the sealed core).
 
-These are the real DeepSeek V4 Pro and MedGemma 1.5 4B adapters. They are separate from the
+These are the real DeepSeek V4 Flash and MedGemma 1.5 4B adapters. They are separate from the
 sealed `l6_adapters_v0_1.py` (mock adapters) and are only exercised by the standalone
 integration runner `l6_real_model_integration_v0_1.py` — never by core acceptance/rebuild.
 
@@ -9,6 +9,7 @@ databases, logs, or the report.
 """
 
 import json
+import logging
 import os
 import re
 import time
@@ -18,7 +19,9 @@ import urllib.request
 from l6_core_v0_1 import CONFIDENCE_LEVELS, HYPOTHESIS_TYPES, canonical_json
 
 DEEPSEEK_BASE_URL = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
-DEEPSEEK_MODEL_DEFAULT = "deepseek-v4-pro"
+DEEPSEEK_MODEL_DEFAULT = "deepseek-v4-flash"
+DEEPSEEK_THINKING = {"type": "disabled"}
+DEEPSEEK_AUDIT_LOGGER = logging.getLogger("phe.deepseek.audit")
 # Ollama model tag (resolves to medgemma1.5:latest). This is the development-time real MedGemma
 # runtime; production can point MEDICAL_MODEL_ENDPOINT at a remote/cloud Ollama-compatible host.
 MEDGEMMA_MODEL_DEFAULT = "medgemma1.5"
@@ -196,19 +199,27 @@ def _post_json(url, payload, api_key, timeout_s=120):
 class RealDeepSeekReasoningModelAdapter:
     model_id = DEEPSEEK_MODEL_DEFAULT
 
-    def __init__(self, api_key=None, model=None, base_url=None, reasoning_effort=None):
+    def __init__(self, api_key=None, model=None, base_url=None):
         self.api_key = api_key or os.environ.get("DEEPSEEK_API_KEY")
         self.model = model or os.environ.get("DEEPSEEK_MODEL", DEEPSEEK_MODEL_DEFAULT)
+        self.model_id = self.model
         self.base_url = (base_url or os.environ.get("DEEPSEEK_BASE_URL", DEEPSEEK_BASE_URL)).rstrip("/")
-        self.reasoning_effort = reasoning_effort or os.environ.get("DEEPSEEK_REASONING_EFFORT", "high")
+        self.last_usage = None
+        self.last_invocation = None
 
     def _require_key(self):
         if not self.api_key:
             raise RealModelUnavailable("DEEPSEEK_API_KEY is not set")
 
-    def _chat(self, system, user, reasoning_effort=None):
+    def _require_flash_model(self):
+        if self.model != DEEPSEEK_MODEL_DEFAULT:
+            raise RealModelUnavailable(
+                f"DeepSeek production model must be {DEEPSEEK_MODEL_DEFAULT!r}; got {self.model!r}"
+            )
+
+    def _chat(self, system, user, operation):
+        self._require_flash_model()
         self._require_key()
-        effort = reasoning_effort or self.reasoning_effort
         payload = {
             "model": self.model,
             "messages": [
@@ -216,16 +227,34 @@ class RealDeepSeekReasoningModelAdapter:
                 {"role": "user", "content": user},
             ],
             "temperature": 0,
-            "reasoning_effort": effort,
+            "thinking": DEEPSEEK_THINKING,
             "response_format": {"type": "json_object"},
         }
         endpoint = f"{self.base_url}/chat/completions"
         response = _post_json(endpoint, payload, self.api_key)
-        self.last_usage = response.get("usage")
+        response_model = response.get("model")
+        if response_model != DEEPSEEK_MODEL_DEFAULT:
+            raise RealModelUnavailable(
+                f"DeepSeek response model must be {DEEPSEEK_MODEL_DEFAULT!r}; got {response_model!r}"
+            )
         try:
-            return response["choices"][0]["message"]["content"]
+            content = response["choices"][0]["message"]["content"]
         except (KeyError, IndexError, TypeError) as exc:
             raise RealModelError(f"unexpected DeepSeek response shape: {response}") from exc
+        self.last_usage = response.get("usage") or {}
+        self.last_invocation = {
+            "event": "deepseek_invocation",
+            "operation": operation,
+            "requested_model": self.model,
+            "response_model": response_model,
+            "thinking": "disabled",
+            "usage": self.last_usage,
+        }
+        DEEPSEEK_AUDIT_LOGGER.info(
+            "deepseek_invocation %s",
+            json.dumps(self.last_invocation, sort_keys=True, separators=(",", ":")),
+        )
+        return content
 
     def _daily_system(self, candidates):
         types = sorted({c.get("hypothesis_type") for c in candidates} | set(HYPOTHESIS_TYPES))
@@ -246,13 +275,13 @@ class RealDeepSeekReasoningModelAdapter:
 
     def reason_daily(self, bundle, candidates):
         user = canonical_json({"evidence_bundle": bundle, "hypothesis_candidates": candidates})
-        content = self._chat(self._daily_system(candidates), user, reasoning_effort=self.reasoning_effort)
+        content = self._chat(self._daily_system(candidates), user, operation="today")
         return _extract_json(content)
 
     def answer_question(self, question, bundle, candidates):
         system = self._daily_system(candidates) + " You are answering a user question grounded ONLY in the bundle."
         user = canonical_json({"question": question, "evidence_bundle": bundle, "hypothesis_candidates": candidates})
-        content = self._chat(system, user, reasoning_effort="low")
+        content = self._chat(system, user, operation="qna")
         return _extract_json(content)
 
     def extract_context(self, text, today):
@@ -263,7 +292,11 @@ class RealDeepSeekReasoningModelAdapter:
             "TRAVEL, ILLNESS, SORE_THROAT, FEVER, NASAL_CONGESTION, MEDICATION, FATIGUE, FEELING_GOOD, "
             "DIET_CHANGE, SCHEDULE_CHANGE. Only include fields the user actually said; never invent values."
         )
-        content = self._chat(system, json.dumps({"text": text, "today": today}, ensure_ascii=False), reasoning_effort="low")
+        content = self._chat(
+            system,
+            json.dumps({"text": text, "today": today}, ensure_ascii=False),
+            operation="context",
+        )
         return _extract_json(content).get("events", [])
 
 
