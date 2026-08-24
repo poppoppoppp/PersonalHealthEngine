@@ -32,6 +32,7 @@
 | Deploy and accept production backend | SSH private key absent; no credential/Recycle Bin/console/Chrome alternative available | Blocked external secret |
 | Build and verify final signed APK | V2 signature/package/permission/backup/HTTPS endpoint PASS; SHA-256 recorded | Complete |
 | Secret audit, integrate, commit, and push | Secret scan PASS; final commit/integration/push in progress | In progress |
+| Cut over all DeepSeek production paths to V4 Flash non-thinking | Repo defaults, VPS effective env, real Today/Q&A/Context calls, zero Pro calls | In progress |
 
 Verification snapshot (2026-08-24):
 
