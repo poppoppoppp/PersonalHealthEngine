@@ -37,7 +37,8 @@
 | Implement fail-closed Flash non-thinking transport | 7 L6 adapter tests pass | Complete |
 | Route L7 operations through shared transport | 19 focused L6/L7 tests pass | Complete |
 | Align active DeepSeek configuration and static audit | 133 Python tests and model audit PASS | Complete |
-| Add isolated real-call Flash acceptance harness | Today/Q&A/Context real calls with sanitized evidence | In progress |
+| Add isolated real-call Flash acceptance harness | 4 harness tests pass; temporary L6 cleanup verified | Complete |
+| Run full DeepSeek cutover regressions and integrate | Python/Flutter/static audit/secret scan and branch integration | In progress |
 
 Verification snapshot (2026-08-24):
 

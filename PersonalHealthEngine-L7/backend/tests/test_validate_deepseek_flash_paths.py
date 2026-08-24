@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import sqlite3
 import sys
 from pathlib import Path
@@ -93,7 +92,11 @@ def test_temporary_l6_copy_is_removed_after_validation(tmp_path):
         copied_path = Path(copied)
         temp_parent = copied_path.parent
         assert copied_path != source
-        assert sqlite3.connect(copied_path).execute("SELECT value FROM marker").fetchone()[0] == "preserved"
+        copied_db = sqlite3.connect(copied_path)
+        try:
+            assert copied_db.execute("SELECT value FROM marker").fetchone()[0] == "preserved"
+        finally:
+            copied_db.close()
 
     assert source.exists()
     assert not temp_parent.exists()
