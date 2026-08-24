@@ -221,7 +221,11 @@ class QnAService:
             reason = None
             actions: list[str] = []
         else:
-            direct = result.get("answer_text", "")
+            direct = result.get("answer_text") or result.get("reasoning_summary")
+            if not isinstance(direct, str) or not direct.strip():
+                direct = "目前不能可靠判断。"
+            else:
+                direct = direct.strip()
             reason = None
             actions = [a for a in (result.get("recommended_actions") or []) if isinstance(a, str)][:3]
 

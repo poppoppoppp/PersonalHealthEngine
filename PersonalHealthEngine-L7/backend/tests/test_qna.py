@@ -53,6 +53,27 @@ def test_answer_is_grounded_in_engine_bundle(env):
     assert rows[0]["medical_review_state"] == "BYPASSED"
 
 
+def test_daily_shape_model_output_never_produces_an_empty_answer(env):
+    class DailyShapeAdapter:
+        model_id = "daily-shape-adapter"
+
+        def answer_question(self, question, bundle, candidates):
+            return {
+                "reasoning_summary": "今天的状态变化较明显，建议降低训练强度。",
+                "recommended_actions": ["降低训练强度"],
+            }
+
+    qna = QnAService(
+        env["cfg"], env["l7"], env["orch"].bridge,
+        reasoning_adapter=DailyShapeAdapter(),
+        medical_adapter=None,
+    )
+
+    result = qna.ask("owner", "今天能不能练腿？")
+
+    assert result["direct_answer"] == "今天的状态变化较明显，建议降低训练强度。"
+
+
 def test_insufficient_evidence_is_explicit(env, tmp_path):
     import sqlite3 as s
     empty_l5 = tmp_path / "empty_l5.sqlite3"

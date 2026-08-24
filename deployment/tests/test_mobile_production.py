@@ -31,6 +31,8 @@ def test_gateway_only_proxies_https_to_local_l7():
     assert "/.well-known/acme-challenge/" in http
     assert "return 308 https://$host$request_uri" in http
     assert "listen 443 ssl" in https
+    assert "ssl http2 default_server" in https
+    assert "http2 on;" not in https
     assert "proxy_pass http://127.0.0.1:8707" in https
     assert "proxy_connect_timeout 10s" in https
     assert "proxy_read_timeout 900s" in https
