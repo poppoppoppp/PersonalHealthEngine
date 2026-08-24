@@ -400,7 +400,7 @@ def test_explicit_context_statement_uses_formal_context_write(env):
     result = qna.ask("owner", "我昨晚其实两点才睡")
 
     assert result["scope"] == "HEALTH_CONTEXT"
-    assert "已记录" in result["direct_answer"]
+    assert "后台" in result["direct_answer"]
     con = sqlite3.connect(env["l6_copy"])
     row = con.execute(
         "SELECT context_type,raw_text,source FROM personal_context "
@@ -408,7 +408,11 @@ def test_explicit_context_statement_uses_formal_context_write(env):
         ("我昨晚其实两点才睡",),
     ).fetchone()
     con.close()
-    assert row == ("LATE_SLEEP", "我昨晚其实两点才睡", "USER_REPORTED")
+    assert row is None
+    job = env["l7"].execute(
+        "SELECT kind,status FROM durable_jobs ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    assert tuple(job) == ("CONTEXT_INGEST", "PENDING")
 
 
 def test_headache_statement_is_persisted_as_user_reported_context(env):
@@ -440,7 +444,11 @@ def test_headache_statement_is_persisted_as_user_reported_context(env):
         ("我今天有点头疼",),
     ).fetchone()
     con.close()
-    assert row == ("HEADACHE", "USER_REPORTED")
+    assert row is None
+    job = env["l7"].execute(
+        "SELECT kind,status FROM durable_jobs ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    assert tuple(job) == ("CONTEXT_INGEST", "PENDING")
 
 
 def test_conversation_cannot_be_reused_by_another_user(env):

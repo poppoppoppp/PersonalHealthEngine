@@ -8,11 +8,13 @@ MedGemma is only invoked on trigger, never per request.
 from __future__ import annotations
 
 import json
+import hashlib
 import sqlite3
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from l7.config import Config
+from l7.jobs import JobRepository
 from l7.medical_cache import MedicalReviewCache
 from l7.performance import measure_stage, record_cache_result, record_model_meta
 from l7.engine.qna_orchestration import (
@@ -50,13 +52,15 @@ def in_health_scope(question: str) -> bool:
 
 class QnAService:
     def __init__(self, config: Config, l7: sqlite3.Connection, bridge: L6Bridge,
-                 reasoning_adapter=None, medical_adapter=None, context_writer=None):
+                 reasoning_adapter=None, medical_adapter=None, context_writer=None,
+                 job_repository=None):
         self.cfg = config
         self.l7 = l7
         self.bridge = bridge
         self._reasoning = reasoning_adapter
         self._medical = medical_adapter
         self._context_writer = context_writer
+        self._jobs = job_repository or JobRepository(l7)
         self._medical_cache = MedicalReviewCache(l7)
 
     @property
@@ -277,7 +281,14 @@ class QnAService:
             audit["stage_events"].append("CONTEXT_WRITE")
             if classification["context_write"] == "AUTO_SAVE" and self._context_writer is not None:
                 try:
-                    context_capture = self._context_writer.ingest(user_id, question)
+                    digest = hashlib.sha256(question.encode("utf-8")).hexdigest()[:20]
+                    context_capture = self._context_writer.enqueue_ingest(
+                        user_id,
+                        question,
+                        today=datetime.now(ZoneInfo(self.cfg.timezone_name)).date().isoformat(),
+                        idempotency_key=f"qna-context:{conversation_id}:{digest}",
+                        jobs=self._jobs,
+                    )
                     audit["context_write_state"] = context_capture.get("status", "UNKNOWN")
                 except Exception:
                     audit["context_write_state"] = "FAILED"
@@ -287,9 +298,9 @@ class QnAService:
                 audit["context_write_state"] = "NOT_WRITTEN"
 
         if classification["scope"] == "HEALTH_CONTEXT":
-            saved = audit["context_write_state"] == "SAVED"
+            saved = audit["context_write_state"] in {"PENDING", "RUNNING", "COMPLETE"}
             direct = (
-                "已记录这条个人情况，PHE 会在后续判断中按正式 Context 规则使用它。"
+                "这条个人情况已保存，正在后台更新；完成后 PHE 会按正式 Context 规则使用它。"
                 if saved else
                 "我识别到你在补充个人情况，但目前没有自动写入；你可以在“补充情况”中确认。"
             )
@@ -302,7 +313,7 @@ class QnAService:
                 "scope": "HEALTH_CONTEXT",
                 "medical_review_state": "BYPASSED",
                 "l6_qa_session_id": None,
-            }, audit, "CONTEXT_SAVED" if saved else "CONTEXT_NOT_WRITTEN")
+            }, audit, "CONTEXT_QUEUED" if saved else "CONTEXT_NOT_WRITTEN")
 
         if classification["scope"] == "PRODUCT_META":
             return self._audited({
