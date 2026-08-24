@@ -2,15 +2,14 @@
 
 ## Verdict
 
-Local implementation conformance is PASS. The current health judgment remains E
+Implementation and production conformance are PASS. The current health judgment remains E
 because the SEALED L6 policy required medical review for persistent notable
 anomalies and the SEALED L7 mapping gives performed medical review E precedence.
 No test or code path in this repair reclassified that judgment.
 
-Production deployment is blocked by a missing external SSH private key. The final
-signed APK passes local artifact acceptance. The authenticated production readback
-below proves that the server still runs the pre-repair presentation code; production
-conformance is therefore not claimed.
+The repaired backend is deployed at `/opt/phe`, authenticated Today and exact-evidence
+readbacks pass, and the public HTTPS gateway remains reachable without exposing ports
+8707 or 11434. The final signed APK passes artifact acceptance.
 
 ## Authority reviewed
 
@@ -77,8 +76,8 @@ notification requirements used here.
 
 ## Local acceptance evidence
 
-- Final formal Python baseline:
-  `184 passed, 2 skipped, 982 warnings, 3 subtests passed` in 96.10 seconds.
+- Final formal Python baseline after the DeepSeek cutover:
+  `197 passed, 2 skipped, 982 warnings, 3 subtests passed` in 100.61 seconds.
 - L7 backend: `103 passed`; the full baseline includes the subsequent mixed-language
   gate, bringing the new focused conformance group to 13 passing tests.
 - Flutter: `31 passed`.
@@ -94,9 +93,23 @@ notification requirements used here.
 
 | Gate | Status | Evidence |
 |---|---|---|
-| VPS backend deployment | BLOCKED | Former SSH private key is absent from project, `.ssh`, Codex/config worktrees, Windows credentials, and Recycle Bin; in-app console timed out and Chrome control is unavailable |
-| Authenticated production APIs | NOT DEPLOYED | Health is OK and Today remains correctly E, but version 4 has no presentation contract version, English cause/actions, no exact evidence IDs, and no context labels |
+| VPS backend deployment | PASS | `/opt/phe/.deployed-commit` is `8d5efaa94aec788e6a00c3b2bcb18c1364e96456`; local container health is OK |
+| Authenticated production APIs | PASS | Today and exact evidence drill-down smoke tests pass against the running container |
 | Signed Android APK | PASS | `D:\PersonalHealthEngine\artifacts\PHE-Android-production.apk`, 50,337,217 bytes, V2 signature valid, one signer `CN=Personal Health Engine, O=Private, C=CN`, package `com.personalhealthengine.phe_app`, INTERNET present, backup disabled, production HTTPS endpoint embedded |
 | APK SHA-256 | PASS | `3BA779CAEC2B454364F6099545247D2F5AB483EECC4A39CB7DD4CBA61D3D1AC9` |
 | Secret scan | PASS | No tracked key/token candidates; two matches are Gradle property lookups and `__LOCAL_KEYRING_VALUE__` placeholders; temporary signing/define files absent |
-| Git commit and push | Pending | Only after all reachable gates complete |
+| Public gateway | PASS | Trusted HTTPS returns 200; 8707 and 11434 remain unreachable publicly; certificate renewal timer is active and enabled |
+| Daily automation | PASS | `phe-daily.service` last result is success; timer is active and enabled |
+| Git commit and push | PASS | Production commit is present on `origin/main` |
+
+## DeepSeek production cutover
+
+- Repository default, `/etc/phe/runtime.env`, systemd environment source, and the
+  running container all select `deepseek-v4-flash`; the legacy effort variable is absent.
+- The adapter sends explicit `thinking={"type":"disabled"}` and fails closed if the
+  requested or returned model identifier differs from Flash.
+- Isolated production-code acceptance made real Today, Q&A, and Context calls. All
+  three invocation records returned `deepseek-v4-flash`, all persisted model
+  identifiers were Flash, and post-cutover Pro-call count was zero.
+- Feedback has no independent model path; correction reuses Context extraction.
+- MedGemma configuration remained byte-for-byte equivalent across the deployment.

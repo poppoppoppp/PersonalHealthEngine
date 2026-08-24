@@ -29,17 +29,17 @@
 | Repair legacy Today presentation and timestamp semantics | 103 L7 tests green; stable refresh and append-only presentation repair verified | Complete |
 | Remove raw implementation values from Flutter | 31 Flutter tests green; analyzer 0 errors/0 warnings and 17 baseline infos | Complete |
 | Run full local contract acceptance and audit | 182 Python + 31 Flutter tests; A-E scan PASS; audit artifact written | Complete |
-| Deploy and accept production backend | SSH private key absent; no credential/Recycle Bin/console/Chrome alternative available | Blocked external secret |
+| Deploy and accept production backend | VPS backend, authenticated Today/evidence, trusted HTTPS, protected ports PASS | Complete |
 | Build and verify final signed APK | V2 signature/package/permission/backup/HTTPS endpoint PASS; SHA-256 recorded | Complete |
-| Secret audit, integrate, commit, and push | Secret scan PASS; final commit/integration/push in progress | In progress |
-| Cut over all DeepSeek production paths to V4 Flash non-thinking | Repo defaults, VPS effective env, real Today/Q&A/Context calls, zero Pro calls | In progress |
+| Secret audit, integrate, commit, and push | Secret scan PASS; integrated on main and pushed | Complete |
+| Cut over all DeepSeek production paths to V4 Flash non-thinking | Repo defaults, VPS effective env, real Today/Q&A/Context calls, zero Pro calls | Complete |
 | Specify shared DeepSeek Flash transport contract | Red tests prove old Pro/effort behavior and audit gaps | Complete |
 | Implement fail-closed Flash non-thinking transport | 7 L6 adapter tests pass | Complete |
 | Route L7 operations through shared transport | 19 focused L6/L7 tests pass | Complete |
 | Align active DeepSeek configuration and static audit | 133 Python tests and model audit PASS | Complete |
 | Add isolated real-call Flash acceptance harness | 4 harness tests pass; temporary L6 cleanup verified | Complete |
 | Run full DeepSeek cutover regressions and integrate | 196 Python + 31 Flutter tests; analyzer 0 errors/warnings; static audit PASS | Complete |
-| Deploy and accept DeepSeek V4 Flash on VPS | Effective env, real Today/Q&A/Context audit, public access, zero Pro calls | In progress |
+| Deploy and accept DeepSeek V4 Flash on VPS | Effective env, real Today/Q&A/Context audit, public access, zero Pro calls | Complete |
 
 Verification snapshot (2026-08-24):
 
