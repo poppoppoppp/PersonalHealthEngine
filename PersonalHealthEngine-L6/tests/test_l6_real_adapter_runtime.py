@@ -18,7 +18,7 @@ from l6_real_adapters_v0_1 import (  # noqa: E402
 
 
 def test_medgemma_default_timeout_supports_cpu_vps_inference():
-    assert MEDICAL_MODEL_TIMEOUT_S >= 600
+    assert MEDICAL_MODEL_TIMEOUT_S >= 690
     assert RealMedGemmaMedicalModelAdapter().timeout_s == MEDICAL_MODEL_TIMEOUT_S
 
 
