@@ -51,6 +51,15 @@
 | Q&A V2 Task 6 — Flutter staged processing UX | Red/green widget test covers understanding, evidence, optional safety, success | Complete |
 | Q&A V2 Task 7 — regression, production deployment, and release | 216 Python tests, 31 Flutter tests, signed APK, secret audit, five live Q&A cases, and VPS gates pass | Complete |
 | Deploy and seal PHE Q&A Orchestration V2 | Deployed c153f04; production audit, rollback backups, staging cleanup, and five live cases verified | Complete |
+| Capture PHE Performance V1 baseline and root causes | Idle production reads, Q&A latency, MedGemma starvation, app cache audit, and full test baseline | Complete |
+| Design performance and responsiveness architecture | Approved SQLite jobs/read models/exact cache/resource isolation/SWR design | Complete |
+| Add sanitized request, stage, model, job, and cache telemetry | Focused privacy/aggregation tests plus production baseline stage timings | In progress |
+| Serve bounded versioned read projections | Today/History/Timeline/Context pagination, ETag, query-plan tests | Pending |
+| Move Context and Feedback recompute to durable jobs | Write-before-ack, idempotency, worker, and concurrency tests | Pending |
+| Optimize Q&A and MedGemma review | Fast paths, compact bundle, exact cache, model matrix, medical regression | Pending |
+| Add Flutter SWR caches and request coalescing | Cached first paint, prefetch, pagination, stale-version and corruption tests | Pending |
+| Isolate production inference resources | Normal API and write-ack p95 targets during real MedGemma | Pending |
+| Deploy, reboot, benchmark, build APK, and seal V1 | Full regression, production audit, APK hash, push main, clean worktree | Pending |
 
 Verification snapshot (2026-08-24):
 

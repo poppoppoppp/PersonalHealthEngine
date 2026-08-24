@@ -1,0 +1,49 @@
+{
+  "title": "PHE Performance & Responsiveness V1 — Before Baseline",
+  "captured_at_local": "2026-08-24",
+  "git_head": "ff5ddd948922da358034917046a734176df03896",
+  "environment": {
+    "production_url": "https://47.111.229.39",
+    "vps": "Alibaba Cloud ecs.e-c1m4.large, 2 vCPU, 8 GiB RAM, Ubuntu 24.04",
+    "client_location": "Asia/Shanghai",
+    "samples_per_idle_read": 12
+  },
+  "idle_external_latency_ms": {
+    "health": {"p50": 76.09, "p95": 138.17},
+    "today": {"p50": 85.89, "p95": 113.46, "wire_bytes": 9033},
+    "timeline_history_first_page": {"p50": 77.93, "p95": 85.35, "wire_bytes": 485},
+    "patterns": {"p50": 77.11, "p95": 99.17, "wire_bytes": 116},
+    "context_list": {"p50": 75.29, "p95": 165.73, "wire_bytes": 784},
+    "settings": {"p50": 71.01, "p95": 85.07, "wire_bytes": 61}
+  },
+  "qa_external_latency_ms": {
+    "product_meta": {"elapsed": 1301.08, "scope": "PRODUCT_META", "medical_review": "BYPASSED"},
+    "health_data": {"elapsed": 1166.06, "scope": "HEALTH_DATA", "medical_review": "BYPASSED"},
+    "health_decision": {"elapsed": 500407.7, "scope": "HEALTH_DECISION", "medical_review": "PERFORMED"}
+  },
+  "medgemma_interference": {
+    "idle_health_p95_ms": 138.17,
+    "health_during_medgemma_timeout_ms": 20104.82,
+    "health_during_medgemma_result": "TIMEOUT",
+    "verdict": "FAIL_RESOURCE_ISOLATION"
+  },
+  "app": {
+    "today_cache": "EXISTS",
+    "history_cache": "MISSING",
+    "patterns_cache": "MISSING",
+    "context_cache": "MISSING",
+    "timeline_cache": "MISSING",
+    "request_coalescing": "MISSING",
+    "pagination": "MISSING",
+    "android_launch_timing": "PENDING_AUTOMATED_PROFILE_HARNESS"
+  },
+  "server_stage_timings": {
+    "status": "PENDING_BASELINE_INSTRUMENTATION_DEPLOYMENT",
+    "privacy": "No prompts, answers, Context text, tokens, or secrets recorded"
+  },
+  "test_baseline": {
+    "python": "216 passed, 2 skipped, 982 warnings, 3 subtests passed",
+    "flutter": "31 passed",
+    "flutter_analyzer": "0 errors, 0 warnings, 17 pre-existing info notices"
+  }
+}
