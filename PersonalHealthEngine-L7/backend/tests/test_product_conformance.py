@@ -240,8 +240,9 @@ def test_l7_product_deepseek_adapter_requires_simplified_chinese(monkeypatch):
     adapter = ProductDeepSeekReasoningAdapter(api_key="test-only")
     captured = {}
 
-    def fake_chat(system, user, reasoning_effort=None):
+    def fake_chat(system, user, operation):
         captured["system"] = system
+        captured["operation"] = operation
         return json.dumps({
             "primary_hypothesis_type": "RECOVERY_STRAIN",
             "secondary_hypothesis_type": None,
@@ -254,8 +255,41 @@ def test_l7_product_deepseek_adapter_requires_simplified_chinese(monkeypatch):
     adapter.reason_daily({}, [{"hypothesis_type": "RECOVERY_STRAIN"}])
 
     assert adapter.contract_version
+    assert adapter.model_id == "deepseek-v4-flash"
+    assert captured["operation"] == "today"
     assert "简体中文" in captured["system"]
     assert "English" in captured["system"]
+
+
+def test_l7_product_deepseek_adapter_labels_each_product_operation(monkeypatch):
+    from l7.upstream.l6_bridge import ProductDeepSeekReasoningAdapter
+
+    adapter = ProductDeepSeekReasoningAdapter(api_key="test-only")
+    operations = []
+
+    def fake_chat(system, user, operation):
+        operations.append(operation)
+        if operation == "qna":
+            result = {
+                "answer_text": "今天建议降低训练强度。",
+                "reasoning_summary": "近期恢复压力较大。",
+                "recommended_actions": ["改为轻松活动"],
+            }
+        elif operation == "product_translation":
+            result = {
+                "reasoning_summary": "近期恢复压力较大。",
+                "recommended_actions": ["今天降低训练强度。"],
+            }
+        else:
+            raise AssertionError(f"unexpected operation: {operation}")
+        return json.dumps(result, ensure_ascii=False)
+
+    monkeypatch.setattr(adapter, "_chat", fake_chat)
+
+    adapter.answer_question("今天可以训练吗？", {}, [])
+    adapter.translate_product_copy("Recovery strain.", ["Reduce training."])
+
+    assert operations == ["qna", "product_translation"]
 
 
 def test_l7_product_adapter_rejects_mixed_english_or_raw_enum(monkeypatch):
