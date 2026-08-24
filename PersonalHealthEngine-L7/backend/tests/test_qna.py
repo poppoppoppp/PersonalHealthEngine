@@ -47,7 +47,7 @@ def test_semantic_scope_routes_without_keyword_authority(env):
         result = qna.ask("owner", question)
         assert result["scope"] == expected_scope
 
-    assert env["adapter"].semantic_calls == len(cases)
+    assert env["adapter"].semantic_calls == len(cases) - 1
     assert env["adapter"].answer_calls == 3
 
 
@@ -261,8 +261,9 @@ def test_medgemma_receives_candidate_after_deepseek(env):
     result = qna.ask("owner", "今天要散步吗？")
 
     assert events == ["deepseek_candidate", "medgemma_review"]
-    assert medical.review_bundle["deepseek_candidate"]["direct_answer"]
-    assert medical.review_bundle["personal_evidence_bundle"]["schema"] == "phe.qna.evidence/v2"
+    assert medical.review_bundle["candidate"]["direct_answer"]
+    assert medical.review_bundle["schema"] == "phe.medical_review/v1"
+    assert "personal_evidence_bundle" not in medical.review_bundle
     assert result["medical_review_state"] == "PERFORMED"
 
 
@@ -295,7 +296,7 @@ def test_medical_finalizer_paths(env):
                 return revised
 
         class StatusMedical:
-            model_id = "mock-medical-v2"
+            model_id = f"mock-medical-v2-{status}"
 
             def review(self, review_bundle, hypothesis_types, question_text=None):
                 return strict_review(status, ["降低活动强度"] if status == "APPROVED_WITH_CHANGES" else [])

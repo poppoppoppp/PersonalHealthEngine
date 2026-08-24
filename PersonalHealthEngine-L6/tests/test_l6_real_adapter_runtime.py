@@ -26,6 +26,55 @@ def test_medgemma_timeout_remains_explicitly_configurable():
     assert RealMedGemmaMedicalModelAdapter(timeout_s=30).timeout_s == 30
 
 
+def test_medgemma_transport_uses_bounded_configurable_runtime_options(monkeypatch):
+    import l6_real_adapters_v0_1 as real_adapters
+
+    captured = {}
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return json.dumps({
+                "message": {"content": json.dumps({
+                    "review_status": "APPROVED",
+                    "medical_concerns": [],
+                    "causality_concerns": [],
+                    "missing_safety_considerations": [],
+                    "unsafe_actions": [],
+                    "required_changes": [],
+                    "escalation_reason": None,
+                    "review_summary": "safe",
+                })},
+                "done_reason": "stop",
+            }).encode()
+
+    def fake_urlopen(request, timeout):
+        captured.update(json.loads(request.data))
+        return Response()
+
+    monkeypatch.setattr(real_adapters.urllib.request, "urlopen", fake_urlopen)
+    adapter = RealMedGemmaMedicalModelAdapter(
+        num_predict=240, num_ctx=1536, num_thread=1, num_batch=32,
+        keep_alive="20m",
+    )
+    adapter.review({"schema": "phe.medical_review/v1"}, [], "test")
+
+    assert captured["think"] is False
+    assert captured["keep_alive"] == "20m"
+    assert captured["options"] == {
+        "temperature": 0,
+        "num_predict": 240,
+        "num_ctx": 1536,
+        "num_thread": 1,
+        "num_batch": 32,
+    }
+
+
 def test_medgemma_review_matches_sealed_adapter_protocol(monkeypatch):
     adapter = RealMedGemmaMedicalModelAdapter(timeout_s=30)
     captured = {}

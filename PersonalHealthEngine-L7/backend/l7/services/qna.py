@@ -13,12 +13,18 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from l7.config import Config
-from l7.performance import measure_stage, record_model_meta
+from l7.medical_cache import MedicalReviewCache
+from l7.performance import measure_stage, record_cache_result, record_model_meta
 from l7.engine.qna_orchestration import (
+    MEDICAL_CRITIC_PROMPT_VERSION,
+    MEDICAL_REVIEW_SCHEMA_VERSION,
     PRODUCT_META_TEXT,
     REFUSAL_TEXT,
     SEMANTIC_UNAVAILABLE_TEXT,
+    build_medical_review_bundle,
+    deterministic_fast_classification,
     medical_consequence_gate,
+    medical_review_cache_key,
     select_question_evidence,
     validate_candidate,
     validate_medical_review,
@@ -51,6 +57,7 @@ class QnAService:
         self._reasoning = reasoning_adapter
         self._medical = medical_adapter
         self._context_writer = context_writer
+        self._medical_cache = MedicalReviewCache(l7)
 
     @property
     def reasoning_adapter(self):
@@ -230,7 +237,7 @@ class QnAService:
 
     def _answer(self, user_id: str, question: str, conversation_id: int) -> dict:
         audit = {
-            "semantic_classifier_model": self.reasoning_adapter.model_id,
+            "semantic_classifier_model": "deterministic-fast-v1",
             "semantic_classification": None,
             "reasoning_model": None,
             "reasoning_called": False,
@@ -240,24 +247,29 @@ class QnAService:
             "stage_events": ["SEMANTIC"],
             "context_write_state": None,
         }
-        try:
-            with measure_stage("deepseek_semantic"):
-                classification = validate_semantic_classification(
-                    self.reasoning_adapter.classify_question(
-                        question, self._conversation_semantics(conversation_id),
+        classification = deterministic_fast_classification(question)
+        if classification is None:
+            audit["semantic_classifier_model"] = self.reasoning_adapter.model_id
+            try:
+                with measure_stage("deepseek_semantic"):
+                    classification = validate_semantic_classification(
+                        self.reasoning_adapter.classify_question(
+                            question, self._conversation_semantics(conversation_id),
+                        )
                     )
-                )
-        except Exception:
-            return self._audited({
-                "answer_first": True,
-                "direct_answer": SEMANTIC_UNAVAILABLE_TEXT,
-                "reason": None,
-                "actions": [],
-                "evidence_ref": {"grounded": False},
-                "scope": "UNAVAILABLE",
-                "medical_review_state": "BYPASSED",
-                "l6_qa_session_id": None,
-            }, audit, "SEMANTIC_UNAVAILABLE")
+            except Exception:
+                return self._audited({
+                    "answer_first": True,
+                    "direct_answer": SEMANTIC_UNAVAILABLE_TEXT,
+                    "reason": None,
+                    "actions": [],
+                    "evidence_ref": {"grounded": False},
+                    "scope": "UNAVAILABLE",
+                    "medical_review_state": "BYPASSED",
+                    "l6_qa_session_id": None,
+                }, audit, "SEMANTIC_UNAVAILABLE")
+        else:
+            classification = validate_semantic_classification(classification)
 
         audit["semantic_classification"] = classification
 
@@ -427,33 +439,70 @@ class QnAService:
                     audit["medical_review_required"] = True
                     audit["medical_model"] = medical_model
                     audit["stage_events"].append("MEDICAL")
-                    review_bundle = {
-                        "personal_evidence_bundle": bundle,
-                        "deepseek_candidate": candidate,
-                        "candidate_safety_issues": candidate_issues,
-                    }
+                    review_bundle = build_medical_review_bundle(
+                        bundle, candidate, candidate_issues,
+                        today_medical_state=today_medical_state,
+                    )
                     try:
-                        with measure_stage("medgemma_total"):
-                            raw_medical = self.medical_adapter.review(
-                                review_bundle, hypothesis_types, question,
-                            )
-                        record_model_meta(
-                            "medgemma", getattr(self.medical_adapter, "last_meta", None),
+                        adapter = self.medical_adapter
+                        verify_identity = getattr(adapter, "verify_model_identity", None)
+                        if callable(verify_identity) and getattr(adapter, "_identity", None) is None:
+                            verify_identity()
+                        identity = getattr(adapter, "_identity", None) or {}
+                        model_artifact_hash = core.sha256_text(core.canonical_json({
+                            "model_id": adapter.model_id,
+                            "model": getattr(adapter, "model", None),
+                            "digest": identity.get("digest"),
+                            "adapter": f"{type(adapter).__module__}.{type(adapter).__qualname__}",
+                        }))
+                        evidence_hash = core.sha256_text(core.canonical_json({
+                            "resolved_evidence": review_bundle["resolved_evidence"],
+                            "safety_context": review_bundle["safety_context"],
+                            "missing_evidence": review_bundle["missing_evidence"],
+                        }))
+                        cache_key = medical_review_cache_key(
+                            question_representation=question.strip(),
+                            classification=classification,
+                            candidate=candidate,
+                            resolved_evidence_hash=evidence_hash,
+                            medical_state={
+                                "today": today_medical_state,
+                                "sealed_review_state": sealed_review_state,
+                                "sealed_reasons": sealed_reasons,
+                            },
+                            model_artifact_hash=model_artifact_hash,
+                            critic_prompt_version=MEDICAL_CRITIC_PROMPT_VERSION,
+                            schema_version=MEDICAL_REVIEW_SCHEMA_VERSION,
                         )
-                        if "review_status" not in raw_medical and "findings" in raw_medical:
-                            raw_medical = {
-                                "review_status": "ESCALATE" if raw_medical.get("escalation") else "APPROVED",
-                                "medical_concerns": list(raw_medical.get("findings", [])),
+
+                        def perform_review():
+                            with measure_stage("medgemma_total"):
+                                raw = adapter.review(
+                                    review_bundle, hypothesis_types, question,
+                                )
+                            record_model_meta(
+                                "medgemma", getattr(adapter, "last_meta", None),
+                            )
+                            if "review_status" not in raw and "findings" in raw:
+                                raw = {
+                                "review_status": "ESCALATE" if raw.get("escalation") else "APPROVED",
+                                "medical_concerns": list(raw.get("findings", [])),
                                 "causality_concerns": [],
                                 "missing_safety_considerations": [],
                                 "unsafe_actions": [],
                                 "required_changes": [],
                                 "escalation_reason": (
-                                    "mock reviewer escalation" if raw_medical.get("escalation") else None
+                                    "mock reviewer escalation" if raw.get("escalation") else None
                                 ),
                                 "review_summary": "mock medical review",
-                            }
-                        medical_result = validate_medical_review(raw_medical)
+                                }
+                            return raw
+
+                        medical_result, cache_outcome = self._medical_cache.get_or_review(
+                            cache_key, perform_review,
+                            model_artifact_hash=model_artifact_hash,
+                        )
+                        record_cache_result(hit=cache_outcome in {"HIT", "COALESCED"})
                     except Exception:
                         medical_result = validate_medical_review({
                             "review_status": "UNAVAILABLE",

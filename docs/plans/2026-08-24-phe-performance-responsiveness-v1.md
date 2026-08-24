@@ -88,7 +88,7 @@
 
 ### Task 4: Q&A fast paths, compact MedicalReviewBundle, and exact review cache
 
-**Status:** In progress
+**Status:** Complete (2026-08-24)
 
 **Files:**
 - Modify: `PersonalHealthEngine-L7/backend/l7/engine/qna_orchestration.py`
@@ -117,6 +117,8 @@
 **Step 8: Review and commit.** Commit `perf: compact and cache medical review`.
 
 ### Task 5: Flutter stale-while-revalidate repository and immediate navigation
+
+**Status:** In progress
 
 **Files:**
 - Create: `PersonalHealthEngine-L7/app/lib/read_cache.dart`

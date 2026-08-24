@@ -79,6 +79,14 @@ def record_model_meta(kind: str, meta: dict | None) -> None:
             metrics.model_counts[key] = int(value)
 
 
+def record_cache_result(*, hit: bool) -> None:
+    metrics = current_request_metrics.get()
+    if metrics is None:
+        return
+    key = "cache_hits" if hit else "cache_misses"
+    metrics.model_counts[key] = metrics.model_counts.get(key, 0) + 1
+
+
 def persist_request_metrics(
     con: sqlite3.Connection,
     metrics: RequestMetrics,
@@ -98,6 +106,8 @@ def persist_request_metrics(
         metrics.model_counts.get("prompt_eval_count"),
         metrics.model_counts.get("eval_count"),
         max(int(response_bytes), 0),
+        metrics.model_counts.get("cache_hits", 0),
+        metrics.model_counts.get("cache_misses", 0),
         error_category,
         utc_now(),
     ]
@@ -105,7 +115,8 @@ def persist_request_metrics(
         "INSERT INTO performance_requests ("
         "request_id,method,endpoint,status_code,total_ms,"
         + ",".join(STAGE_COLUMNS.values())
-        + ",prompt_eval_count,eval_count,response_bytes,error_category,created_at_utc) "
+        + ",prompt_eval_count,eval_count,response_bytes,cache_hits,cache_misses,"
+        + "error_category,created_at_utc) "
         + "VALUES (" + ",".join("?" for _ in values) + ")",
         values,
     )

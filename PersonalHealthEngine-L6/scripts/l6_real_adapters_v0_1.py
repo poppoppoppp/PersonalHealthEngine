@@ -64,13 +64,13 @@ MEDICAL_OUTPUT_SCHEMA = {
     ],
     "properties": {
         "review_status": {"type": "string", "enum": ["APPROVED", "APPROVED_WITH_CHANGES", "REJECTED", "ESCALATE", "UNAVAILABLE"]},
-        "medical_concerns": {"type": "array", "items": {"type": "string"}},
-        "causality_concerns": {"type": "array", "items": {"type": "string"}},
-        "missing_safety_considerations": {"type": "array", "items": {"type": "string"}},
-        "unsafe_actions": {"type": "array", "items": {"type": "string"}},
-        "required_changes": {"type": "array", "items": {"type": "string"}},
-        "escalation_reason": {"type": ["string", "null"]},
-        "review_summary": {"type": "string"},
+        "medical_concerns": {"type": "array", "maxItems": 3, "items": {"type": "string", "maxLength": 160}},
+        "causality_concerns": {"type": "array", "maxItems": 3, "items": {"type": "string", "maxLength": 160}},
+        "missing_safety_considerations": {"type": "array", "maxItems": 3, "items": {"type": "string", "maxLength": 160}},
+        "unsafe_actions": {"type": "array", "maxItems": 3, "items": {"type": "string", "maxLength": 160}},
+        "required_changes": {"type": "array", "maxItems": 3, "items": {"type": "string", "maxLength": 160}},
+        "escalation_reason": {"type": ["string", "null"], "maxLength": 200},
+        "review_summary": {"type": "string", "maxLength": 200},
     },
 }
 
@@ -84,36 +84,13 @@ MEDICAL_ARRAY_FIELDS = (
 # prompt encodes the L6 medical-safety contract (no diagnosis, no unsupported causation, no
 # invented facts, low-risk scenarios must not be escalated, thin evidence must not be amplified).
 MEDICAL_CRITIC_SYSTEM_PROMPT = (
-    "You are a strict Medical Critic / safety reviewer for a personal-health reasoning app. "
-    "The app has wearable sensor data (heart rate, sleep, stress) and user-reported context. "
-    "It is NOT a diagnostic system: it cannot directly observe heart problems, influenza, COVID, "
-    "or any disease, and it must never state a diagnosis. You review medical-safety only; you are "
-    "not the main reasoning model and must not re-derive baselines or analytics.\n\n"
-    "Review the Medical Review Bundle below and decide whether the proposed AI interpretation "
-    "(deepseek_interpretation) and the proposed actions are medically safe and honest.\n\n"
-    "Hard rules you MUST apply:\n"
-    "1. CAUSALITY: wearable/sleep/stress data only support associations, never causation of a "
-    "disease or organ condition. If deepseek_interpretation states that one thing 'caused/导致了' "
-    "a disease or organ problem (e.g. '心脏问题', '疾病', 'caused your heart'), flag it in "
-    "causality_concerns and do NOT APPROVE - return APPROVED_WITH_CHANGES or REJECTED and put the "
-    "required rephrasing in required_changes.\n"
-    "2. DIAGNOSIS: If deepseek_interpretation states a definite disease diagnosis (e.g. "
-    "'你得了流感/COVID/心脏病/发炎') without clinical evidence, flag it in medical_concerns and "
-    "do NOT APPROVE.\n"
-    "3. NO INVENTED FACTS: never assert alcohol, medication, symptoms, a specific measured body "
-    "temperature, HRV values, training, or disease history that are absent from the bundle. "
-    "Mention absent facts only conditionally (e.g. 'if there is a fever, seek evaluation').\n"
-    "4. INSUFFICIENT EVIDENCE: if evidence is thin, do not raise certainty and do not invent a "
-    "conclusion; state that more information is needed.\n"
-    "5. ESCALATION: use ESCALATE only for genuinely urgent red-flag safety (e.g. high fever with "
-    "severe symptoms, chest pain, difficulty breathing); otherwise prefer APPROVED or "
-    "APPROVED_WITH_CHANGES and list the required rephrasing in required_changes.\n"
-    "6. LOW-RISK SCENARIOS: a mild recovery/sleep deficit with no severe symptoms is not an "
-    "emergency; do not upgrade it to a severe medical risk and do not ESCALATE it without an "
-    "urgent, bundle-supported reason.\n\n"
-    "Write your findings in clear English; when you critique a phrase, quote the exact phrase from "
-    "the bundle. Fill every field; use empty arrays [] when there is nothing to report and use "
-    "null for escalation_reason when you do not escalate."
+    "You are the medical-safety critic for a non-diagnostic personal-health app. "
+    "Review only the candidate against the resolved evidence in MedicalReviewBundle/v1. "
+    "Reject definite diagnosis, unsupported causation, invented symptoms/medication/alcohol/"
+    "measurements, and unsafe actions. Thin evidence must lower certainty. ESCALATE only for "
+    "bundle-supported urgent red flags such as chest pain or difficulty breathing; mild sleep or "
+    "recovery changes are not emergencies. APPROVED_WITH_CHANGES must state concise required "
+    "changes. Fill every JSON field, use [] for no findings and null when not escalating."
 )
 
 # MedGemma (Gemma-3 lineage) can surface an internal reasoning span delimited by these special
@@ -341,11 +318,18 @@ class RealMedGemmaMedicalModelAdapter:
 
     model_id = MEDGEMMA_MODEL_DEFAULT
 
-    def __init__(self, mode=None, endpoint=None, model=None, timeout_s=None):
+    def __init__(self, mode=None, endpoint=None, model=None, timeout_s=None,
+                 num_predict=None, num_ctx=None, num_thread=None, num_batch=None,
+                 keep_alive=None):
         self.mode = mode or os.environ.get("MEDICAL_MODEL_MODE", "local")
         self.endpoint = (endpoint or os.environ.get("MEDICAL_MODEL_ENDPOINT") or MEDGEMMA_OLLAMA_ENDPOINT_DEFAULT).rstrip("/")
         self.model = model or os.environ.get("MEDGEMMA_MODEL", MEDGEMMA_MODEL_DEFAULT)
         self.timeout_s = timeout_s or MEDICAL_MODEL_TIMEOUT_S
+        self.num_predict = int(num_predict or os.environ.get("MEDGEMMA_NUM_PREDICT", "320"))
+        self.num_ctx = int(num_ctx or os.environ.get("MEDGEMMA_NUM_CTX", "2048"))
+        self.num_thread = int(num_thread or os.environ.get("MEDGEMMA_NUM_THREAD", "1"))
+        self.num_batch = int(num_batch or os.environ.get("MEDGEMMA_NUM_BATCH", "64"))
+        self.keep_alive = keep_alive or os.environ.get("MEDGEMMA_KEEP_ALIVE", "30m")
         self.last_meta = None
         self._identity = None
 
@@ -411,7 +395,14 @@ class RealMedGemmaMedicalModelAdapter:
             "stream": False,
             "think": False,
             "format": MEDICAL_OUTPUT_SCHEMA,
-            "options": {"temperature": 0, "num_predict": 1200},
+            "keep_alive": self.keep_alive,
+            "options": {
+                "temperature": 0,
+                "num_predict": self.num_predict,
+                "num_ctx": self.num_ctx,
+                "num_thread": self.num_thread,
+                "num_batch": self.num_batch,
+            },
         }
         data = json.dumps(payload).encode("utf-8")
         request = urllib.request.Request(self._chat_url(), data=data, method="POST")

@@ -6,6 +6,9 @@ It deliberately contains no database or transport code so every policy is unit-t
 
 from __future__ import annotations
 
+import hashlib
+import json
+import re
 from typing import Any
 
 
@@ -17,6 +20,13 @@ TIME_RANGES = {None, "CURRENT", "TODAY", "LAST_NIGHT", "LAST_7_DAYS", "LAST_30_D
 AGGREGATIONS = {None, "LATEST", "AVERAGE", "TREND"}
 CONTEXT_WRITES = {"NONE", "AUTO_SAVE", "CONFIRM"}
 CONFIDENCE_LEVELS = {"VERY_LOW", "LOW", "MODERATE", "HIGH"}
+
+MEDICAL_REVIEW_SCHEMA_VERSION = "phe.medical_review/v1"
+MEDICAL_CRITIC_PROMPT_VERSION = "phe.medical_critic/v1"
+MEDICAL_SAFETY_CONTEXT_TYPES = {
+    "ALCOHOL_USE", "ILLNESS", "SORE_THROAT", "FEVER", "NASAL_CONGESTION",
+    "MEDICATION", "FATIGUE", "HEADACHE",
+}
 
 METRIC_PREFIXES = {
     "SLEEP_DURATION": {"sleep", "sleep_source_episode"},
@@ -64,6 +74,100 @@ SEMANTIC_UNAVAILABLE_TEXT = "暂时无法理解这个问题，请稍后再试或
 
 class QnAContractError(ValueError):
     """Raised when model output does not match a deterministic Q&A contract."""
+
+
+def _normalized_fixed_question(question: str) -> str:
+    return re.sub(r"[\s？?！!。.]", "", (question or "").strip().lower())
+
+
+def _fixed_classification(*, scope: str, intent: str, metrics: list[str],
+                          time_range: str | None, aggregation: str | None) -> dict[str, Any]:
+    return {
+        "scope": scope,
+        "intent": intent,
+        "decision_type": None,
+        "relevant_domains": [],
+        "relevant_metrics": metrics,
+        "requires_personal_evidence": scope == "HEALTH_DATA",
+        "time_range": time_range,
+        "aggregation": aggregation,
+        "medical_consequence": "NONE",
+        "needs_medical_review": False,
+        "potential_context": False,
+        "context_write": "NONE",
+        "reason": "deterministic_registered_route",
+    }
+
+
+def deterministic_fast_classification(question: str) -> dict[str, Any] | None:
+    """Route only fixed product copy and a tiny registered metric grammar."""
+    normalized = _normalized_fixed_question(question)
+    if normalized in {"你是谁", "你能做什么", "你根据什么回答我"}:
+        return _fixed_classification(
+            scope="PRODUCT_META", intent="PRODUCT_IDENTITY", metrics=[],
+            time_range=None, aggregation=None,
+        )
+    if normalized in {"昨晚睡了多久", "我昨晚睡了多久", "昨晚睡了多长时间"}:
+        return _fixed_classification(
+            scope="HEALTH_DATA", intent="METRIC_LOOKUP", metrics=["SLEEP_DURATION"],
+            time_range="LAST_NIGHT", aggregation="LATEST",
+        )
+    if normalized in {"最近7天平均睡眠时间是多少", "最近7天平均睡眠是多少"}:
+        return _fixed_classification(
+            scope="HEALTH_DATA", intent="METRIC_LOOKUP", metrics=["SLEEP_DURATION"],
+            time_range="LAST_7_DAYS", aggregation="AVERAGE",
+        )
+    if normalized in {"最近7天平均步数是多少", "最近7天平均步数"}:
+        return _fixed_classification(
+            scope="HEALTH_DATA", intent="METRIC_LOOKUP", metrics=["STEPS"],
+            time_range="LAST_7_DAYS", aggregation="AVERAGE",
+        )
+    if normalized in {"最近静息心率趋势怎么样", "最近静息心率趋势"}:
+        return _fixed_classification(
+            scope="HEALTH_DATA", intent="METRIC_TREND",
+            metrics=["RESTING_HEART_RATE"], time_range="LAST_30_DAYS",
+            aggregation="TREND",
+        )
+    return None
+
+
+def build_medical_review_bundle(
+    evidence_bundle: dict[str, Any],
+    candidate: dict[str, Any],
+    candidate_issues: list[str],
+    *,
+    today_medical_state: str | None,
+) -> dict[str, Any]:
+    catalog = evidence_bundle.get("evidence_catalog", {})
+    refs = candidate.get("evidence_refs", [])
+    resolved = {ref: catalog[ref] for ref in refs if ref in catalog}
+    safety_context = []
+    for item in evidence_bundle.get("recent_context", []):
+        if item.get("context_type") not in MEDICAL_SAFETY_CONTEXT_TYPES:
+            continue
+        safety_context.append({
+            key: item.get(key) for key in (
+                "context_type", "context_date", "severity", "body_part", "raw_text",
+            ) if item.get(key) is not None
+        })
+    return {
+        "schema": MEDICAL_REVIEW_SCHEMA_VERSION,
+        "analysis_date": evidence_bundle.get("analysis_date"),
+        "overall_state": evidence_bundle.get("overall_state"),
+        "today_medical_state": today_medical_state,
+        "candidate": candidate,
+        "candidate_safety_issues": candidate_issues,
+        "resolved_evidence": resolved,
+        "safety_context": safety_context,
+        "missing_evidence": list(evidence_bundle.get("missing_evidence", []))[:5],
+    }
+
+
+def medical_review_cache_key(**inputs: Any) -> str:
+    canonical = json.dumps(
+        inputs, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def _string_list(payload: dict[str, Any], key: str) -> list[str]:

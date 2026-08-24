@@ -13,7 +13,7 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 MIGRATION_001 = """
 CREATE TABLE IF NOT EXISTS schema_migrations_l7 (
@@ -258,6 +258,19 @@ CREATE INDEX IF NOT EXISTS idx_durable_jobs_claim
     ON durable_jobs(status, available_at_utc, id);
 """
 
+MIGRATION_006 = """
+CREATE TABLE IF NOT EXISTS medical_review_cache (
+    cache_key            TEXT PRIMARY KEY,
+    response_json        TEXT NOT NULL,
+    model_artifact_hash  TEXT NOT NULL,
+    created_at_utc       TEXT NOT NULL,
+    last_used_at_utc     TEXT NOT NULL,
+    hit_count            INTEGER NOT NULL DEFAULT 0
+);
+ALTER TABLE performance_requests ADD COLUMN cache_hits INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE performance_requests ADD COLUMN cache_misses INTEGER NOT NULL DEFAULT 0;
+"""
+
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -316,6 +329,13 @@ def _migrate(con: sqlite3.Connection) -> None:
         con.execute(
             "INSERT INTO schema_migrations_l7 (version, name, applied_at_utc) "
             "VALUES (5, 'durable_jobs', ?)",
+            (utc_now(),),
+        )
+    if 6 not in applied:
+        con.executescript(MIGRATION_006)
+        con.execute(
+            "INSERT INTO schema_migrations_l7 (version, name, applied_at_utc) "
+            "VALUES (6, 'medical_review_cache', ?)",
             (utc_now(),),
         )
     con.execute("INSERT OR IGNORE INTO users (id, created_at_utc) VALUES ('owner', ?)", (utc_now(),))
