@@ -1,13 +1,19 @@
 from pathlib import Path
+import json
 import sys
+
+import pytest
 
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 from l6_real_adapters_v0_1 import (  # noqa: E402
+    DEEPSEEK_MODEL_DEFAULT,
     MEDICAL_MODEL_TIMEOUT_S,
+    RealDeepSeekReasoningModelAdapter,
     RealMedGemmaMedicalModelAdapter,
+    RealModelUnavailable,
 )
 
 
@@ -39,3 +45,84 @@ def test_medgemma_review_matches_sealed_adapter_protocol(monkeypatch):
 
     assert result["review_status"] == "APPROVED"
     assert captured["question_text"] == "今天还能训练吗？"
+
+
+def test_deepseek_transport_is_flash_non_thinking_and_sanitized(monkeypatch):
+    import l6_real_adapters_v0_1 as real_adapters
+
+    captured = {}
+
+    def fake_post_json(url, payload, api_key, timeout_s=120):
+        captured.update({"url": url, "payload": payload, "api_key": api_key})
+        return {
+            "id": "chatcmpl-test",
+            "model": "deepseek-v4-flash",
+            "choices": [{"message": {"content": '{"events": []}'}}],
+            "usage": {"prompt_tokens": 11, "completion_tokens": 3, "total_tokens": 14},
+        }
+
+    monkeypatch.setattr(real_adapters, "_post_json", fake_post_json)
+    adapter = RealDeepSeekReasoningModelAdapter(api_key="secret-test-key")
+
+    content = adapter._chat("private system prompt", "private user health data", operation="context")
+
+    assert DEEPSEEK_MODEL_DEFAULT == "deepseek-v4-flash"
+    assert content == '{"events": []}'
+    assert captured["payload"]["model"] == "deepseek-v4-flash"
+    assert captured["payload"]["thinking"] == {"type": "disabled"}
+    assert "reasoning_effort" not in captured["payload"]
+    assert adapter.last_invocation == {
+        "event": "deepseek_invocation",
+        "operation": "context",
+        "requested_model": "deepseek-v4-flash",
+        "response_model": "deepseek-v4-flash",
+        "thinking": "disabled",
+        "usage": {"prompt_tokens": 11, "completion_tokens": 3, "total_tokens": 14},
+    }
+    serialized_audit = json.dumps(adapter.last_invocation)
+    assert "secret-test-key" not in serialized_audit
+    assert "private system prompt" not in serialized_audit
+    assert "private user health data" not in serialized_audit
+    assert "chatcmpl-test" not in serialized_audit
+
+
+def test_deepseek_transport_rejects_non_flash_before_network(monkeypatch):
+    import l6_real_adapters_v0_1 as real_adapters
+
+    network_called = False
+
+    def fake_post_json(*args, **kwargs):
+        nonlocal network_called
+        network_called = True
+        raise AssertionError("network must not be called")
+
+    monkeypatch.setattr(real_adapters, "_post_json", fake_post_json)
+    adapter = RealDeepSeekReasoningModelAdapter(
+        api_key="secret-test-key",
+        model="deepseek-v4-pro",
+    )
+
+    with pytest.raises(RealModelUnavailable, match="deepseek-v4-flash"):
+        adapter._chat("system", "user", operation="today")
+
+    assert network_called is False
+
+
+def test_deepseek_transport_rejects_mismatched_response_model(monkeypatch):
+    import l6_real_adapters_v0_1 as real_adapters
+
+    monkeypatch.setattr(
+        real_adapters,
+        "_post_json",
+        lambda *args, **kwargs: {
+            "model": "deepseek-v4-pro",
+            "choices": [{"message": {"content": "{}"}}],
+            "usage": {},
+        },
+    )
+    adapter = RealDeepSeekReasoningModelAdapter(api_key="secret-test-key")
+
+    with pytest.raises(RealModelUnavailable, match="response model"):
+        adapter._chat("system", "user", operation="qna")
+
+    assert not hasattr(adapter, "last_invocation") or adapter.last_invocation is None
