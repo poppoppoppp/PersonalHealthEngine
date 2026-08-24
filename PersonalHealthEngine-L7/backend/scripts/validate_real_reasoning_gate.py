@@ -98,7 +98,7 @@ def main() -> int:
     ok = (
         result.outcome == "REMATERIALIZED"
         and result.model_calls == 1
-        and any(row["reasoning_model"] == "deepseek-v4-pro" and row["status"] == "CURRENT" for row in cur)
+        and any(row["reasoning_model"] == "deepseek-v4-flash" and row["status"] == "CURRENT" for row in cur)
         and (p.get("cause", {}).get("text") or "").strip() != ""
     )
     print("GATE:", "PASS" if ok else "FAIL")

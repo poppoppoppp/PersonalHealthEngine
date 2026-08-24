@@ -112,7 +112,7 @@ class MockReasoningModelAdapter(ReasoningModelAdapter):
 
 
 class DeepSeekReasoningModelAdapter(ReasoningModelAdapter):
-    model_id = "deepseek-v4-pro"
+    model_id = "deepseek-v4-flash"
 
     def __init__(self, api_key=None, base_url=None):
         self.api_key = api_key

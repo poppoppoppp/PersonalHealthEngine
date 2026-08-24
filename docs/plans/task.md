@@ -36,7 +36,8 @@
 | Specify shared DeepSeek Flash transport contract | Red tests prove old Pro/effort behavior and audit gaps | Complete |
 | Implement fail-closed Flash non-thinking transport | 7 L6 adapter tests pass | Complete |
 | Route L7 operations through shared transport | 19 focused L6/L7 tests pass | Complete |
-| Align active DeepSeek configuration and static audit | Active paths contain Flash/disabled only | In progress |
+| Align active DeepSeek configuration and static audit | 133 Python tests and model audit PASS | Complete |
+| Add isolated real-call Flash acceptance harness | Today/Q&A/Context real calls with sanitized evidence | In progress |
 
 Verification snapshot (2026-08-24):
 

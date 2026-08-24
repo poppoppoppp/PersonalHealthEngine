@@ -227,7 +227,7 @@ restraint is auditable.
   *conversation semantics only*; health facts always from engine.
 - Answer flow: `assemble_evidence` → candidates → `medical_trigger(question, …)` →
   if REQUIRED: MedGemma review (local Ollama now; remote later) → DeepSeek
-  `answer_question` (effort=low, temperature 0, JSON) → validated → answer-first payload:
+  `answer_question` (Flash, thinking disabled, temperature 0, JSON) → validated → answer-first payload:
   `direct_answer, reason, actions[], evidence_ref`. Insufficient evidence → explicit
   "目前不能可靠判断 + 缺什么" payload shape.
 - **Conversation lifecycle**: conversations table with `boundary` logic — a conversation
@@ -353,10 +353,10 @@ restraint is auditable.
 3. Request-hash model-call cache reuses identical inputs.
 4. Semantic stability prevents churn-driven re-rendering (no model involved in rendering).
 5. MedGemma only on the sealed medical-trigger policy paths.
-6. QA uses `reasoning_effort=low`; daily reasoning `high` only on actual recompute.
+6. Every real request uses DeepSeek V4 Flash with thinking explicitly disabled.
 7. temperature 0 everywhere → reproducible outputs → cache hits are real.
-8. Every model call recorded with tokens/latency (L6 `model_invocations`), budget visible
-   in /settings diagnostics.
+8. Every DeepSeek call emits a sanitized operation/model/thinking/usage audit event;
+   model prompts, responses, health data, and credentials are excluded.
 
 ## 16. Repository layout (L7-owned code)
 
