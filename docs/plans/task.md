@@ -33,6 +33,10 @@
 | Build and verify final signed APK | V2 signature/package/permission/backup/HTTPS endpoint PASS; SHA-256 recorded | Complete |
 | Secret audit, integrate, commit, and push | Secret scan PASS; final commit/integration/push in progress | In progress |
 | Cut over all DeepSeek production paths to V4 Flash non-thinking | Repo defaults, VPS effective env, real Today/Q&A/Context calls, zero Pro calls | In progress |
+| Specify shared DeepSeek Flash transport contract | Red tests prove old Pro/effort behavior and audit gaps | Complete |
+| Implement fail-closed Flash non-thinking transport | 7 L6 adapter tests pass | Complete |
+| Route L7 operations through shared transport | 19 focused L6/L7 tests pass | Complete |
+| Align active DeepSeek configuration and static audit | Active paths contain Flash/disabled only | In progress |
 
 Verification snapshot (2026-08-24):
 
