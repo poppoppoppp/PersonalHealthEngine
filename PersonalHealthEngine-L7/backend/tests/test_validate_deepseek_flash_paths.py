@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
@@ -10,10 +11,19 @@ if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
 from validate_deepseek_flash_paths import (  # noqa: E402
+    _acceptance_user_id,
     classify_invocations,
     render_acceptance,
     temporary_l6_copy,
 )
+
+
+def test_acceptance_uses_the_configured_seeded_user():
+    connection = sqlite3.connect(":memory:")
+    connection.execute("CREATE TABLE users (id TEXT PRIMARY KEY)")
+    connection.execute("INSERT INTO users VALUES ('owner')")
+
+    assert _acceptance_user_id(SimpleNamespace(default_user_id="owner"), connection) == "owner"
 
 
 def invocation(operation: str, model: str = "deepseek-v4-flash") -> dict:

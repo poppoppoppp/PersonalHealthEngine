@@ -170,6 +170,13 @@ def _new_persisted_models(db_path: Path, daily_after: int, qa_after: int) -> lis
         connection.close()
 
 
+def _acceptance_user_id(cfg: Config, l7: sqlite3.Connection) -> str:
+    user_id = cfg.default_user_id
+    if l7.execute("SELECT 1 FROM users WHERE id=?", (user_id,)).fetchone() is None:
+        raise RuntimeError("configured acceptance user is not seeded")
+    return user_id
+
+
 def run_real_paths() -> dict:
     if not os.environ.get("DEEPSEEK_API_KEY"):
         raise RuntimeError("DEEPSEEK_API_KEY is not set")
@@ -200,6 +207,7 @@ def run_real_paths() -> dict:
         adapter = ProductDeepSeekReasoningAdapter()
         medical_adapter = bridge.adapters.MockMedicalModelAdapter()
         l7 = connect_l7(cfg.l7_db)
+        user_id = _acceptance_user_id(cfg, l7)
         records: list[dict] = []
         try:
             daily_after = _max_id(l6_copy, "daily_reasoning")
@@ -213,7 +221,7 @@ def run_real_paths() -> dict:
                 reasoning_adapter=adapter,
                 medical_adapter=medical_adapter,
             )
-            today = orchestrator.evaluate("flash-acceptance", "deepseek_flash_acceptance")
+            today = orchestrator.evaluate(user_id, "deepseek_flash_acceptance")
             if today.outcome != "REMATERIALIZED" or today.model_calls < 1:
                 raise RuntimeError(f"Today real path did not call the model: {today.outcome}")
             today_text = today.today_payload.get("cause", {}).get("text") or ""
@@ -230,7 +238,7 @@ def run_real_paths() -> dict:
                 reasoning_adapter=adapter,
                 medical_adapter=medical_adapter,
             )
-            answer = qna.ask("flash-acceptance", "根据现有数据，今天适合进行高强度训练吗？")
+            answer = qna.ask(user_id, "根据现有数据，今天适合进行高强度训练吗？")
             if not answer.get("reason") or "推理模型暂不可用" in answer.get("direct_answer", ""):
                 raise RuntimeError("Q&A real path returned fallback product copy")
             if adapter._base.last_invocation.get("operation") != "qna":
