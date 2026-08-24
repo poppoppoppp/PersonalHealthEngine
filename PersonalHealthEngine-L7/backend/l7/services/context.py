@@ -24,7 +24,10 @@ from l7.upstream.l6_bridge import L6Bridge
 
 # One-shot events expire after their natural day; ongoing states (symptoms etc.) require
 # re-confirmation after a validity window instead of staying active forever (§28).
-ONGOING_TYPES = {"ILLNESS", "FEVER", "SORE_THROAT", "NASAL_CONGESTION", "FATIGUE", "STRESS", "MEDICATION"}
+ONGOING_TYPES = {
+    "ILLNESS", "FEVER", "SORE_THROAT", "NASAL_CONGESTION", "HEADACHE",
+    "FATIGUE", "STRESS", "MEDICATION",
+}
 ONGOING_VALID_DAYS = 7
 ONESHOT_VALID_DAYS = 1
 

@@ -13,7 +13,7 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 MIGRATION_001 = """
 CREATE TABLE IF NOT EXISTS schema_migrations_l7 (
@@ -153,6 +153,29 @@ CREATE TABLE IF NOT EXISTS episode_events (
 );
 """
 
+MIGRATION_002 = """
+CREATE TABLE IF NOT EXISTS qna_audits (
+    id                              INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id                         TEXT NOT NULL REFERENCES users(id),
+    conversation_id                 INTEGER NOT NULL REFERENCES conversations(id),
+    user_turn_id                    INTEGER NOT NULL REFERENCES qa_turns(id),
+    assistant_turn_id               INTEGER NOT NULL REFERENCES qa_turns(id),
+    semantic_classifier_model       TEXT NOT NULL,
+    semantic_classification_json    TEXT,
+    reasoning_model                 TEXT,
+    reasoning_called                INTEGER NOT NULL CHECK (reasoning_called IN (0,1)),
+    medical_review_required         INTEGER NOT NULL CHECK (medical_review_required IN (0,1)),
+    medical_model                   TEXT,
+    medical_review_state            TEXT NOT NULL,
+    finalization_path               TEXT NOT NULL,
+    stage_events_json               TEXT NOT NULL,
+    context_write_state             TEXT,
+    created_at_utc                  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_qna_audits_conversation
+    ON qna_audits(user_id, conversation_id, id);
+"""
+
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -183,6 +206,13 @@ def _migrate(con: sqlite3.Connection) -> None:
         con.executescript(MIGRATION_001)
         con.execute(
             "INSERT INTO schema_migrations_l7 (version, name, applied_at_utc) VALUES (1, 'foundation', ?)",
+            (utc_now(),),
+        )
+    if 2 not in applied:
+        con.executescript(MIGRATION_002)
+        con.execute(
+            "INSERT INTO schema_migrations_l7 (version, name, applied_at_utc) "
+            "VALUES (2, 'qna_orchestration_audit', ?)",
             (utc_now(),),
         )
     con.execute("INSERT OR IGNORE INTO users (id, created_at_utc) VALUES ('owner', ?)", (utc_now(),))

@@ -25,7 +25,7 @@ DEEPSEEK_THINKING = {"type": "disabled"}
 CONTEXT_TYPES = (
     "HIGH_INTENSITY_TRAINING", "ALCOHOL_USE", "LATE_SLEEP", "CAFFEINE", "STRESS",
     "TRAVEL", "ILLNESS", "SORE_THROAT", "FEVER", "NASAL_CONGESTION", "MEDICATION",
-    "FATIGUE", "FEELING_GOOD", "DIET_CHANGE", "SCHEDULE_CHANGE",
+    "FATIGUE", "HEADACHE", "FEELING_GOOD", "DIET_CHANGE", "SCHEDULE_CHANGE",
 )
 # Ollama model tag (resolves to medgemma1.5:latest). This is the development-time real MedGemma
 # runtime; production can point MEDICAL_MODEL_ENDPOINT at a remote/cloud Ollama-compatible host.

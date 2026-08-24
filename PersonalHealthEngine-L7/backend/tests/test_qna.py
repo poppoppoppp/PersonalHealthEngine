@@ -5,7 +5,7 @@ import sqlite3
 from datetime import datetime, timedelta, timezone
 
 from l7.services.qna import QnAService, in_health_scope
-from conftest import PROD_L6  # noqa: F401  (ensures path setup order is stable)
+from conftest import CountingMockReasoningAdapter, PROD_L6  # noqa: F401
 
 
 def make_qna(env):
@@ -32,10 +32,106 @@ def test_out_of_scope_question_costs_nothing(env):
     assert env["adapter"].answer_calls == 0, "no model call for out-of-scope"
 
 
+def test_semantic_scope_routes_without_keyword_authority(env):
+    qna = make_qna(env)
+
+    cases = {
+        "今天要散步吗？": "HEALTH_DECISION",
+        "出去转几圈合适吗？": "HEALTH_DECISION",
+        "今天少动点好吗？": "HEALTH_DECISION",
+        "你是谁？": "PRODUCT_META",
+        "帮我写Python": "OUT_OF_SCOPE",
+    }
+
+    for question, expected_scope in cases.items():
+        result = qna.ask("owner", question)
+        assert result["scope"] == expected_scope
+
+    assert env["adapter"].semantic_calls == len(cases)
+    assert env["adapter"].answer_calls == 3
+
+
+def test_product_meta_is_fixed_and_costs_no_health_reasoning(env):
+    qna = make_qna(env)
+
+    result = qna.ask("owner", "你是谁？")
+
+    assert result["scope"] == "PRODUCT_META"
+    assert "个人健康决策助手" in result["direct_answer"]
+    assert result["medical_review_state"] == "BYPASSED"
+    assert env["adapter"].answer_calls == 0
+
+
+def test_health_data_last_night_sleep_uses_exact_l3_values(env):
+    qna = make_qna(env)
+
+    result = qna.ask("owner", "我昨晚睡了多久？")
+
+    assert result["scope"] == "HEALTH_DATA"
+    assert result["medical_review_state"] == "BYPASSED"
+    assert result["evidence_ref"]["data_authority"] == "L3"
+    assert result["evidence_ref"]["feature_name"] == (
+        "sleep_source_episode.vendor_sleep_like_duration_seconds"
+    )
+    assert result["evidence_ref"]["data_date"] == "2026-08-16"
+    assert result["evidence_ref"]["source_count"] == 2
+    assert "7小时58分钟" in result["direct_answer"]
+    assert "4小时26分钟" in result["direct_answer"]
+    assert env["adapter"].answer_calls == 0
+
+
+def test_health_data_average_preserves_source_isolation(env):
+    qna = make_qna(env)
+
+    result = qna.ask("owner", "最近7天平均睡眠时间是多少？")
+
+    assert result["scope"] == "HEALTH_DATA"
+    assert result["evidence_ref"]["aggregation"] == "AVERAGE"
+    assert result["evidence_ref"]["source_count"] == 2
+    assert "分别" in result["direct_answer"]
+    assert env["adapter"].answer_calls == 0
+
+
+def test_health_data_steps_average_is_engine_calculated(env):
+    qna = make_qna(env)
+
+    result = qna.ask("owner", "最近7天平均步数是多少？")
+
+    assert result["scope"] == "HEALTH_DATA"
+    assert result["evidence_ref"]["feature_name"] == "steps.daily.sum"
+    assert result["evidence_ref"]["aggregation"] == "AVERAGE"
+    assert "步" in result["direct_answer"]
+    assert env["adapter"].answer_calls == 0
+
+
+def test_health_data_resting_heart_rate_trend_uses_l3_series(env):
+    qna = make_qna(env)
+
+    result = qna.ask("owner", "最近静息心率趋势怎么样？")
+
+    assert result["scope"] == "HEALTH_DATA"
+    assert result["evidence_ref"]["feature_name"] == "resting_heart_rate.daily.value"
+    assert result["evidence_ref"]["aggregation"] == "TREND"
+    assert "从51次/分钟到57次/分钟，上升6次/分钟" in result["direct_answer"]
+    assert env["adapter"].answer_calls == 0
+
+
+def test_semantic_follow_up_uses_bounded_conversation_context(env):
+    qna = make_qna(env)
+    first = qna.ask("owner", "今天适合跑步吗？")
+
+    follow_up = qna.ask("owner", "那半小时呢？", conversation_id=first["conversation_id"])
+
+    assert first["scope"] == "HEALTH_DECISION"
+    assert follow_up["scope"] == "HEALTH_DECISION"
+    assert follow_up["conversation_id"] == first["conversation_id"]
+    assert env["adapter"].semantic_calls == 2
+
+
 def test_answer_is_grounded_in_engine_bundle(env):
     qna = make_qna(env)
     r = qna.ask("owner", "今天能不能练腿？")
-    assert r["scope"] == "HEALTH"
+    assert r["scope"] == "HEALTH_DECISION"
     assert r["evidence_ref"]["grounded"] is True
     assert r["evidence_ref"]["analysis_date"] == "2026-08-16"
     assert r["evidence_ref"]["bundle_sha256"]
@@ -50,12 +146,336 @@ def test_answer_is_grounded_in_engine_bundle(env):
     ).fetchall()
     con.close()
     assert len(rows) == 1
-    assert rows[0]["medical_review_state"] == "BYPASSED"
+    assert rows[0]["medical_review_state"] == "PERFORMED"
 
 
-def test_daily_shape_model_output_never_produces_an_empty_answer(env):
+def test_question_specific_bundle_excludes_unrelated_metrics(env):
+    qna = make_qna(env)
+
+    qna.ask("owner", "今天要散步吗？")
+
+    bundle = env["adapter"].last_answer_bundle
+    assert bundle["schema"] == "phe.qna.evidence/v2"
+    assert bundle["intent"] == "ACTIVITY_RECOMMENDATION"
+    assert bundle["evidence_catalog"]
+    allowed = {"sleep", "steps", "resting_heart_rate"}
+    assert {item["metric"] for item in bundle["deviations"]} <= allowed
+    assert not any(item["metric"] in {"calories", "spo2"} for item in bundle["deviations"])
+
+
+def test_unsafe_or_untraceable_candidate_is_never_exposed(env):
+    class UnsafeCandidateAdapter(CountingMockReasoningAdapter):
+        def answer_question(self, question, bundle, candidates):
+            self.answer_calls += 1
+            self.last_answer_bundle = bundle
+            return {
+                "answer_text": "你发烧了，而且肯定得了心脏病，今天不要散步。",
+                "direct_answer": "你发烧了，而且肯定得了心脏病，今天不要散步。",
+                "reason": "这是确定的诊断。",
+                "reasoning_summary": "这是确定的诊断。",
+                "recommended_actions": ["立即停下所有活动"],
+                "confidence": "HIGH",
+                "evidence_refs": ["evidence.does_not_exist"],
+                "medical_claims": ["用户肯定得了心脏病"],
+                "uncertainties": [],
+            }
+
+    adapter = UnsafeCandidateAdapter()
+    qna = QnAService(
+        env["cfg"], env["l7"], env["orch"].bridge,
+        reasoning_adapter=adapter,
+        medical_adapter=None,
+    )
+
+    result = qna.ask("owner", "今天要散步吗？")
+
+    assert "你发烧了" not in result["direct_answer"]
+    assert "心脏病" not in result["direct_answer"]
+    assert result["medical_review_state"] != "BYPASSED"
+
+
+def test_english_only_candidate_is_rejected_before_product_output(env):
+    class EnglishCandidateAdapter(CountingMockReasoningAdapter):
+        def answer_question_candidate(self, question, bundle, candidates):
+            return {
+                "direct_answer": "Take a walk today.",
+                "reason": "Your current evidence supports light activity.",
+                "recommended_actions": ["Stop if fatigue gets worse."],
+                "confidence": "LOW",
+                "evidence_refs": [next(iter(bundle["evidence_catalog"]))],
+                "medical_claims": [],
+                "uncertainties": [],
+            }
+
+    qna = QnAService(
+        env["cfg"], env["l7"], env["orch"].bridge,
+        reasoning_adapter=EnglishCandidateAdapter(), medical_adapter=None,
+    )
+
+    result = qna.ask("owner", "今天要散步吗？")
+
+    assert "Take a walk" not in result["direct_answer"]
+    assert any("\u3400" <= char <= "\u9fff" for char in result["direct_answer"])
+
+
+def strict_review(status, required_changes=None):
+    return {
+        "review_status": status,
+        "medical_concerns": [],
+        "causality_concerns": [],
+        "missing_safety_considerations": [],
+        "unsafe_actions": [],
+        "required_changes": required_changes or [],
+        "escalation_reason": "存在紧急红旗信号" if status == "ESCALATE" else None,
+        "review_summary": "已完成安全审查",
+    }
+
+
+def test_medgemma_receives_candidate_after_deepseek(env):
+    events = []
+
+    class OrderedReasoning(CountingMockReasoningAdapter):
+        def answer_question_candidate(self, question, bundle, candidates):
+            events.append("deepseek_candidate")
+            return super().answer_question_candidate(question, bundle, candidates)
+
+    class CapturingMedical:
+        model_id = "mock-medical-v2"
+
+        def __init__(self):
+            self.review_bundle = None
+
+        def review(self, review_bundle, hypothesis_types, question_text=None):
+            events.append("medgemma_review")
+            self.review_bundle = review_bundle
+            return strict_review("APPROVED")
+
+    reasoning = OrderedReasoning()
+    medical = CapturingMedical()
+    qna = QnAService(
+        env["cfg"], env["l7"], env["orch"].bridge,
+        reasoning_adapter=reasoning,
+        medical_adapter=medical,
+    )
+
+    result = qna.ask("owner", "今天要散步吗？")
+
+    assert events == ["deepseek_candidate", "medgemma_review"]
+    assert medical.review_bundle["deepseek_candidate"]["direct_answer"]
+    assert medical.review_bundle["personal_evidence_bundle"]["schema"] == "phe.qna.evidence/v2"
+    assert result["medical_review_state"] == "PERFORMED"
+
+
+def test_medical_finalizer_paths(env):
+    expected = {
+        "APPROVED": "candidate",
+        "APPROVED_WITH_CHANGES": "revised",
+        "REJECTED": "当前不能基于现有证据可靠给出这个结论。",
+        "ESCALATE": "尽快寻求专业医疗帮助",
+        "UNAVAILABLE": "未经审查的建议",
+    }
+
+    for status, expected_text in expected.items():
+        class RevisionReasoning(CountingMockReasoningAdapter):
+            def __init__(self):
+                super().__init__()
+                self.revision_calls = 0
+
+            def answer_question_candidate(self, question, bundle, candidates):
+                candidate = super().answer_question_candidate(question, bundle, candidates)
+                candidate["direct_answer"] = "candidate：今天可以轻松散步。"
+                candidate["reason"] = "candidate：依据当前个人证据。"
+                return candidate
+
+            def revise_question_candidate(self, question, bundle, candidate, required_changes):
+                self.revision_calls += 1
+                revised = dict(candidate)
+                revised["direct_answer"] = "revised：今天只建议短时间轻松散步。"
+                revised["reason"] = "revised：已按安全审查降低建议强度。"
+                return revised
+
+        class StatusMedical:
+            model_id = "mock-medical-v2"
+
+            def review(self, review_bundle, hypothesis_types, question_text=None):
+                return strict_review(status, ["降低活动强度"] if status == "APPROVED_WITH_CHANGES" else [])
+
+        reasoning = RevisionReasoning()
+        qna = QnAService(
+            env["cfg"], env["l7"], env["orch"].bridge,
+            reasoning_adapter=reasoning,
+            medical_adapter=StatusMedical(),
+        )
+        result = qna.ask("owner", "今天要散步吗？")
+        assert expected_text in result["direct_answer"]
+        assert reasoning.revision_calls == (1 if status == "APPROVED_WITH_CHANGES" else 0)
+        assert result["medical_review_state"] == ("UNAVAILABLE" if status == "UNAVAILABLE" else "PERFORMED")
+
+
+def test_required_medical_review_unavailable_fails_closed(env):
+    class UnavailableMedical:
+        model_id = "medgemma1.5"
+
+        def review(self, review_bundle, hypothesis_types, question_text=None):
+            raise TimeoutError("synthetic timeout")
+
+    qna = QnAService(
+        env["cfg"], env["l7"], env["orch"].bridge,
+        reasoning_adapter=CountingMockReasoningAdapter(),
+        medical_adapter=UnavailableMedical(),
+    )
+
+    result = qna.ask("owner", "今天适合高强度训练吗？")
+
+    assert result["medical_review_state"] == "UNAVAILABLE"
+    assert "未经审查的建议" in result["direct_answer"]
+    assert not any("高强度" in action for action in result["actions"])
+
+
+def test_qna_audit_records_sanitized_stage_order(env):
+    class ApprovedMedical:
+        model_id = "mock-medical-v2"
+
+        def review(self, review_bundle, hypothesis_types, question_text=None):
+            return strict_review("APPROVED")
+
+    qna = QnAService(
+        env["cfg"], env["l7"], env["orch"].bridge,
+        reasoning_adapter=env["adapter"],
+        medical_adapter=ApprovedMedical(),
+    )
+
+    qna.ask("owner", "今天要散步吗？")
+
+    row = env["l7"].execute("SELECT * FROM qna_audits ORDER BY id DESC LIMIT 1").fetchone()
+    classification = json.loads(row["semantic_classification_json"])
+    stages = json.loads(row["stage_events_json"])
+    assert row["semantic_classifier_model"] == "mock-reasoning-v0.1"
+    assert classification["scope"] == "HEALTH_DECISION"
+    assert row["reasoning_model"] == "mock-reasoning-v0.1"
+    assert row["reasoning_called"] == 1
+    assert row["medical_review_required"] == 1
+    assert row["medical_model"] == "mock-medical-v2"
+    assert row["medical_review_state"] == "PERFORMED"
+    assert row["finalization_path"] == "APPROVED"
+    assert stages == ["SEMANTIC", "EVIDENCE", "REASONING", "MEDICAL", "FINALIZER"]
+    serialized = json.dumps(dict(row), ensure_ascii=False)
+    assert "API_KEY" not in serialized
+    assert "thinking_trace" not in serialized
+
+
+def test_non_reasoning_routes_are_audited_without_health_calls(env):
+    qna = make_qna(env)
+
+    qna.ask("owner", "你是谁？")
+    qna.ask("owner", "我昨晚睡了多久？")
+    qna.ask("owner", "法国首都是什么？")
+
+    rows = env["l7"].execute(
+        "SELECT reasoning_called,medical_review_required,finalization_path "
+        "FROM qna_audits ORDER BY id"
+    ).fetchall()
+    assert [tuple(row) for row in rows] == [
+        (0, 0, "PRODUCT_META_FIXED"),
+        (0, 0, "HEALTH_DATA_ENGINE"),
+        (0, 0, "OUT_OF_SCOPE_FIXED"),
+    ]
+
+
+def test_explicit_context_statement_uses_formal_context_write(env):
+    from l7.services.context import ContextService
+
+    context_service = ContextService(
+        env["cfg"], env["l7"], env["orch"].bridge, env["orch"],
+        reasoning_adapter=env["adapter"],
+    )
+    qna = QnAService(
+        env["cfg"], env["l7"], env["orch"].bridge,
+        reasoning_adapter=env["adapter"],
+        medical_adapter=None,
+        context_writer=context_service,
+    )
+
+    result = qna.ask("owner", "我昨晚其实两点才睡")
+
+    assert result["scope"] == "HEALTH_CONTEXT"
+    assert "已记录" in result["direct_answer"]
+    con = sqlite3.connect(env["l6_copy"])
+    row = con.execute(
+        "SELECT context_type,raw_text,source FROM personal_context "
+        "WHERE raw_text=? AND status='CURRENT'",
+        ("我昨晚其实两点才睡",),
+    ).fetchone()
+    con.close()
+    assert row == ("LATE_SLEEP", "我昨晚其实两点才睡", "USER_REPORTED")
+
+
+def test_headache_statement_is_persisted_as_user_reported_context(env):
+    from l7.services.context import ContextService
+
+    class HeadacheAdapter(CountingMockReasoningAdapter):
+        def extract_context(self, text, today):
+            if "头疼" in text:
+                return [{"context_type": "HEADACHE", "context_date": today}]
+            return super().extract_context(text, today)
+
+    adapter = HeadacheAdapter()
+
+    context_service = ContextService(
+        env["cfg"], env["l7"], env["orch"].bridge, env["orch"],
+        reasoning_adapter=adapter,
+    )
+    qna = QnAService(
+        env["cfg"], env["l7"], env["orch"].bridge,
+        reasoning_adapter=adapter, context_writer=context_service,
+    )
+
+    result = qna.ask("owner", "我今天有点头疼")
+
+    assert result["scope"] == "HEALTH_CONTEXT"
+    con = sqlite3.connect(env["l6_copy"])
+    row = con.execute(
+        "SELECT context_type,source FROM personal_context WHERE raw_text=? AND status='CURRENT'",
+        ("我今天有点头疼",),
+    ).fetchone()
+    con.close()
+    assert row == ("HEADACHE", "USER_REPORTED")
+
+
+def test_conversation_cannot_be_reused_by_another_user(env):
+    env["l7"].execute("INSERT INTO users (id,created_at_utc) VALUES ('other','2026-08-24T00:00:00Z')")
+    cur = env["l7"].execute(
+        "INSERT INTO conversations (user_id,opened_at_utc,status) VALUES ('other','2026-08-24T00:00:00Z','OPEN')"
+    )
+    env["l7"].commit()
+
+    qna = make_qna(env)
+
+    import pytest
+    with pytest.raises(ValueError, match="conversation"):
+        qna.ask("owner", "今天要散步吗？", conversation_id=cur.lastrowid)
+
+
+def test_legacy_daily_shape_is_rejected_without_empty_answer(env):
     class DailyShapeAdapter:
         model_id = "daily-shape-adapter"
+
+        def classify_question(self, question, conversation_semantics):
+            return {
+                "scope": "HEALTH_DECISION",
+                "intent": "ACTIVITY_RECOMMENDATION",
+                "decision_type": "PHYSICAL_ACTIVITY",
+                "relevant_domains": ["ACTIVITY"],
+                "relevant_metrics": ["SLEEP_DURATION"],
+                "requires_personal_evidence": True,
+                "time_range": "CURRENT",
+                "aggregation": None,
+                "medical_consequence": "MODERATE",
+                "needs_medical_review": True,
+                "potential_context": False,
+                "context_write": "NONE",
+                "reason": "test",
+            }
 
         def answer_question(self, question, bundle, candidates):
             return {
@@ -71,7 +491,8 @@ def test_daily_shape_model_output_never_produces_an_empty_answer(env):
 
     result = qna.ask("owner", "今天能不能练腿？")
 
-    assert result["direct_answer"] == "今天的状态变化较明显，建议降低训练强度。"
+    assert result["direct_answer"] == "当前不能基于现有证据可靠给出这个结论。"
+    assert result["medical_review_state"] == "UNAVAILABLE"
 
 
 def test_insufficient_evidence_is_explicit(env, tmp_path):
@@ -88,7 +509,7 @@ def test_insufficient_evidence_is_explicit(env, tmp_path):
     assert env["adapter"].answer_calls == 0, "no model call when evidence is insufficient"
 
 
-def test_medical_routing_only_on_trigger(env):
+def test_medical_consequence_gate_reviews_actions_and_bypasses_data(env):
     qna = make_qna(env)
 
     class CountingMedical:
@@ -102,26 +523,25 @@ def test_medical_routing_only_on_trigger(env):
     med = CountingMedical()
     qna._medical = med
 
-    # Non-medical question: no medical review.
-    qna.ask("owner", "今天能不能练腿？")
+    # Deterministic data lookup: no medical review.
+    qna.ask("owner", "我昨晚睡了多久？")
     assert med.calls == 0
 
-    # Symptom/medical question: sealed trigger policy fires the reviewer exactly once.
-    r = qna.ask("owner", "我发烧了，需要去医院吗？")
+    # Physical activity changes health behavior, so the consequence gate reviews it.
+    qna.ask("owner", "今天能不能练腿？")
     assert med.calls == 1
+
+    # Symptom/medical question also fires the reviewer.
+    r = qna.ask("owner", "我发烧了，需要去医院吗？")
+    assert med.calls == 2
     assert r["medical_review_state"] == "PERFORMED"
 
     con = sqlite3.connect(env["l6_copy"]); con.row_factory = sqlite3.Row
     performed = con.execute(
         "SELECT * FROM medical_reviews WHERE subject_type='QA' AND review_state='PERFORMED'"
     ).fetchall()
-    bypassed = con.execute(
-        "SELECT m.* FROM medical_reviews m JOIN qa_sessions q ON q.id=m.subject_id"
-        " WHERE m.subject_type='QA' AND q.question_text='今天能不能练腿？'"
-    ).fetchall()
     con.close()
-    assert len(performed) == 1
-    assert bypassed and bypassed[0]["review_state"] == "BYPASSED"
+    assert len(performed) == 2
 
 
 def test_conversation_rollover_after_new_day(env):

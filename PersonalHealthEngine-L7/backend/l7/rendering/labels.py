@@ -43,6 +43,7 @@ CONTEXT_LABELS = {
     "SORE_THROAT": "咽喉不适",
     "FEVER": "发热",
     "NASAL_CONGESTION": "鼻塞",
+    "HEADACHE": "头疼",
     "MEDICATION": "用药",
     "FATIGUE": "疲劳",
     "FEELING_GOOD": "感觉良好",

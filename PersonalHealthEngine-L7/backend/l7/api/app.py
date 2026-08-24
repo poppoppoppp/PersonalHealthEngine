@@ -54,7 +54,8 @@ def create_app(config: Config | None = None, orchestrator: EngineOrchestrator | 
                                        reasoning_adapter=orch._reasoning_adapter)
     qna_service = QnAService(cfg, l7, bridge,
                              reasoning_adapter=orch._reasoning_adapter,
-                             medical_adapter=orch._medical_adapter)
+                             medical_adapter=orch._medical_adapter,
+                             context_writer=context_service)
 
     app = FastAPI(title="Personal Health Engine — L7 Product API", version=__version__)
     if cfg.environment == "local":
@@ -152,7 +153,10 @@ def create_app(config: Config | None = None, orchestrator: EngineOrchestrator | 
 
     @app.get("/qa/conversations/{conversation_id}")
     def qa_conversation(conversation_id: int, user_id: str = Depends(require_auth)):
-        return qna_service.conversation_state(user_id, conversation_id)
+        try:
+            return qna_service.conversation_state(user_id, conversation_id)
+        except LookupError as e:
+            raise HTTPException(status_code=404, detail=str(e))
 
     @app.post("/qa/ask")
     async def qa_ask(request: Request, user_id: str = Depends(require_auth)):

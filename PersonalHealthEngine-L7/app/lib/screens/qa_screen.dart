@@ -3,6 +3,8 @@
 /// dialogue. Medical review is applied by the sealed L6 policy when triggered.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../main.dart';
@@ -21,6 +23,14 @@ class _QnAScreenState extends State<QnAScreen> {
   final List<_Msg> messages = [];
   int? conversationId;
   bool busy = false;
+  int loadingStage = 0;
+  Timer? loadingTimer;
+
+  static const loadingMessages = [
+    '正在理解你的问题',
+    '正在结合你的健康数据',
+    '正在进行安全检查（如需要）',
+  ];
 
   static const suggestions = [
     '今天能不能练腿？',
@@ -31,9 +41,31 @@ class _QnAScreenState extends State<QnAScreen> {
 
   @override
   void dispose() {
+    loadingTimer?.cancel();
     controller.dispose();
     scrollController.dispose();
     super.dispose();
+  }
+
+  void _startLoadingStages() {
+    loadingTimer?.cancel();
+    loadingStage = 0;
+    loadingTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (!mounted || !busy) {
+        timer.cancel();
+        return;
+      }
+      if (loadingStage < loadingMessages.length - 1) {
+        setState(() => loadingStage += 1);
+      } else {
+        timer.cancel();
+      }
+    });
+  }
+
+  void _stopLoadingStages() {
+    loadingTimer?.cancel();
+    loadingTimer = null;
   }
 
   void _scrollDown() {
@@ -56,6 +88,7 @@ class _QnAScreenState extends State<QnAScreen> {
       messages.add(_Msg.user(q));
       busy = true;
     });
+    _startLoadingStages();
     _scrollDown();
 
     try {
@@ -74,11 +107,13 @@ class _QnAScreenState extends State<QnAScreen> {
         grounded: ((r['evidence_ref'] as Map?)?['grounded'] == true),
         outOfScope: '${r['scope']}' == 'OUT_OF_SCOPE',
       );
+      _stopLoadingStages();
       setState(() {
         messages.add(answer);
         busy = false;
       });
     } catch (e) {
+      _stopLoadingStages();
       setState(() {
         messages.add(_Msg.retry(apiErrorMessage(e), q));
         busy = false;
@@ -135,14 +170,33 @@ class _QnAScreenState extends State<QnAScreen> {
                     itemCount: messages.length + (busy ? 1 : 0),
                     itemBuilder: (_, i) {
                       if (busy && i == messages.length) {
-                        return const Align(
+                        return Align(
                           alignment: Alignment.centerLeft,
                           child: Padding(
-                            padding: EdgeInsets.symmetric(vertical: 8),
-                            child: SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            child: Semantics(
+                              liveRegion: true,
+                              label: loadingMessages[loadingStage],
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    loadingMessages[loadingStage],
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.black54,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         );

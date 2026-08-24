@@ -3,6 +3,8 @@
 /// medical-safety order = conclusion → action → cause.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -147,6 +149,18 @@ class FailingClient extends FakeClient {
     String question, {
     int? conversationId,
   }) async => _failure();
+}
+
+class PendingQnAClient extends FakeClient {
+  final qaCompleter = Completer<Map<String, dynamic>>();
+
+  PendingQnAClient(super.today);
+
+  @override
+  Future<Map<String, dynamic>> qaAsk(
+    String question, {
+    int? conversationId,
+  }) => qaCompleter.future;
 }
 
 class ProductConformanceClient extends FakeClient {
@@ -497,5 +511,37 @@ void main() {
     expect(find.text('认证失败，请更新访问令牌'), findsOneWidget);
     expect(find.text('重新尝试'), findsOneWidget);
     expect(find.textContaining('traceback'), findsNothing);
+  });
+
+  testWidgets('Q&A shows bounded staged processing status', (tester) async {
+    final env = AppEnv(baseUrl: 'https://example.invalid', token: 't');
+    final client = PendingQnAClient(todayBase());
+    env.client = client;
+
+    await tester.pumpWidget(MaterialApp(home: QnAScreen(env: env)));
+    await tester.enterText(find.byType(TextField), '今天要散步吗？');
+    await tester.tap(find.byIcon(Icons.send));
+    await tester.pump();
+
+    expect(find.text('正在理解你的问题'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 3));
+    expect(find.text('正在结合你的健康数据'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 3));
+    expect(find.text('正在进行安全检查（如需要）'), findsOneWidget);
+
+    client.qaCompleter.complete({
+      'conversation_id': 1,
+      'direct_answer': '可以散步，但以轻松活动为主。',
+      'actions': <String>[],
+      'scope': 'HEALTH_DECISION',
+      'medical_review_state': 'PERFORMED',
+      'evidence_ref': {'grounded': true},
+    });
+    await tester.pumpAndSettle();
+
+    expect(find.text('可以散步，但以轻松活动为主。'), findsOneWidget);
+    expect(find.textContaining('正在'), findsNothing);
   });
 }

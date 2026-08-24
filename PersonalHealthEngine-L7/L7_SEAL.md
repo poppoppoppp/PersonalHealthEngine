@@ -53,3 +53,29 @@ re-running `verify_upstream_integrity.py`, and re-issuing `L7_FINAL_AUDIT.json`.
 - Mock adapters for all automated tests; real calls only behind explicit gates with
   recorded budgets.
 - AI inference never promoted to user fact; user correction > AI structuring > AI inference.
+
+## 2026-08-24 Q&A Orchestration V2 addendum
+
+The product owner explicitly reopened the Q&A surface to correct semantic routing,
+question-specific grounding, and medical-review ordering. The change is limited to the L6
+Context vocabulary extension (`HEADACHE`) and the L7 Q&A, persistence, API, and client
+status surfaces. It does not change the sealed L1-L5 analytics or Today judgment contract.
+
+The re-sealed Q&A guarantees are:
+
+- DeepSeek V4 Flash Stage A is the semantic scope authority for every non-empty message;
+  conversation history is reference-resolution context, never personal-health evidence.
+- Exact and aggregate health-data answers are computed deterministically from isolated
+  engine source series; no language model performs arithmetic or invents measurements.
+- Decision evidence is filtered to the classified question and published through stable
+  evidence references before the Stage B candidate is accepted.
+- The complete candidate is produced before the deterministic consequence gate and any
+  MedGemma review. Unsafe, ungrounded, malformed, rejected, escalated, or unavailable paths
+  fail closed through the finalizer.
+- Every turn is auditable by stage order and model identity without storing prompts,
+  chain-of-thought, credentials, or private model payloads.
+- Flutter reports honest staged progress and does not claim that medical review occurred
+  when the gate bypasses it.
+
+Re-seal evidence is recorded in `docs/PHE_QNA_ORCHESTRATION_V2_AUDIT.json` after local and
+production acceptance.

@@ -215,11 +215,32 @@ def test_qna_keeps_direct_answer_and_reason_separate(env):
     class StructuredAdapter:
         model_id = "structured-zh-test"
 
-        def answer_question(self, question, bundle, candidates):
+        def classify_question(self, question, conversation_semantics):
             return {
-                "answer_text": "今天不建议进行高强度训练。",
-                "reasoning_summary": "恢复相关指标偏离个人近期基线。",
+                "scope": "HEALTH_DECISION",
+                "intent": "ACTIVITY_RECOMMENDATION",
+                "decision_type": "PHYSICAL_ACTIVITY",
+                "relevant_domains": ["ACTIVITY", "RECOVERY"],
+                "relevant_metrics": ["SLEEP_DURATION", "RESTING_HEART_RATE"],
+                "requires_personal_evidence": True,
+                "time_range": "CURRENT",
+                "aggregation": None,
+                "medical_consequence": "MODERATE",
+                "needs_medical_review": True,
+                "potential_context": False,
+                "context_write": "NONE",
+                "reason": "test",
+            }
+
+        def answer_question_candidate(self, question, bundle, candidates):
+            return {
+                "direct_answer": "今天不建议进行高强度训练。",
+                "reason": "恢复相关指标偏离个人近期基线。",
                 "recommended_actions": ["改为轻松活动"],
+                "confidence": "LOW",
+                "evidence_refs": [next(iter(bundle["evidence_catalog"]))],
+                "medical_claims": [],
+                "uncertainties": [],
             }
 
     qna = QnAService(

@@ -155,7 +155,7 @@ def test_deepseek_public_paths_assign_audit_operations(monkeypatch):
 
 
 def test_deepseek_context_requires_complete_sealed_event_shape(monkeypatch):
-    adapter = RealDeepSeekReasoningModelAdapter(api_key="secret-test-key")
+    adapter = RealDeepSeekReasoningModelAdapter(api_key="x")
     monkeypatch.setattr(
         adapter,
         "_chat",
@@ -164,3 +164,23 @@ def test_deepseek_context_requires_complete_sealed_event_shape(monkeypatch):
 
     with pytest.raises(Exception, match="context_date"):
         adapter.extract_context("昨晚睡得很晚", "2026-08-24")
+
+
+def test_deepseek_context_accepts_headache_as_user_reported_symptom(monkeypatch):
+    adapter = RealDeepSeekReasoningModelAdapter(api_key="secret-test-key")
+    monkeypatch.setattr(
+        adapter,
+        "_chat",
+        lambda *args, **kwargs: (
+            '{"events": [{"context_type": "HEADACHE", '
+            '"context_date": "2026-08-24", "body_part": "head"}]}'
+        ),
+    )
+
+    events = adapter.extract_context("我今天有点头疼", "2026-08-24")
+
+    assert events == [{
+        "context_type": "HEADACHE",
+        "context_date": "2026-08-24",
+        "body_part": "head",
+    }]

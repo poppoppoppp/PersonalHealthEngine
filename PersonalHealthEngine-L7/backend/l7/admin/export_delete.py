@@ -22,7 +22,7 @@ L7_USER_TABLES = (
     "model_call_cache", "evidence_change_log", "notification_decisions",
     "settings", "context_time_meta",
     "episode_events", "health_episodes",
-    "qa_turns", "conversations",
+    "qna_audits", "qa_turns", "conversations",
     "eval_runs", "today_versions",
 )
 

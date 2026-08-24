@@ -19,7 +19,20 @@ from l7.rendering.labels import (
     format_health_value,
 )
 
-SYMPTOM_CONTEXT_TYPES = ("ILLNESS", "FEVER", "SORE_THROAT", "NASAL_CONGESTION", "MEDICATION")
+SYMPTOM_CONTEXT_TYPES = (
+    "ILLNESS", "FEVER", "SORE_THROAT", "NASAL_CONGESTION", "HEADACHE", "MEDICATION",
+)
+
+HEALTH_DATA_METRICS = {
+    "SLEEP_DURATION": ("sleep_source_episode.vendor_sleep_like_duration_seconds", "睡眠时长"),
+    "STEPS": ("steps.daily.sum", "步数"),
+    "RESTING_HEART_RATE": ("resting_heart_rate.daily.value", "静息心率"),
+}
+
+SOURCE_LABELS = {
+    "XIAOMI_GENERATED": "小米生成来源",
+    "NUMERIC_SOURCE": "数值来源",
+}
 
 
 def latest_analysis_date(l5: sqlite3.Connection) -> str | None:
@@ -27,6 +40,143 @@ def latest_analysis_date(l5: sqlite3.Connection) -> str | None:
         "SELECT MAX(feature_date) FROM deviation_analytics WHERE status='CURRENT'"
     ).fetchone()
     return row[0]
+
+
+def _health_value_text(value: float, unit: str) -> str:
+    if unit == "seconds":
+        total_minutes = round(value / 60)
+        hours, minutes = divmod(total_minutes, 60)
+        return f"{hours}小时{minutes}分钟"
+    if unit == "steps":
+        return f"{round(value):,}步"
+    if unit == "bpm":
+        return f"{value:.1f}".rstrip("0").rstrip(".") + "次/分钟"
+    if unit == "percent":
+        return f"{value:.1f}".rstrip("0").rstrip(".") + "%"
+    if unit == "vendor_calories":
+        return f"{value:.0f}小米卡路里单位"
+    if unit == "vendor_score":
+        return f"{value:.1f}".rstrip("0").rstrip(".") + "（小米原始指标）"
+    return f"{value:g} {unit}"
+
+
+def deterministic_health_data_query(
+    l3: sqlite3.Connection,
+    metric: str,
+    time_range: str | None,
+    aggregation: str | None,
+    as_of_date: str,
+) -> dict | None:
+    """Answer a canonical metric query without letting a model calculate engine facts.
+
+    L3 source series remain isolated. Values from NUMERIC_SOURCE and XIAOMI_GENERATED are
+    never combined into one synthetic number.
+    """
+    metric_def = HEALTH_DATA_METRICS.get(metric)
+    if metric_def is None:
+        return None
+    feature_name, label = metric_def
+    window_days = {
+        "LAST_7_DAYS": 7,
+        "LAST_30_DAYS": 30,
+        "RECENT": 7,
+    }.get(time_range)
+    params: list[Any] = [feature_name, as_of_date]
+    window_sql = ""
+    if window_days:
+        window_sql = " AND local_date >= date(?, ?)"
+        params.extend([as_of_date, f"-{window_days - 1} days"])
+    rows = [
+        dict(row)
+        for row in l3.execute(
+            "SELECT id, local_date, value_num, unit, provider, source_class, source_sid, "
+            "coverage_status FROM derived_features WHERE feature_name=? AND status='CURRENT' "
+            "AND value_num IS NOT NULL AND local_date <= ?" + window_sql +
+            " ORDER BY local_date, id",
+            params,
+        ).fetchall()
+    ]
+    if not rows:
+        return None
+
+    if aggregation in (None, "LATEST"):
+        data_date = max(row["local_date"] for row in rows)
+        selected = [row for row in rows if row["local_date"] == data_date]
+        values = [{
+            "source_class": row["source_class"],
+            "source_key": f"{row['source_class']}:{row['source_sid']}",
+            "source_label": SOURCE_LABELS.get(row["source_class"], "独立数据来源"),
+            "value": row["value_num"],
+            "value_text": _health_value_text(row["value_num"], row["unit"]),
+            "unit": row["unit"],
+            "date": row["local_date"],
+            "count": 1,
+            "row_ids": [row["id"]],
+        } for row in selected]
+        aggregation = "LATEST"
+    else:
+        grouped: dict[tuple[str, str], list[dict]] = {}
+        for row in rows:
+            grouped.setdefault((row["source_class"], row["source_sid"]), []).append(row)
+        values = []
+        for (source_class, _source_sid), source_rows in sorted(grouped.items()):
+            first = source_rows[0]
+            last = source_rows[-1]
+            if aggregation == "AVERAGE":
+                value = sum(row["value_num"] for row in source_rows) / len(source_rows)
+                value_text = _health_value_text(value, first["unit"])
+            elif aggregation == "TREND":
+                value = last["value_num"] - first["value_num"]
+                direction = "上升" if value > 0 else "下降" if value < 0 else "持平"
+                value_text = (
+                    f"从{_health_value_text(first['value_num'], first['unit'])}"
+                    f"到{_health_value_text(last['value_num'], last['unit'])}，{direction}"
+                    f"{_health_value_text(abs(value), first['unit'])}"
+                )
+            else:
+                return None
+            values.append({
+                "source_class": source_class,
+                "source_key": f"{source_class}:{_source_sid}",
+                "source_label": SOURCE_LABELS.get(source_class, "独立数据来源"),
+                "value": value,
+                "value_text": value_text,
+                "unit": first["unit"],
+                "date": last["local_date"],
+                "start_date": first["local_date"],
+                "count": len(source_rows),
+                "row_ids": [row["id"] for row in source_rows],
+            })
+        data_date = max(row["local_date"] for row in rows)
+
+    source_count = len({v["source_key"] for v in values})
+    if aggregation == "LATEST" and len(values) == 1:
+        direct = f"PHE 记录到你在 {data_date} 的{label}是{values[0]['value_text']}。"
+    elif aggregation == "LATEST":
+        detail = "；".join(f"{v['source_label']} {v['value_text']}" for v in values)
+        direct = f"PHE 在 {data_date} 记录到多个独立来源，按来源隔离规则分别是：{detail}。"
+    elif aggregation == "AVERAGE":
+        detail = "；".join(
+            f"{v['source_label']}平均{v['value_text']}（{v['count']}条记录）" for v in values
+        )
+        direct = f"在所查时间窗内，PHE 的独立来源分别记录为：{detail}。这些来源未被合并。"
+    else:
+        detail = "；".join(f"{v['source_label']}{v['value_text']}" for v in values)
+        direct = f"在所查时间窗内，PHE 记录的{label}趋势分别是：{detail}。"
+
+    public_values = [{key: value for key, value in item.items()
+                      if key not in {"row_ids", "value", "source_key"}}
+                     for item in values]
+    return {
+        "direct_answer": direct,
+        "label": label,
+        "feature_name": feature_name,
+        "aggregation": aggregation,
+        "data_date": data_date,
+        "source_count": source_count,
+        "values": public_values,
+        "row_ids": [row_id for item in values for row_id in item["row_ids"]],
+    }
 
 
 def upstream_signature(

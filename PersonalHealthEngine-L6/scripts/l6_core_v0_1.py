@@ -37,6 +37,7 @@ CONTEXT_KEYWORDS = {
     "NASAL_CONGESTION": ["鼻塞", "鼻塞", "congestion", "stuffy"],
     "MEDICATION": ["吃药", "用药", "服药", "medication", "medicine", "drug"],
     "FATIGUE": ["疲劳", "乏力", "很累", "tired", "fatigue", "exhausted"],
+    "HEADACHE": ["头疼", "头痛", "偏头痛", "headache", "migraine"],
     "FEELING_GOOD": ["状态好", "感觉好", "精神好", "feeling good", "energetic"],
     "DIET_CHANGE": ["饮食", "吃多了", "吃少了", "diet"],
     "SCHEDULE_CHANGE": ["作息", "schedule", "routine"],
@@ -55,7 +56,7 @@ BODY_PARTS = {
 PAST_KEYWORDS = ("昨天", "昨晚", "yesterday", "last night", "前天")
 TODAY_KEYWORDS = ("今天", "today", "刚刚", "now")
 
-SYMPTOM_TYPES = ("ILLNESS", "FEVER", "SORE_THROAT", "NASAL_CONGESTION", "MEDICATION")
+SYMPTOM_TYPES = ("ILLNESS", "FEVER", "SORE_THROAT", "NASAL_CONGESTION", "HEADACHE", "MEDICATION")
 
 
 def utc_now():

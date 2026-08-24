@@ -40,6 +40,17 @@
 | Add isolated real-call Flash acceptance harness | 4 harness tests pass; temporary L6 cleanup verified | Complete |
 | Run full DeepSeek cutover regressions and integrate | 196 Python + 31 Flutter tests; analyzer 0 errors/warnings; static audit PASS | Complete |
 | Deploy and accept DeepSeek V4 Flash on VPS | Effective env, real Today/Q&A/Context audit, public access, zero Pro calls | Complete |
+| Audit PHE Q&A Orchestration V2 baseline and sealed contracts | Keyword authority, review order, persistence, adapters, and UI evidence recorded | Complete |
+| Design semantic/evidence/medical/finalizer architecture | Approved production brief mapped to focused L7 orchestration design | Complete |
+| Implement PHE Q&A Orchestration V2 with TDD | Semantic, data, decision, review, finalizer, audit, context, and UX tests | Complete |
+| Q&A V2 Task 1 — semantic routing and follow-up | 13 focused Q&A tests pass after red/green semantic regressions | Complete |
+| Q&A V2 Task 2 — deterministic health-data authority | 4 source-isolated L3 data tests pass | Complete |
+| Q&A V2 Task 3 — question-specific evidence and candidate guard | 19 focused tests cover metric filtering, refs, and hallucination veto | Complete |
+| Q&A V2 Task 4 — post-candidate medical review and finalizer | 22 focused tests cover order, gate, all statuses, and fail-closed | Complete |
+| Q&A V2 Task 5 — audit, context, and persistence integration | 34 L7 + 9 L6 tests cover migration, stage audit, context, and ownership | Complete |
+| Q&A V2 Task 6 — Flutter staged processing UX | Red/green widget test covers understanding, evidence, optional safety, success | Complete |
+| Q&A V2 Task 7 — regression, production deployment, and release | 216 Python tests, 31 Flutter tests, signed APK and local secret audit pass; VPS acceptance in progress | In progress |
+| Deploy and seal PHE Q&A Orchestration V2 | Full regression, real VPS cases, APK, secret audit, commit, and push | In progress |
 
 Verification snapshot (2026-08-24):
 

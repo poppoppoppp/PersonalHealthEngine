@@ -220,24 +220,40 @@ restraint is auditable.
 
 ## 6. Q&A Service
 
-- Endpoint `POST /qa/ask` within a conversation. Server assembles the **Personal Evidence
-  Bundle**: current Today state + relevant L5 deviations + L4 baselines + recent relevant
-  context + relevant patterns + recent feedback (deterministic relevance selection by the
-  question's metric/topic keywords; full bundle when unclear). Chat history contributes
-  *conversation semantics only*; health facts always from engine.
-- Answer flow: `assemble_evidence` → candidates → `medical_trigger(question, …)` →
-  if REQUIRED: MedGemma review (local Ollama now; remote later) → DeepSeek
-  `answer_question` (Flash, thinking disabled, temperature 0, JSON) → validated → answer-first payload:
-  `direct_answer, reason, actions[], evidence_ref`. Insufficient evidence → explicit
-  "目前不能可靠判断 + 缺什么" payload shape.
+- Endpoint `POST /qa/ask` within an owner-bound conversation. Every message first passes
+  through DeepSeek V4 Flash Stage A (`qna_semantic`, thinking disabled, temperature 0,
+  strict JSON). Stage A owns semantic scope, intent, metric/domain relevance, time range,
+  aggregation, consequence hints, and explicit Context-write intent. Keyword matching is
+  not a production scope authority. The bounded recent chat window contributes
+  *conversation semantics only*; health facts always come from the engine.
+- `PRODUCT_META` and `OUT_OF_SCOPE` use fixed product copy after Stage A and make no
+  health-reasoning or medical-review call. `HEALTH_DATA` uses deterministic L3 queries for
+  exact/latest/average/trend answers; models never calculate health values, and independent
+  source classes are never merged. `HEALTH_CONTEXT` can enter the formal L6 Context writer
+  only when Stage A identifies an explicit personal fact under the Context save rules.
+- For `HEALTH_DECISION`, the server builds a **question-specific Personal Evidence Bundle**
+  from the full sealed bundle, Today, relevant contexts, and relevant patterns. The filtered
+  bundle has a stable evidence catalog; unrelated deviations, symptoms, habits, and sources
+  are excluded. Missing evidence returns the fixed "目前不能可靠判断 + 缺什么" shape.
+- Decision flow: Stage A semantic classification → question-specific evidence → sealed
+  hypothesis candidates → DeepSeek Stage B candidate (`qna_reasoning`, strict JSON) →
+  deterministic schema/grounding/safety validation → medical-consequence gate →, only when
+  required, MedGemma review of the complete candidate and its evidence → safe finalizer.
+  Finalization supports APPROVED, constrained APPROVED_WITH_CHANGES revision, REJECTED,
+  ESCALATE, and fail-closed UNAVAILABLE. An invalid or unsafe candidate is never exposed,
+  even if a reviewer response is permissive.
+- The client payload remains answer-first: `direct_answer, reason, actions[], evidence_ref`.
+  Internal candidate, model prompt/response, and chain-of-thought are not returned. Each turn
+  writes a `qna_audits` row containing semantic classification, called model identifiers,
+  medical gate/result, finalization path, ordered stage events, and Context-write state.
 - **Conversation lifecycle**: conversations table with `boundary` logic — a conversation
   closes when (system date advanced) AND (a long sleep episode ended, i.e. latest sleep
   episode for the new day exists OR no sleep expected yet + first open of the new day).
   New question after boundary → new conversation; prior short-term context excluded;
   durable facts (context/feedback/patterns/evidence) remain retrievable.
-- Scope guard: questions answered only within the health-decision domain; out-of-scope
-  questions get a fixed refusal payload (no ChatGPT drift), deterministic classifier
-  (keyword + model fallback).
+- Scope guard: questions are routed among `HEALTH_DECISION`, `HEALTH_DATA`,
+  `HEALTH_CONTEXT`, `PRODUCT_META`, and `OUT_OF_SCOPE` by Stage A. Classifier failure is a
+  fixed fail-closed response; out-of-scope and product-meta wording cannot drift.
 
 ---
 
