@@ -1,17 +1,17 @@
 """Layer 6 REAL model adapters (integration layer, additive to the sealed core).
 
 These are the real DeepSeek V4 Flash and MedGemma 1.5 4B adapters. They are separate from the
-sealed `l6_adapters_v0_1.py` (mock adapters) and are only exercised by the standalone
-integration runner `l6_real_model_integration_v0_1.py` — never by core acceptance/rebuild.
+sealed `l6_adapters_v0_1.py` (mock adapters) and are consumed by the standalone integration
+runner and the L7 product adapter — never by deterministic core acceptance/rebuild.
 
 Credentials come ONLY from environment variables. API keys are never written to files,
 databases, logs, or the report.
 """
 
 import json
-import logging
 import os
 import re
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -21,7 +21,6 @@ from l6_core_v0_1 import CONFIDENCE_LEVELS, HYPOTHESIS_TYPES, canonical_json
 DEEPSEEK_BASE_URL = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
 DEEPSEEK_MODEL_DEFAULT = "deepseek-v4-flash"
 DEEPSEEK_THINKING = {"type": "disabled"}
-DEEPSEEK_AUDIT_LOGGER = logging.getLogger("phe.deepseek.audit")
 # Ollama model tag (resolves to medgemma1.5:latest). This is the development-time real MedGemma
 # runtime; production can point MEDICAL_MODEL_ENDPOINT at a remote/cloud Ollama-compatible host.
 MEDGEMMA_MODEL_DEFAULT = "medgemma1.5"
@@ -250,9 +249,11 @@ class RealDeepSeekReasoningModelAdapter:
             "thinking": "disabled",
             "usage": self.last_usage,
         }
-        DEEPSEEK_AUDIT_LOGGER.info(
-            "deepseek_invocation %s",
-            json.dumps(self.last_invocation, sort_keys=True, separators=(",", ":")),
+        print(
+            "DEEPSEEK_AUDIT "
+            + json.dumps(self.last_invocation, sort_keys=True, separators=(",", ":")),
+            file=sys.stderr,
+            flush=True,
         )
         return content
 

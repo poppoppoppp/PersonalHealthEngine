@@ -47,7 +47,7 @@ def test_medgemma_review_matches_sealed_adapter_protocol(monkeypatch):
     assert captured["question_text"] == "今天还能训练吗？"
 
 
-def test_deepseek_transport_is_flash_non_thinking_and_sanitized(monkeypatch):
+def test_deepseek_transport_is_flash_non_thinking_and_sanitized(monkeypatch, capsys):
     import l6_real_adapters_v0_1 as real_adapters
 
     captured = {}
@@ -80,10 +80,17 @@ def test_deepseek_transport_is_flash_non_thinking_and_sanitized(monkeypatch):
         "usage": {"prompt_tokens": 11, "completion_tokens": 3, "total_tokens": 14},
     }
     serialized_audit = json.dumps(adapter.last_invocation)
+    emitted_audit = capsys.readouterr().err
+    assert "DEEPSEEK_AUDIT" in emitted_audit
+    assert '"operation":"context"' in emitted_audit
     assert "secret-test-key" not in serialized_audit
     assert "private system prompt" not in serialized_audit
     assert "private user health data" not in serialized_audit
     assert "chatcmpl-test" not in serialized_audit
+    assert "secret-test-key" not in emitted_audit
+    assert "private system prompt" not in emitted_audit
+    assert "private user health data" not in emitted_audit
+    assert "chatcmpl-test" not in emitted_audit
 
 
 def test_deepseek_transport_rejects_non_flash_before_network(monkeypatch):
