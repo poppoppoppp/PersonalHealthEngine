@@ -24,6 +24,14 @@ def test_android_release_never_falls_back_to_debug_signing():
     assert "storeFile" in gradle
 
 
+def test_release_builder_supports_windows_powershell_5_and_cleans_secrets():
+    script = read("deployment/scripts/build_android_release.ps1")
+    assert "utf8NoBOM" not in script
+    assert "UTF8Encoding" in script
+    assert "Remove-Item -LiteralPath $keyProperties" in script
+    assert "Remove-Item -LiteralPath $definesFile" in script
+
+
 def test_gateway_only_proxies_https_to_local_l7():
     http = read("deployment/nginx/phe-mobile-http.conf")
     https = read("deployment/nginx/phe-mobile-https.conf")
@@ -60,3 +68,43 @@ def test_mobile_gateway_installer_keeps_internal_ports_private():
     assert "0.0.0.0:11434" not in installer
     assert "nginx -t" in installer
     assert "systemctl enable --now nginx" in installer
+
+
+def test_production_runs_exactly_one_private_durable_worker():
+    compose = read("deployment/docker/docker-compose.production.yml")
+    service = read("deployment/systemd/phe-l7-worker.service")
+    assert "l7-worker:" in compose
+    assert "python\n      - -m\n      - l7.worker" in compose
+    assert compose.count("l7-worker:") == 1
+    worker_block = compose.split("l7-worker:", 1)[1]
+    assert "restart: unless-stopped" in worker_block
+    assert "ports:" not in worker_block
+    assert "docker compose" in service
+    assert "l7-worker" in service
+    assert "Restart=on-failure" in service
+
+
+def test_medical_inference_is_bounded_and_lower_priority():
+    ollama = read("deployment/systemd/ollama.service")
+    compose = read("deployment/docker/docker-compose.production.yml")
+    assert "Nice=10" in ollama
+    assert "IOSchedulingClass=idle" in ollama
+    assert 'Environment="OLLAMA_NUM_PARALLEL=1"' in ollama
+    assert 'Environment="OLLAMA_MAX_LOADED_MODELS=1"' in ollama
+    assert 'Environment="OLLAMA_KEEP_ALIVE=30m"' in ollama
+    assert 'Environment="OLLAMA_CONTEXT_LENGTH=2048"' in ollama
+    assert "MEDGEMMA_NUM_THREAD: \"1\"" in compose
+    assert "MEDGEMMA_NUM_CTX: \"2048\"" in compose
+    assert "MEDGEMMA_NUM_PREDICT:" in compose
+    assert "MEDGEMMA_KEEP_ALIVE: 30m" in compose
+
+
+def test_benchmark_tools_never_log_tokens_or_prompts():
+    med = read("deployment/scripts/benchmark_medgemma.py")
+    concurrent = read("deployment/scripts/benchmark_concurrency.py")
+    combined = med + concurrent
+    assert "L7_API_TOKEN" in combined
+    assert "Authorization" in combined
+    assert "print(prompt" not in combined
+    assert "print(token" not in combined
+    assert "print(json.dumps(payload" not in combined

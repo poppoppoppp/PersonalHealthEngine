@@ -16,6 +16,8 @@ RUNTIME_SOURCE="${CODE_ROOT}/deployment/config/runtime.env.example"
 
 PATH_TARGET="${CONFIG_ROOT}/production-paths.conf"
 RUNTIME_TARGET="${CONFIG_ROOT}/runtime.env"
+WORKER_SOURCE="${CODE_ROOT}/deployment/systemd/phe-l7-worker.service"
+WORKER_TARGET="/etc/systemd/system/phe-l7-worker.service"
 
 if [[ "${EUID}" -ne 0 ]]; then
     echo "ERROR: run this script as root"
@@ -80,6 +82,9 @@ chown root:phe \
 chmod 0640 \
     "${PATH_TARGET}" \
     "${RUNTIME_TARGET}"
+
+install -m 0644 "${WORKER_SOURCE}" "${WORKER_TARGET}"
+systemctl daemon-reload
 
 echo
 echo "production_paths = ${PATH_TARGET}"

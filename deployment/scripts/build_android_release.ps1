@@ -10,12 +10,20 @@ $artifact = 'D:\PersonalHealthEngine\artifacts\PHE-Android-production.apk'
 
 function Get-KeyringSecret([string]$username) {
     $value = & python -c `
-        'import keyring,sys; value=keyring.get_password(sys.argv[1],sys.argv[2]); print(value or "")' `
+        'import keyring,sys; value=keyring.get_password(sys.argv[1],sys.argv[2]); print(value or chr(32))' `
         'personal-health-engine' $username
     if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($value)) {
         throw "Missing Windows keyring value for $username"
     }
     return $value.Trim()
+}
+
+function Set-Utf8NoBom([string]$path, [string]$content) {
+    [System.IO.File]::WriteAllText(
+        $path,
+        $content,
+        [System.Text.UTF8Encoding]::new($false)
+    )
 }
 
 $apiToken = Get-KeyringSecret 'l7_api_token'
@@ -28,17 +36,19 @@ New-Item -ItemType Directory -Force -Path (Split-Path -Parent $definesFile) | Ou
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $artifact) | Out-Null
 
 try {
-    @{
+    $defines = @{
         PHE_API_BASE_URL = 'https://47.111.229.39'
         PHE_API_TOKEN = $apiToken
-    } | ConvertTo-Json | Set-Content -LiteralPath $definesFile -Encoding utf8NoBOM
+    } | ConvertTo-Json
+    Set-Utf8NoBom $definesFile $defines
 
-    @(
+    $keyConfig = @(
         "storePassword=$signingPassword"
         "keyPassword=$signingPassword"
         'keyAlias=phe-release'
         'storeFile=D:/PersonalHealthEngine/secrets/android/phe-release.jks'
-    ) | Set-Content -LiteralPath $keyProperties -Encoding utf8NoBOM
+    ) -join [Environment]::NewLine
+    Set-Utf8NoBom $keyProperties $keyConfig
 
     Push-Location $appRoot
     try {

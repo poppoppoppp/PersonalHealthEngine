@@ -38,6 +38,11 @@ services:
       MEDICAL_MODEL_MODE: local
       MEDICAL_MODEL_ENDPOINT: http://host.docker.internal:11434
       MEDGEMMA_MODEL: medgemma1.5
+      MEDGEMMA_NUM_PREDICT: "320"
+      MEDGEMMA_NUM_CTX: "2048"
+      MEDGEMMA_NUM_THREAD: "1"
+      MEDGEMMA_NUM_BATCH: "64"
+      MEDGEMMA_KEEP_ALIVE: 30m
 
     volumes:
       # L3-L5 upstream databases are read-only.
@@ -78,3 +83,46 @@ services:
 
     restart: unless-stopped
 
+  l7-worker:
+    build:
+      context: ../../PersonalHealthEngine-L7
+      dockerfile: Dockerfile
+    user: "10001:10001"
+    env_file:
+      - /etc/phe/runtime.env
+    environment:
+      L7_L3_DB: /data/l3/personal_health_features.sqlite3
+      L7_L4_DB: /data/l4/personal_health_baselines.sqlite3
+      L7_L5_DB: /data/l5/personal_health_analytics.sqlite3
+      L7_L6_DB: /data/l6/personal_health_reasoning.sqlite3
+      L7_L6_CODE: /opt/l6/scripts
+      L7_L6_DEFINITIONS: /opt/l6/definitions
+      L7_DB: /data/l7/l7_product.sqlite3
+      PHE_RUNTIME: /runtime
+      MEDICAL_MODEL_MODE: local
+      MEDICAL_MODEL_ENDPOINT: http://host.docker.internal:11434
+      MEDGEMMA_MODEL: medgemma1.5
+      MEDGEMMA_NUM_PREDICT: "320"
+      MEDGEMMA_NUM_CTX: "2048"
+      MEDGEMMA_NUM_THREAD: "1"
+      MEDGEMMA_NUM_BATCH: "64"
+      MEDGEMMA_KEEP_ALIVE: 30m
+    volumes:
+      - /srv/phe/l3/db:/data/l3:ro
+      - /srv/phe/l4/db:/data/l4:ro
+      - /srv/phe/l5/db:/data/l5:ro
+      - /srv/phe/l6/db:/data/l6
+      - /srv/phe/l7/db:/data/l7
+      - /srv/phe/runtime:/runtime
+      - ../../PersonalHealthEngine-L6/scripts:/opt/l6/scripts:ro
+      - ../../PersonalHealthEngine-L6/definitions:/opt/l6/definitions:ro
+    command:
+      - python
+      - -m
+      - l7.worker
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      l7-backend:
+        condition: service_healthy
+    restart: unless-stopped
