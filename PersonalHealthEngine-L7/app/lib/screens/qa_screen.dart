@@ -4,6 +4,7 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
@@ -19,6 +20,7 @@ class QnAScreen extends StatefulWidget {
 }
 
 class _QnAScreenState extends State<QnAScreen> {
+  static const _pendingJobKey = 'qa.pending-job.v1';
   final controller = TextEditingController();
   final scrollController = ScrollController();
   final List<_Msg> messages = [];
@@ -28,13 +30,11 @@ class _QnAScreenState extends State<QnAScreen> {
   Timer? loadingTimer;
   String? pendingQuestion;
   String? pendingKey;
+  bool pendingPersisted = false;
   int submissionSequence = 0;
 
-  static const loadingMessages = [
-    '正在理解你的问题',
-    '正在结合你的健康数据',
-    '正在进行安全检查（如需要）',
-  ];
+  static const loadingMessages = ['正在理解你的问题', '正在结合你的健康数据', '正在进行安全检查（如需要）'];
+  static const acceptedLoadingMessage = '已收到，正在进行安全检查（可先离开）';
 
   static const suggestions = [
     '今天能不能练腿？',
@@ -44,6 +44,12 @@ class _QnAScreenState extends State<QnAScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    unawaited(_resumePending());
+  }
+
+  @override
   void dispose() {
     loadingTimer?.cancel();
     controller.dispose();
@@ -51,9 +57,9 @@ class _QnAScreenState extends State<QnAScreen> {
     super.dispose();
   }
 
-  void _startLoadingStages() {
+  void _startLoadingStages({int initialStage = 0}) {
     loadingTimer?.cancel();
-    loadingStage = 0;
+    loadingStage = initialStage;
     loadingTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (!mounted || !busy) {
         timer.cancel();
@@ -87,6 +93,60 @@ class _QnAScreenState extends State<QnAScreen> {
   String _newSubmissionKey() =>
       'qa-${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}-${submissionSequence++}';
 
+  String get _loadingMessage =>
+      pendingPersisted ? acceptedLoadingMessage : loadingMessages[loadingStage];
+
+  Future<void> _rememberPending(int jobId) async {
+    final prefs = await widget.env.sharedPreferences();
+    await prefs.setString(
+      _pendingJobKey,
+      jsonEncode({'server': widget.env.baseUrl, 'job_id': jobId}),
+    );
+    pendingPersisted = true;
+  }
+
+  Future<void> _forgetPending() async {
+    if (!pendingPersisted) return;
+    final prefs = await widget.env.sharedPreferences();
+    await prefs.remove(_pendingJobKey);
+    pendingPersisted = false;
+  }
+
+  Future<void> _resumePending() async {
+    final prefs = await widget.env.sharedPreferences();
+    final raw = prefs.getString(_pendingJobKey);
+    if (raw == null) return;
+    int? jobId;
+    try {
+      final saved = jsonDecode(raw);
+      if (saved is! Map || saved['server'] != widget.env.baseUrl) return;
+      jobId = saved['job_id'] as int?;
+    } catch (_) {
+      await prefs.remove(_pendingJobKey);
+      return;
+    }
+    if (jobId == null || !mounted) return;
+    pendingPersisted = true;
+    setState(() {
+      messages.add(_Msg.assistant('正在恢复上次健康询问的安全检查。'));
+      busy = true;
+      loadingStage = loadingMessages.length - 1;
+    });
+    _startLoadingStages(initialStage: loadingMessages.length - 1);
+    try {
+      final result = await _awaitDeferred({'accepted': true, 'job_id': jobId});
+      await _showResult(result);
+    } catch (e) {
+      if (!mounted) return;
+      _stopLoadingStages();
+      setState(() {
+        messages.add(_Msg.assistant(apiErrorMessage(e)));
+        busy = false;
+      });
+    }
+    _scrollDown();
+  }
+
   Future<Map<String, dynamic>> _awaitDeferred(
     Map<String, dynamic> initial,
   ) async {
@@ -104,13 +164,36 @@ class _QnAScreenState extends State<QnAScreen> {
       if (status['status'] == 'SUCCEEDED') {
         final result = status['result'];
         if (result is Map) return Map<String, dynamic>.from(result);
+        await _forgetPending();
         throw ApiException(ApiErrorKind.invalidResponse, '服务器返回内容无法识别');
       }
       if (status['status'] == 'FAILED') {
+        await _forgetPending();
         throw ApiException(ApiErrorKind.server, '安全检查未完成，请重新尝试');
       }
     }
     throw ApiException(ApiErrorKind.timeout, '安全检查仍在后台进行，请稍后重试');
+  }
+
+  Future<void> _showResult(Map<String, dynamic> r) async {
+    await _forgetPending();
+    if (!mounted) return;
+    conversationId = r['conversation_id'] as int?;
+    final answer = _Msg.assistant(
+      r['direct_answer'] as String? ?? '',
+      actions: ((r['actions'] as List?) ?? const []).map((e) => '$e').toList(),
+      reason: r['reason'] as String?,
+      medical: '${r['medical_review_state']}' == 'PERFORMED',
+      grounded: ((r['evidence_ref'] as Map?)?['grounded'] == true),
+      outOfScope: '${r['scope']}' == 'OUT_OF_SCOPE',
+    );
+    _stopLoadingStages();
+    setState(() {
+      messages.add(answer);
+      busy = false;
+    });
+    pendingQuestion = null;
+    pendingKey = null;
   }
 
   Future<void> _ask(String text) async {
@@ -135,26 +218,18 @@ class _QnAScreenState extends State<QnAScreen> {
         conversationId: conversationId,
         idempotencyKey: key,
       );
+      if (initial['accepted'] == true) {
+        final jobId = initial['job_id'] as int?;
+        if (jobId == null) {
+          throw ApiException(ApiErrorKind.invalidResponse, '服务器返回内容无法识别');
+        }
+        await _rememberPending(jobId);
+        if (mounted) {
+          setState(() => loadingStage = loadingMessages.length - 1);
+        }
+      }
       final r = await _awaitDeferred(initial);
-      if (!mounted) return;
-      conversationId = r['conversation_id'] as int?;
-      final answer = _Msg.assistant(
-        r['direct_answer'] as String? ?? '',
-        actions: ((r['actions'] as List?) ?? const [])
-            .map((e) => '$e')
-            .toList(),
-        reason: r['reason'] as String?,
-        medical: '${r['medical_review_state']}' == 'PERFORMED',
-        grounded: ((r['evidence_ref'] as Map?)?['grounded'] == true),
-        outOfScope: '${r['scope']}' == 'OUT_OF_SCOPE',
-      );
-      _stopLoadingStages();
-      setState(() {
-        messages.add(answer);
-        busy = false;
-      });
-      pendingQuestion = null;
-      pendingKey = null;
+      await _showResult(r);
     } catch (e) {
       if (!mounted) return;
       _stopLoadingStages();
@@ -220,7 +295,7 @@ class _QnAScreenState extends State<QnAScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 10),
                             child: Semantics(
                               liveRegion: true,
-                              label: loadingMessages[loadingStage],
+                              label: _loadingMessage,
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -233,7 +308,7 @@ class _QnAScreenState extends State<QnAScreen> {
                                   ),
                                   const SizedBox(width: 10),
                                   Text(
-                                    loadingMessages[loadingStage],
+                                    _loadingMessage,
                                     style: const TextStyle(
                                       fontSize: 13,
                                       color: Colors.black54,

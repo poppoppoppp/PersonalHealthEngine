@@ -74,6 +74,9 @@ class AppEnv extends ChangeNotifier {
     return created;
   }
 
+  Future<SharedPreferences> sharedPreferences() async =>
+      _preferences ?? await SharedPreferences.getInstance();
+
   Future<void> updateConnection(String newUrl, String newToken) async {
     baseUrl = newUrl.trim();
     token = newToken.trim();

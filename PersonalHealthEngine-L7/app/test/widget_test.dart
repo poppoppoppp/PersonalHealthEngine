@@ -211,6 +211,7 @@ class PendingQnAClient extends FakeClient {
 class DeferredQnAClient extends FakeClient {
   final statusCompleter = Completer<Map<String, dynamic>>();
   String? receivedKey;
+  int askCalls = 0;
 
   DeferredQnAClient(super.today);
 
@@ -220,6 +221,7 @@ class DeferredQnAClient extends FakeClient {
     int? conversationId,
     String? idempotencyKey,
   }) async {
+    askCalls += 1;
     receivedKey = idempotencyKey;
     return {'accepted': true, 'job_id': 9, 'status': 'PENDING'};
   }
@@ -605,6 +607,7 @@ void main() {
   testWidgets('Q&A failure is sanitized and preserves a retry action', (
     tester,
   ) async {
+    SharedPreferences.setMockInitialValues({});
     final env = AppEnv(baseUrl: 'https://example.invalid', token: 't');
     env.client = FailingClient(todayBase());
 
@@ -619,6 +622,7 @@ void main() {
   });
 
   testWidgets('Q&A shows bounded staged processing status', (tester) async {
+    SharedPreferences.setMockInitialValues({});
     final env = AppEnv(baseUrl: 'https://example.invalid', token: 't');
     final client = PendingQnAClient(todayBase());
     env.client = client;
@@ -653,6 +657,7 @@ void main() {
   testWidgets('Q&A polls a deferred safety job before showing its answer', (
     tester,
   ) async {
+    SharedPreferences.setMockInitialValues({});
     final env = AppEnv(baseUrl: 'https://example.invalid', token: 't');
     final client = DeferredQnAClient(todayBase());
     env.client = client;
@@ -663,7 +668,7 @@ void main() {
     await tester.pump();
 
     expect(client.receivedKey, isNotEmpty);
-    expect(find.text('正在理解你的问题'), findsOneWidget);
+    expect(find.text('已收到，正在进行安全检查（可先离开）'), findsOneWidget);
 
     await tester.pump(const Duration(seconds: 2));
     client.statusCompleter.complete({
@@ -683,4 +688,53 @@ void main() {
     expect(find.text('可以进行轻量活动。'), findsOneWidget);
     expect(find.textContaining('正在'), findsNothing);
   });
+
+  testWidgets(
+    'Q&A resumes the same persisted job without storing health text',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final env = AppEnv(
+        baseUrl: 'https://example.invalid',
+        token: 't',
+        preferences: prefs,
+      );
+      final client = DeferredQnAClient(todayBase());
+      env.client = client;
+
+      await tester.pumpWidget(MaterialApp(home: QnAScreen(env: env)));
+      await tester.enterText(find.byType(TextField), '今天能不能练腿？');
+      await tester.tap(find.byIcon(Icons.send));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 10));
+
+      expect(client.askCalls, 1);
+      expect(
+        prefs.getKeys().map((key) => '${prefs.get(key)}').join(' '),
+        isNot(contains('今天能不能练腿')),
+      );
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpWidget(MaterialApp(home: QnAScreen(env: env)));
+      await tester.pump();
+
+      client.statusCompleter.complete({
+        'id': 9,
+        'status': 'SUCCEEDED',
+        'result': {
+          'conversation_id': 3,
+          'direct_answer': '今天先安排轻量活动。',
+          'actions': <String>[],
+          'scope': 'HEALTH_DECISION',
+          'medical_review_state': 'PERFORMED',
+          'evidence_ref': {'grounded': true},
+        },
+      });
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pumpAndSettle();
+
+      expect(client.askCalls, 1);
+      expect(find.text('今天先安排轻量活动。'), findsOneWidget);
+    },
+  );
 }

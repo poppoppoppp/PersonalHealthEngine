@@ -53,14 +53,14 @@
 | Deploy and seal PHE Q&A Orchestration V2 | Deployed c153f04; production audit, rollback backups, staging cleanup, and five live cases verified | Complete |
 | Capture PHE Performance V1 baseline and root causes | Idle production reads, Q&A latency, MedGemma starvation, app cache audit, and full test baseline | Complete |
 | Design performance and responsiveness architecture | Approved SQLite jobs/read models/exact cache/resource isolation/SWR design | Complete |
-| Add sanitized request, stage, model, job, and cache telemetry | Focused privacy/aggregation tests plus production baseline stage timings | In progress |
-| Serve bounded versioned read projections | Today/History/Timeline/Context pagination, ETag, query-plan tests | Pending |
-| Move Context and Feedback recompute to durable jobs | Write-before-ack, idempotency, worker, and concurrency tests | Pending |
-| Optimize Q&A and MedGemma review | Fast paths, compact bundle, exact cache, model matrix, medical regression | Pending |
-| Add Flutter SWR caches and request coalescing | Cached first paint, prefetch, pagination, stale-version and corruption tests | Pending |
-| Isolate production inference resources | Normal API and write-ack p95 targets during real MedGemma | Pending |
-| Deploy, reboot, benchmark, build APK, and seal V1 | Full regression, production audit, APK hash, push main, clean worktree | Pending |
-| Defer long medical Q&A through the durable worker | 202 persisted ack, authenticated result polling, fail-closed Flutter UX | In progress |
+| Add sanitized request, stage, model, job, and cache telemetry | Focused privacy/aggregation tests plus production stage timings | Complete |
+| Serve bounded versioned read projections | Today/History/Timeline/Context pagination, ETag, query-plan tests | Complete |
+| Move Context and Feedback recompute to durable jobs | Write-before-ack, idempotency, worker, and concurrency tests | Complete |
+| Optimize Q&A and MedGemma review | Fast paths, compact bundle, exact cache; real 2-vCPU review remains 563,888 ms | Hardware limit |
+| Add Flutter SWR caches and request coalescing | Cached first paint, prefetch, pagination, stale-version and corruption tests | Complete |
+| Isolate production inference resources | Normal read p95 7.77–10.96 ms during/after real medical work | Complete |
+| Deploy, reboot, benchmark, build APK, and seal V1 | Production/APK/reboot pass; physical launch unmeasured and raw MedGemma target fails | In progress |
+| Defer long medical Q&A through the durable worker | 202 persisted ack p95 81.54 ms, authenticated result polling, fail-closed Flutter UX | Complete |
 
 Verification snapshot (2026-08-24):
 
@@ -68,3 +68,12 @@ Verification snapshot (2026-08-24):
 - Flutter: `31 passed`; analyzer has 0 errors, 0 warnings, and 17 pre-existing info-level lints.
 - APK: V2 signature valid, signer `CN=Personal Health Engine, O=Private, C=CN`, package `com.personalhealthengine.phe_app`, INTERNET present, backup disabled.
 - Production: commit `c153f04` healthy; five required Q&A cases pass; protected 8707/11434 closed; daily timer active and enabled.
+
+Performance V1 verification snapshot (2026-08-26):
+
+- Backend: `159 passed`; deployment: `15 passed, 2 skipped`; focused Q&A/safety/jobs: `50 passed`.
+- Flutter: `44 passed`; analyzer has 0 errors, 0 warnings, and 17 pre-existing info-level lints.
+- Production: version `0.2.0`, runtime commit `e473e15`, reboot recovery PASS, backend healthy, worker running, 8707/11434 closed.
+- Real physical-activity Q&A: persisted 202 ack `44.45 ms`; public deduplicated ack p95 `81.54 ms`; grounded MedGemma-reviewed result succeeded once in `563887.99 ms`.
+- APK: V2 signature valid; SHA-256 `02BB2552858AF983C8B332778B1B9E5957FC854C2993DAEDB806F5C9FC648B54`.
+- Final audit: `PHE_PERFORMANCE_AUDIT.json`; V1 remains unsealed because physical launch timing is unmeasured and the 2-vCPU MedGemma review misses the 60-second target.

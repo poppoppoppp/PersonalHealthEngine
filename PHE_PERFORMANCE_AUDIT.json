@@ -1,0 +1,135 @@
+{
+  "title": "PHE Performance & Responsiveness V1 — Production Audit",
+  "captured_at_local": "2026-08-26",
+  "git_head": "e473e15e44ed301b5d21db2b68bf5b8ce7aa98a4",
+  "production": {
+    "url": "https://47.111.229.39",
+    "version": "0.2.0",
+    "vps": "Alibaba Cloud ecs.e-c1m4.large, 2 vCPU, 8 GiB RAM, Ubuntu 24.04",
+    "deploy": "PASS",
+    "reboot_recovery": "PASS",
+    "recovery_seconds_approx": 30,
+    "commit_verified": true
+  },
+  "before": {
+    "health_p95_ms": 138.17,
+    "today_p95_ms": 113.46,
+    "history_first_page_p95_ms": 85.35,
+    "patterns_p95_ms": 99.17,
+    "context_list_p95_ms": 165.73,
+    "product_meta_ms": 1301.08,
+    "health_data_ms": 1166.06,
+    "medical_decision_ms": 500407.7,
+    "medical_decision_repeat_ms": 618992.61,
+    "health_during_medgemma": "TIMEOUT_AFTER_20104.82_MS"
+  },
+  "after": {
+    "normal_reads_during_or_after_medical_inference_internal_ms": {
+      "health": {"samples": 20, "p50": 8.62, "p95": 10.91, "max": 11.39, "wire_bytes": 54},
+      "today": {"samples": 20, "p50": 8.07, "p95": 10.96, "max": 17.29, "wire_bytes": 8974},
+      "history_first_page": {"samples": 20, "p50": 6.58, "p95": 7.77, "max": 7.95, "wire_bytes": 696},
+      "patterns": {"samples": 20, "p50": 7.58, "p95": 8.68, "max": 8.7, "wire_bytes": 116},
+      "context_list": {"samples": 20, "p50": 7.78, "p95": 8.95, "max": 12.12, "wire_bytes": 401}
+    },
+    "timeline_public_https_ms": {
+      "samples": 20,
+      "p50": 55.78,
+      "p95": 61.83,
+      "max": 65.66,
+      "wire_bytes": 1212
+    },
+    "qna_public_https_ms": {
+      "product_meta": {"samples": 5, "p50": 54.31, "p95": 344.95, "max": 344.95, "target": "PASS"},
+      "health_data": {"samples": 5, "p50": 159.12, "p95": 300.12, "max": 300.12, "target": "PASS"},
+      "health_decision_persisted_ack": {"samples": 5, "p50": 54.75, "p95": 81.54, "max": 81.54, "target": "PASS", "deduplicated": true},
+      "first_health_decision_ack_ms": 44.45
+    },
+    "real_health_decision": {
+      "question_class": "physical activity / leg training",
+      "job_status": "SUCCEEDED",
+      "attempts": 1,
+      "queue_latency_ms": 222.006,
+      "run_latency_ms": 563887.99,
+      "medical_review_state": "PERFORMED",
+      "scope": "HEALTH_DECISION",
+      "grounded": true,
+      "answer_present": true,
+      "answer_characters": 38,
+      "action_count": 3,
+      "l6_session_persisted": true,
+      "unreviewed_candidate_exposed": false,
+      "warm_review_60s_target": "FAIL_CURRENT_CPU_HARDWARE"
+    },
+    "historical_medgemma_stage_samples_ms": {
+      "cold_total": 468289.96,
+      "warm_total": 652305.55,
+      "latest_deepseek_semantic": 1628.619,
+      "latest_deepseek_reasoning": 4915.513,
+      "latest_medgemma_total": 645514.734,
+      "cache_entries_after_invalid_review": 0,
+      "cache_hits": 0
+    }
+  },
+  "architecture": {
+    "durable_sqlite_jobs": "PASS",
+    "single_medical_worker": "PASS",
+    "http_event_loop_isolation": "PASS",
+    "exact_medical_cache_contract": "PASS_AUTOMATED; NO_VALID_PRODUCTION_HIT_OBSERVED",
+    "compact_medical_review_bundle": "PASS",
+    "read_projections": "PASS",
+    "cursor_pagination": "PASS",
+    "etag_304": "PASS",
+    "flutter_stale_while_revalidate": "PASS_AUTOMATED",
+    "flutter_local_cache": "PASS_AUTOMATED",
+    "request_coalescing": "PASS_AUTOMATED",
+    "prefetch": "PASS_AUTOMATED",
+    "pending_qna_resume": "PASS_AUTOMATED; JOB ID ONLY, NO HEALTH QUESTION TEXT PERSISTED",
+    "worker_health_after_reboot": "running/no-healthcheck",
+    "backend_health_after_reboot": "healthy"
+  },
+  "security": {
+    "public_https": "PASS",
+    "certificate_verification": "PASS",
+    "public_80": "OPEN_EXPECTED",
+    "public_443": "OPEN_EXPECTED",
+    "public_8707": "CLOSED",
+    "public_11434": "CLOSED",
+    "secret_audit": "PASS",
+    "privacy_telemetry": "PASS"
+  },
+  "mobile": {
+    "apk": "D:\\PersonalHealthEngine\\artifacts\\PHE-Android-production.apk",
+    "bytes": 50533865,
+    "sha256": "02BB2552858AF983C8B332778B1B9E5957FC854C2993DAEDB806F5C9FC648B54",
+    "package": "com.personalhealthengine.phe_app",
+    "version_name": "1.0.0",
+    "signature_v2": "PASS",
+    "signer": "CN=Personal Health Engine, O=Private, C=CN",
+    "reinstall_required": true,
+    "physical_device_detected": false,
+    "cold_first_useful_paint_ms": "UNMEASURED_NO_PHYSICAL_DEVICE",
+    "warm_first_useful_paint_ms": "UNMEASURED_NO_PHYSICAL_DEVICE"
+  },
+  "verification": {
+    "backend": "159 passed",
+    "focused_qna_safety_and_jobs": "50 passed",
+    "flutter": "44 passed",
+    "flutter_analyzer": "0 errors, 0 warnings, 17 pre-existing info notices",
+    "deployment": "15 passed, 2 skipped"
+  },
+  "hardware_decision": {
+    "current_hardware_limit_confirmed": true,
+    "normal_app_upgrade_required": false,
+    "medgemma_under_60_seconds_upgrade_required": true,
+    "minimum_recommended": "Mainland-accessible GPU inference with at least 8 GiB VRAM; retain 8 GiB+ system RAM. CPU-only upgrades are not claimed to meet 60 seconds without a benchmark.",
+    "reason": "The 2 vCPU production host completed an approved grounded review in 563887.99 ms while normal APIs stayed fast."
+  },
+  "final_result": "PARTIAL_PASS_HARDWARE_LIMIT",
+  "sealed": false,
+  "unmet_items": [
+    "Physical-device cold and warm launch timings were not measurable because adb reported no device.",
+    "Real MedGemma review remains far above the 60-second target on the current 2-vCPU VPS.",
+    "No valid production medical-cache hit was observed; the cache contract is covered by regression tests only.",
+    "Production Context submit acknowledgement was not re-run to avoid injecting synthetic personal-health facts."
+  ]
+}
