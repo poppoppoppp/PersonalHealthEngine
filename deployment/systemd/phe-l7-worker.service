@@ -4,9 +4,10 @@ Requires=docker.service
 After=docker.service network-online.target
 
 [Service]
-Type=simple
+Type=oneshot
+RemainAfterExit=yes
 WorkingDirectory=/opt/phe/deployment/docker
-ExecStart=/usr/bin/docker compose -f docker-compose.production.yml up --no-deps l7-worker
+ExecStart=/usr/bin/docker compose -f docker-compose.production.yml up -d --no-deps l7-worker
 ExecStop=/usr/bin/docker compose -f docker-compose.production.yml stop -t 30 l7-worker
 Restart=on-failure
 RestartSec=5

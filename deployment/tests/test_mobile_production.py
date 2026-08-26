@@ -81,6 +81,9 @@ def test_production_runs_exactly_one_private_durable_worker():
     assert "ports:" not in worker_block
     assert "docker compose" in service
     assert "l7-worker" in service
+    assert "Type=oneshot" in service
+    assert "RemainAfterExit=yes" in service
+    assert "up -d --no-deps l7-worker" in service
     assert "Restart=on-failure" in service
 
 
