@@ -13,6 +13,7 @@ from l7.jobs import JobRepository
 from l7.services.context import ContextService
 from l7.services.feedback import FeedbackService
 from l7.services.history import HistoryService
+from l7.services.qna import QnAService
 from l7.store.db import connect_l7
 
 
@@ -33,6 +34,12 @@ class JobWorker:
             reasoning_adapter=self.orch._reasoning_adapter,
         )
         self.history = HistoryService(self.cfg, self.l7)
+        self.qna = QnAService(
+            self.cfg, self.l7, bridge,
+            reasoning_adapter=self.orch._reasoning_adapter,
+            medical_adapter=self.orch._medical_adapter,
+            context_writer=self.context,
+        )
         self.worker_id = worker_id or f"{socket.gethostname()}:{os.getpid()}"
 
     def run_once(self) -> bool:
@@ -58,13 +65,19 @@ class JobWorker:
                     subject_id=data.get("subject_id"),
                     analysis_date=data.get("analysis_date"),
                 )
+            elif job["kind"] == "QA_ASK":
+                result = self.qna.ask(
+                    job["user_id"], data["question"], data.get("conversation_id"),
+                )
             else:
                 raise ValueError("unsupported job kind")
-            self.history.rebuild(job["user_id"])
-            version = self.l7.execute(
-                "SELECT id FROM today_versions WHERE user_id=? ORDER BY id DESC LIMIT 1",
-                (job["user_id"],),
-            ).fetchone()
+            version = None
+            if job["kind"] != "QA_ASK":
+                self.history.rebuild(job["user_id"])
+                version = self.l7.execute(
+                    "SELECT id FROM today_versions WHERE user_id=? ORDER BY id DESC LIMIT 1",
+                    (job["user_id"],),
+                ).fetchone()
             self.jobs.complete(
                 job["id"], result=result,
                 result_version=version["id"] if version else None,

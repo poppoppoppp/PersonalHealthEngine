@@ -38,8 +38,10 @@ def make_qna(env, *, reasoning=None, medical=None):
 def test_fixed_product_meta_and_registered_health_data_skip_semantic_model(env):
     qna = make_qna(env)
     assert qna.ask("owner", "你是谁？")["scope"] == "PRODUCT_META"
+    assert qna.ask("owner", "这个产品能做什么？")["scope"] == "PRODUCT_META"
     assert qna.ask("owner", "昨晚睡了多久？")["scope"] == "HEALTH_DATA"
     assert qna.ask("owner", "最近7天平均步数是多少？")["scope"] == "HEALTH_DATA"
+    assert qna.ask("owner", "我最近七天的静息心率平均值是多少？")["scope"] == "HEALTH_DATA"
     assert env["adapter"].semantic_calls == 0
 
 

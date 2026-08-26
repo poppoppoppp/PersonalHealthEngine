@@ -94,7 +94,11 @@ abstract class L7Client {
   // Phase E
   Future<Map<String, dynamic>> qaOpenConversation();
   Future<Map<String, dynamic>> qaConversation(int id, {int? cursor, int limit = 30});
-  Future<Map<String, dynamic>> qaAsk(String question, {int? conversationId});
+  Future<Map<String, dynamic>> qaAsk(
+    String question, {
+    int? conversationId,
+    String? idempotencyKey,
+  });
   Future<Map<String, dynamic>> listContext({int? cursor, int limit = 30});
   Future<Map<String, dynamic>> addContext(
     String text, {
@@ -268,11 +272,16 @@ class HttpApiClient implements L7Client, ConditionalL7Client {
   ) => _get('/qa/conversations/$id?limit=$limit${cursor == null ? '' : '&cursor=$cursor'}');
 
   @override
-  Future<Map<String, dynamic>> qaAsk(String question, {int? conversationId}) =>
-      _send('POST', '/qa/ask', {
+  Future<Map<String, dynamic>> qaAsk(
+    String question, {
+    int? conversationId,
+    String? idempotencyKey,
+  }) => _send('POST', '/qa/ask', {
         'question': question,
         'conversation_id': ?conversationId,
-      }, inferenceTimeout);
+      }, normalTimeout, idempotencyKey == null ? null : {
+        'Idempotency-Key': idempotencyKey,
+      });
 
   @override
   Future<Map<String, dynamic>> listContext({int? cursor, int limit = 30}) =>

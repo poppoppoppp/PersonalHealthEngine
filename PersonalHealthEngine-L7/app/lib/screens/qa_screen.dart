@@ -7,6 +7,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../api_client.dart';
 import '../main.dart';
 import '../widgets/api_error_view.dart';
 
@@ -25,6 +26,9 @@ class _QnAScreenState extends State<QnAScreen> {
   bool busy = false;
   int loadingStage = 0;
   Timer? loadingTimer;
+  String? pendingQuestion;
+  String? pendingKey;
+  int submissionSequence = 0;
 
   static const loadingMessages = [
     '正在理解你的问题',
@@ -80,6 +84,35 @@ class _QnAScreenState extends State<QnAScreen> {
     });
   }
 
+  String _newSubmissionKey() =>
+      'qa-${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}-${submissionSequence++}';
+
+  Future<Map<String, dynamic>> _awaitDeferred(
+    Map<String, dynamic> initial,
+  ) async {
+    if (initial['accepted'] != true) return initial;
+    final jobId = initial['job_id'] as int?;
+    if (jobId == null) {
+      throw ApiException(ApiErrorKind.invalidResponse, '服务器返回内容无法识别');
+    }
+    for (var attempt = 0; attempt < 450; attempt += 1) {
+      await Future<void>.delayed(const Duration(seconds: 2));
+      if (!mounted) {
+        throw ApiException(ApiErrorKind.server, '安全检查已在后台继续');
+      }
+      final status = await widget.env.client.getJobStatus(jobId);
+      if (status['status'] == 'SUCCEEDED') {
+        final result = status['result'];
+        if (result is Map) return Map<String, dynamic>.from(result);
+        throw ApiException(ApiErrorKind.invalidResponse, '服务器返回内容无法识别');
+      }
+      if (status['status'] == 'FAILED') {
+        throw ApiException(ApiErrorKind.server, '安全检查未完成，请重新尝试');
+      }
+    }
+    throw ApiException(ApiErrorKind.timeout, '安全检查仍在后台进行，请稍后重试');
+  }
+
   Future<void> _ask(String text) async {
     final q = text.trim();
     if (q.isEmpty || busy) return;
@@ -92,10 +125,18 @@ class _QnAScreenState extends State<QnAScreen> {
     _scrollDown();
 
     try {
-      final r = await widget.env.client.qaAsk(
+      final key = pendingQuestion == q && pendingKey != null
+          ? pendingKey!
+          : _newSubmissionKey();
+      pendingQuestion = q;
+      pendingKey = key;
+      final initial = await widget.env.client.qaAsk(
         q,
         conversationId: conversationId,
+        idempotencyKey: key,
       );
+      final r = await _awaitDeferred(initial);
+      if (!mounted) return;
       conversationId = r['conversation_id'] as int?;
       final answer = _Msg.assistant(
         r['direct_answer'] as String? ?? '',
@@ -112,7 +153,10 @@ class _QnAScreenState extends State<QnAScreen> {
         messages.add(answer);
         busy = false;
       });
+      pendingQuestion = null;
+      pendingKey = null;
     } catch (e) {
+      if (!mounted) return;
       _stopLoadingStages();
       setState(() {
         messages.add(_Msg.retry(apiErrorMessage(e), q));

@@ -49,7 +49,7 @@ def test_qa_endpoints(client):
     assert "conversation_id" in conv
 
     r = client.post("/qa/ask", headers=AUTH,
-                    json={"question": "今天能不能练腿？",
+                    json={"question": "你能做什么？",
                           "conversation_id": conv["conversation_id"]})
     assert r.status_code == 200, r.text
     body = r.json()
@@ -60,9 +60,14 @@ def test_qa_endpoints(client):
     state = client.get(f"/qa/conversations/{conv['conversation_id']}", headers=AUTH).json()
     assert len(state["turns"]) == 2
 
-    # Out-of-scope stays guarded over HTTP too.
-    off = client.post("/qa/ask", headers=AUTH, json={"question": "推荐一部电影"}).json()
-    assert off["scope"] == "OUT_OF_SCOPE"
+    deferred = client.post(
+        "/qa/ask",
+        headers={**AUTH, "Idempotency-Key": "qa-decision-1"},
+        json={"question": "今天能不能练腿？", "conversation_id": conv["conversation_id"]},
+    )
+    assert deferred.status_code == 202
+    assert deferred.json()["accepted"] is True
+    assert client.get(f"/jobs/{deferred.json()['job_id']}", headers=AUTH).json()["status"] == "PENDING"
 
 
 def test_qa_requires_question(client):

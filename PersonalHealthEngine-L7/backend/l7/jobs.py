@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 
 ALLOWED_KINDS = {
     "CONTEXT_INGEST", "CONTEXT_CORRECT", "CONTEXT_DELETE", "FEEDBACK_SUBMIT",
+    "QA_ASK",
 }
 
 
@@ -187,10 +188,16 @@ class JobRepository:
 
     def status(self, *, user_id: str, job_id: int) -> dict:
         row = self.con.execute(
-            "SELECT id,kind,status,attempts,result_version,error_category,created_at_utc,"
-            "updated_at_utc FROM durable_jobs WHERE id=? AND user_id=?",
+            "SELECT j.id,j.kind,j.status,j.attempts,j.result_version,j.error_category,"
+            "j.created_at_utc,j.updated_at_utc,s.result_json FROM durable_jobs j "
+            "JOIN write_submissions s ON s.id=j.submission_id "
+            "WHERE j.id=? AND j.user_id=?",
             (job_id, user_id),
         ).fetchone()
         if row is None:
             raise LookupError("job not found")
-        return dict(row)
+        result = dict(row)
+        result_json = result.pop("result_json")
+        if result["status"] == "SUCCEEDED" and result_json is not None:
+            result["result"] = json.loads(result_json)
+        return result

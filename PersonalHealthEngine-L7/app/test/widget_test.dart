@@ -75,6 +75,7 @@ class FakeClient implements L7Client {
   Future<Map<String, dynamic>> qaAsk(
     String question, {
     int? conversationId,
+    String? idempotencyKey,
   }) async => {
     'conversation_id': conversationId ?? 1,
     'direct_answer': '基于你的证据包的回答',
@@ -190,6 +191,7 @@ class FailingClient extends FakeClient {
   Future<Map<String, dynamic>> qaAsk(
     String question, {
     int? conversationId,
+    String? idempotencyKey,
   }) async => _failure();
 }
 
@@ -199,8 +201,31 @@ class PendingQnAClient extends FakeClient {
   PendingQnAClient(super.today);
 
   @override
-  Future<Map<String, dynamic>> qaAsk(String question, {int? conversationId}) =>
-      qaCompleter.future;
+  Future<Map<String, dynamic>> qaAsk(
+    String question, {
+    int? conversationId,
+    String? idempotencyKey,
+  }) => qaCompleter.future;
+}
+
+class DeferredQnAClient extends FakeClient {
+  final statusCompleter = Completer<Map<String, dynamic>>();
+  String? receivedKey;
+
+  DeferredQnAClient(super.today);
+
+  @override
+  Future<Map<String, dynamic>> qaAsk(
+    String question, {
+    int? conversationId,
+    String? idempotencyKey,
+  }) async {
+    receivedKey = idempotencyKey;
+    return {'accepted': true, 'job_id': 9, 'status': 'PENDING'};
+  }
+
+  @override
+  Future<Map<String, dynamic>> getJobStatus(int id) => statusCompleter.future;
 }
 
 class ProductConformanceClient extends FakeClient {
@@ -622,6 +647,40 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('可以散步，但以轻松活动为主。'), findsOneWidget);
+    expect(find.textContaining('正在'), findsNothing);
+  });
+
+  testWidgets('Q&A polls a deferred safety job before showing its answer', (
+    tester,
+  ) async {
+    final env = AppEnv(baseUrl: 'https://example.invalid', token: 't');
+    final client = DeferredQnAClient(todayBase());
+    env.client = client;
+
+    await tester.pumpWidget(MaterialApp(home: QnAScreen(env: env)));
+    await tester.enterText(find.byType(TextField), '今天适合训练吗？');
+    await tester.tap(find.byIcon(Icons.send));
+    await tester.pump();
+
+    expect(client.receivedKey, isNotEmpty);
+    expect(find.text('正在理解你的问题'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 2));
+    client.statusCompleter.complete({
+      'id': 9,
+      'status': 'SUCCEEDED',
+      'result': {
+        'conversation_id': 3,
+        'direct_answer': '可以进行轻量活动。',
+        'actions': <String>[],
+        'scope': 'HEALTH_DECISION',
+        'medical_review_state': 'PERFORMED',
+        'evidence_ref': {'grounded': true},
+      },
+    });
+    await tester.pumpAndSettle();
+
+    expect(find.text('可以进行轻量活动。'), findsOneWidget);
     expect(find.textContaining('正在'), findsNothing);
   });
 }

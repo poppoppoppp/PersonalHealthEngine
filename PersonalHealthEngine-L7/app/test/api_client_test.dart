@@ -112,23 +112,27 @@ void main() {
     );
   });
 
-  test('inference calls use the separate long timeout', () async {
+  test('deferred qna uses normal timeout and sends idempotency key', () async {
     final client = HttpApiClient(
       baseUrl: 'https://47.111.229.39',
       token: 'test-token',
-      normalTimeout: const Duration(milliseconds: 5),
-      inferenceTimeout: const Duration(milliseconds: 100),
-      client: MockClient((_) async {
+      normalTimeout: const Duration(milliseconds: 100),
+      inferenceTimeout: const Duration(milliseconds: 5),
+      client: MockClient((request) async {
+        expect(request.headers['Idempotency-Key'], 'qa-retry-1');
         await Future<void>.delayed(const Duration(milliseconds: 30));
         return http.Response(
-          jsonEncode({'conversation_id': 1, 'direct_answer': 'ok'}),
-          200,
+          jsonEncode({'accepted': true, 'job_id': 9, 'status': 'PENDING'}),
+          202,
         );
       }),
     );
 
-    final result = await client.qaAsk('今天能训练吗？');
-    expect(result['direct_answer'], 'ok');
+    final result = await client.qaAsk(
+      '今天能训练吗？',
+      idempotencyKey: 'qa-retry-1',
+    );
+    expect(result['job_id'], 9);
   });
 
   test('conditional reads send ETag and accept 304 without decoding', () async {

@@ -102,7 +102,7 @@ def _fixed_classification(*, scope: str, intent: str, metrics: list[str],
 def deterministic_fast_classification(question: str) -> dict[str, Any] | None:
     """Route only fixed product copy and a tiny registered metric grammar."""
     normalized = _normalized_fixed_question(question)
-    if normalized in {"你是谁", "你能做什么", "你根据什么回答我"}:
+    if normalized in {"你是谁", "你能做什么", "这个产品能做什么", "你根据什么回答我"}:
         return _fixed_classification(
             scope="PRODUCT_META", intent="PRODUCT_IDENTITY", metrics=[],
             time_range=None, aggregation=None,
@@ -127,6 +127,16 @@ def deterministic_fast_classification(question: str) -> dict[str, Any] | None:
             scope="HEALTH_DATA", intent="METRIC_TREND",
             metrics=["RESTING_HEART_RATE"], time_range="LAST_30_DAYS",
             aggregation="TREND",
+        )
+    if normalized in {
+        "我最近七天的静息心率平均值是多少",
+        "最近七天静息心率平均值是多少",
+        "最近7天静息心率平均值是多少",
+    }:
+        return _fixed_classification(
+            scope="HEALTH_DATA", intent="METRIC_LOOKUP",
+            metrics=["RESTING_HEART_RATE"], time_range="LAST_7_DAYS",
+            aggregation="AVERAGE",
         )
     return None
 

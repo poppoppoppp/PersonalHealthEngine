@@ -19,6 +19,7 @@ from starlette.concurrency import run_in_threadpool
 from l7 import __version__
 from l7.config import Config
 from l7.engine.orchestrator import EngineOrchestrator
+from l7.engine.qna_orchestration import deterministic_fast_classification
 from l7.jobs import JobRepository
 from l7.performance import RequestMetrics, current_request_metrics, persist_request_metrics
 from l7.services.context import ContextService
@@ -249,14 +250,26 @@ def create_app(config: Config | None = None, orchestrator: EngineOrchestrator | 
         if not question:
             raise HTTPException(status_code=400, detail="question required")
         try:
-            return await run_in_threadpool(
-                qna_service.ask,
-                user_id,
-                question,
-                body.get("conversation_id"),
+            if deterministic_fast_classification(question) is not None:
+                return await run_in_threadpool(
+                    qna_service.ask,
+                    user_id,
+                    question,
+                    body.get("conversation_id"),
+                )
+            result = jobs.enqueue(
+                user_id=user_id,
+                kind="QA_ASK",
+                input_data={
+                    "question": question,
+                    "conversation_id": body.get("conversation_id"),
+                },
+                idempotency_key=request.headers.get("Idempotency-Key") or uuid.uuid4().hex,
             )
+            return JSONResponse(result, status_code=202)
         except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            status = 409 if "idempotency key reused" in str(e) else 400
+            raise HTTPException(status_code=status, detail=str(e))
 
     # ---------------- Context (§23–§29) ----------------
     @app.get("/context")

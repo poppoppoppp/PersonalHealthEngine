@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import statistics
 import time
@@ -19,13 +20,13 @@ QUESTIONS = {
 
 def percentile(values: list[float], fraction: float) -> float:
     ordered = sorted(values)
-    return ordered[min(len(ordered) - 1, int((len(ordered) - 1) * fraction))]
+    return ordered[max(0, math.ceil(len(ordered) * fraction) - 1)]
 
 
 def post(base_url: str, token: str, question: str) -> tuple[float, dict]:
     payload = json.dumps({"question": question}).encode()
     request = urllib.request.Request(
-        f"{base_url.rstrip('/')}/qna/ask",
+        f"{base_url.rstrip('/')}/qa/ask",
         data=payload,
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
     )

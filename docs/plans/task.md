@@ -60,6 +60,7 @@
 | Add Flutter SWR caches and request coalescing | Cached first paint, prefetch, pagination, stale-version and corruption tests | Pending |
 | Isolate production inference resources | Normal API and write-ack p95 targets during real MedGemma | Pending |
 | Deploy, reboot, benchmark, build APK, and seal V1 | Full regression, production audit, APK hash, push main, clean worktree | Pending |
+| Defer long medical Q&A through the durable worker | 202 persisted ack, authenticated result polling, fail-closed Flutter UX | In progress |
 
 Verification snapshot (2026-08-24):
 

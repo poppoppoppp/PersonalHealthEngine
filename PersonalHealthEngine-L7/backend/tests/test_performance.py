@@ -1,7 +1,5 @@
 import sqlite3
-import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
 
 from fastapi.testclient import TestClient
 
@@ -149,30 +147,28 @@ def test_percentile_summary_is_deterministic(tmp_path):
     }
 
 
-def test_slow_qna_never_blocks_health_event_loop(env, monkeypatch):
-    started = threading.Event()
-    release = threading.Event()
+def test_long_qna_is_queued_without_calling_model_or_blocking_health(env, monkeypatch):
+    def forbidden(*args, **kwargs):
+        raise AssertionError("long Q&A must run only in the durable worker")
 
-    def slow_ask(self, user_id, question, conversation_id=None):
-        started.set()
-        release.wait(timeout=2)
-        return {"scope": "HEALTH_DECISION", "direct_answer": "test"}
-
-    monkeypatch.setattr(QnAService, "ask", slow_ask)
+    monkeypatch.setattr(QnAService, "ask", forbidden)
     app = create_app(env["cfg"], env["orch"])
-    with TestClient(app) as client, ThreadPoolExecutor(max_workers=1) as pool:
-        inference = pool.submit(
-            client.post,
+    with TestClient(app) as client:
+        before = time.perf_counter()
+        accepted = client.post(
             "/qa/ask",
             json={"question": "我今天适合跑步吗？"},
-            headers={"Authorization": "Bearer dev-local-token"},
+            headers={
+                "Authorization": "Bearer dev-local-token",
+                "Idempotency-Key": "event-loop-queue-1",
+            },
         )
-        assert started.wait(timeout=1)
+        ack_elapsed = time.perf_counter() - before
         before = time.perf_counter()
         health = client.get("/health")
-        elapsed = time.perf_counter() - before
-        release.set()
-        assert inference.result(timeout=3).status_code == 200
+        health_elapsed = time.perf_counter() - before
 
+    assert accepted.status_code == 202
     assert health.status_code == 200
-    assert elapsed < 0.5
+    assert ack_elapsed < 0.5
+    assert health_elapsed < 0.5

@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import concurrent.futures
 import json
+import math
 import os
 import statistics
 import time
@@ -29,7 +30,7 @@ def request(base_url: str, token: str, path: str, payload: dict | None = None) -
 
 def p95(values: list[float]) -> float:
     ordered = sorted(values)
-    return ordered[min(len(ordered) - 1, int((len(ordered) - 1) * 0.95))]
+    return ordered[max(0, math.ceil(len(ordered) * 0.95) - 1)]
 
 
 def main() -> None:
@@ -41,7 +42,7 @@ def main() -> None:
     medical = {"question": "结合我最近的睡眠和静息心率变化，我现在应该怎么做？"}
     results = {path: [] for path in READ_PATHS}
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
-        inference = pool.submit(request, args.base_url, token, "/qna/ask", medical)
+        inference = pool.submit(request, args.base_url, token, "/qa/ask", medical)
         for _ in range(args.rounds):
             for path in READ_PATHS:
                 results[path].append(request(args.base_url, token, path))

@@ -4,6 +4,7 @@ import sqlite3
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 
+import pytest
 from fastapi.testclient import TestClient
 
 from l7.api.app import create_app
@@ -130,6 +131,22 @@ def test_job_status_never_returns_submission_input(env):
     assert "private health statement" not in status.text
 
 
+def test_qa_job_result_is_visible_only_after_success_and_only_to_owner(env):
+    repo = JobRepository(env["l7"])
+    queued = repo.enqueue(
+        user_id="owner", kind="QA_ASK",
+        input_data={"question": "今天适合训练吗？", "conversation_id": None},
+        idempotency_key="qa-async-1",
+    )
+    assert "result" not in repo.status(user_id="owner", job_id=queued["job_id"])
+    claimed = repo.claim_next(worker_id="worker")
+    answer = {"direct_answer": "先等待安全检查完成", "medical_review_state": "PERFORMED"}
+    repo.complete(claimed["id"], result=answer)
+    assert repo.status(user_id="owner", job_id=queued["job_id"])["result"] == answer
+    with pytest.raises(LookupError):
+        repo.status(user_id="someone-else", job_id=queued["job_id"])
+
+
 def test_worker_processes_context_after_ack_and_records_result_version(env):
     repo = JobRepository(env["l7"])
     queued = repo.enqueue(
@@ -151,3 +168,21 @@ def test_worker_processes_context_after_ack_and_records_result_version(env):
     assert row["result_version"] is not None
     assert row["queue_latency_ms"] is not None and row["queue_latency_ms"] >= 0
     assert row["run_latency_ms"] is not None and row["run_latency_ms"] >= 0
+
+
+def test_worker_completes_deferred_qna_with_authoritative_result(env):
+    repo = JobRepository(env["l7"])
+    queued = repo.enqueue(
+        user_id="owner", kind="QA_ASK",
+        input_data={"question": "今天能不能练腿？", "conversation_id": None},
+        idempotency_key="worker-qa-1",
+    )
+    worker = JobWorker(env["cfg"], orchestrator=env["orch"], worker_id="test-worker")
+    try:
+        assert worker.run_once() is True
+    finally:
+        worker.l7.close()
+    status = repo.status(user_id="owner", job_id=queued["job_id"])
+    assert status["status"] == "SUCCEEDED"
+    assert status["result"]["direct_answer"]
+    assert status["result"]["medical_review_state"] in {"BYPASSED", "PERFORMED"}

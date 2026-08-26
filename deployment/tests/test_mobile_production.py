@@ -1,4 +1,5 @@
 from pathlib import Path
+import importlib.util
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -6,6 +7,14 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def read(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
+
+
+def load_script(path: str):
+    spec = importlib.util.spec_from_file_location(Path(path).stem, ROOT / path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
 
 
 def test_android_release_has_network_permission_and_no_backup():
@@ -120,3 +129,18 @@ def test_benchmark_tools_never_log_tokens_or_prompts():
     assert "print(prompt" not in combined
     assert "print(token" not in combined
     assert "print(json.dumps(payload" not in combined
+
+
+def test_benchmark_tools_call_the_real_qna_route():
+    med = read("deployment/scripts/benchmark_medgemma.py")
+    concurrent = read("deployment/scripts/benchmark_concurrency.py")
+    assert "/qa/ask" in med
+    assert "/qa/ask" in concurrent
+    assert "/qna/ask" not in med + concurrent
+
+
+def test_benchmark_p95_uses_the_nearest_rank():
+    med = load_script("deployment/scripts/benchmark_medgemma.py")
+    concurrent = load_script("deployment/scripts/benchmark_concurrency.py")
+    assert med.percentile([100.0, 900.0], 0.95) == 900.0
+    assert concurrent.p95([100.0, 900.0]) == 900.0
