@@ -88,6 +88,7 @@ def test_production_runs_exactly_one_private_durable_worker():
     worker_block = compose.split("l7-worker:", 1)[1]
     assert "restart: unless-stopped" in worker_block
     assert "ports:" not in worker_block
+    assert "healthcheck:\n      disable: true" in worker_block
     assert "docker compose" in service
     assert "l7-worker" in service
     assert "Type=oneshot" in service

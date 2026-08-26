@@ -136,4 +136,6 @@ services:
     depends_on:
       l7-backend:
         condition: service_healthy
+    healthcheck:
+      disable: true
     restart: unless-stopped
