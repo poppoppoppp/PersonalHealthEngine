@@ -78,6 +78,17 @@ services:
     ports:
       - "127.0.0.1:8707:8707"
 
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8707/health', timeout=2).read()"
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
     extra_hosts:
       - "host.docker.internal:host-gateway"
 

@@ -87,6 +87,15 @@ def test_production_runs_exactly_one_private_durable_worker():
     assert "Restart=on-failure" in service
 
 
+def test_worker_health_dependency_has_a_backend_healthcheck():
+    compose = read("deployment/docker/docker-compose.production.yml")
+    backend_block = compose.split("  l7-backend:", 1)[1].split("  l7-worker:", 1)[0]
+    worker_block = compose.split("  l7-worker:", 1)[1]
+    assert "condition: service_healthy" in worker_block
+    assert "healthcheck:" in backend_block
+    assert "http://127.0.0.1:8707/health" in backend_block
+
+
 def test_medical_inference_is_bounded_and_lower_priority():
     ollama = read("deployment/systemd/ollama.service")
     compose = read("deployment/docker/docker-compose.production.yml")
