@@ -514,6 +514,7 @@ class EngineOrchestrator:
             return []
         return readers.exact_bundle_evidence(
             l6, l5, l4, l3, stored["id"], stored["bundle"], analysis_date,
+            freshness_date=datetime.now(ZoneInfo(self.cfg.timezone_name)).date().isoformat(),
         )
 
     def _render_product_copy(

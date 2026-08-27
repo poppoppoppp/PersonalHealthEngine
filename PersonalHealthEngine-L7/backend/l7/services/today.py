@@ -84,6 +84,7 @@ class TodayService:
             metrics: list[dict] = []
             facts = readers.exact_bundle_evidence(
                 l6, l5, l4, l3, stored["id"], bundle, analysis_date,
+                freshness_date=datetime.now(ZoneInfo(self.cfg.timezone_name)).date().isoformat(),
             )
             for fact in facts:
                 deviation = dict(fact["deviation"])

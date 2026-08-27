@@ -9,6 +9,7 @@ import pytest
 from l7.rendering.renderer import evidence_level2, render_today_payload
 from l7.services.history import _label
 from l7.services.qna import QnAService
+from l7.upstream import readers
 
 
 DR = {
@@ -22,6 +23,13 @@ DR = {
     "medical_review_state": "PERFORMED",
     "reasoning_summary": "近期恢复压力较大，今天适合降低训练强度。",
 }
+
+
+def test_freshness_uses_real_local_date_not_stale_analysis_date():
+    days, label = readers.evidence_freshness("2026-08-20", "2026-08-27")
+
+    assert days == 7
+    assert label == "7 天前的数据"
 
 
 def test_level2_keeps_distinct_sleep_features_instead_of_collapsing_metric():

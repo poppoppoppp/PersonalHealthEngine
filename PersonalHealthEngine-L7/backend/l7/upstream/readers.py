@@ -60,6 +60,15 @@ def _health_value_text(value: float, unit: str) -> str:
     return f"{value:g} {unit}"
 
 
+def evidence_freshness(feature_date: str, reference_date: str) -> tuple[int, str]:
+    age_days = max(
+        (date.fromisoformat(reference_date) - date.fromisoformat(feature_date)).days,
+        0,
+    )
+    label = "当日数据" if age_days == 0 else f"{age_days} 天前的数据"
+    return age_days, label
+
+
 def deterministic_health_data_query(
     l3: sqlite3.Connection,
     metric: str,
@@ -357,6 +366,8 @@ def exact_bundle_evidence(
     bundle_id: int,
     bundle: dict,
     analysis_date: str,
+    *,
+    freshness_date: str,
 ) -> list[dict]:
     """Resolve bundle evidence through its exact L5 -> L3/L4 provenance chain."""
     provenance = l6.execute(
@@ -411,8 +422,7 @@ def exact_bundle_evidence(
         if l3_row is None or l4_row is None:
             continue
         feature_date = deviation["feature_date"]
-        age_days = max((date.fromisoformat(analysis_date) - date.fromisoformat(feature_date)).days, 0)
-        freshness = "当日数据" if age_days == 0 else f"{age_days} 天前的数据"
+        age_days, freshness = evidence_freshness(feature_date, freshness_date)
         current_display = format_health_value(
             deviation["feature_name"], deviation["current_value"], deviation["unit"],
         )
