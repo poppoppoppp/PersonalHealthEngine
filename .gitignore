@@ -25,6 +25,7 @@
 **/.git/
 **/.idea/
 **/.vscode/
+.worktrees/
 
 # Flutter / Android / build
 **/.dart_tool/
