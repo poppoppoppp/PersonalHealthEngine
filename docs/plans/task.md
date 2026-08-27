@@ -64,7 +64,7 @@
 | Diagnose stale 2026-08-20 production data | L1/L2 PASS; L3 heart-rate definition checksum drift identified | Complete |
 | Correct evidence freshness semantics | Red/green test uses current Shanghai date rather than stale analysis date | Complete |
 | Add fail-closed definition reconciliation preflight | systemd ordering test and deployment suite pass | Complete |
-| Recover and verify 2026-08-27 daily pipeline | L1-L7 PASS, L5 date advances, public Today freshness verified | Pending |
+| Recover and verify 2026-08-27 daily pipeline | L1-L7 PASS, L5 date advances, public Today freshness verified | Complete |
 
 Verification snapshot (2026-08-24):
 
@@ -81,3 +81,11 @@ Performance V1 verification snapshot (2026-08-26):
 - Real physical-activity Q&A: persisted 202 ack `44.45 ms`; public deduplicated ack p95 `81.54 ms`; grounded MedGemma-reviewed result succeeded once in `563887.99 ms`.
 - APK: V2 signature valid; SHA-256 `02BB2552858AF983C8B332778B1B9E5957FC854C2993DAEDB806F5C9FC648B54`.
 - Final audit: `PHE_PERFORMANCE_AUDIT.json`; V1 remains unsealed because physical launch timing is unmeasured and the 2-vCPU MedGemma review misses the 60-second target.
+
+Data freshness recovery snapshot (2026-08-27):
+
+- Local: backend `161 passed`; deployment `18 passed, 2 skipped`; Flutter `44 passed`.
+- Production: runtime commit `752f744`; backed up at `/srv/phe/backups/data-freshness-20260827-183710`; L1-L7 daily service `Result=success`.
+- Dates: L5 max date, Today analysis date, and Today data-as-of are all `2026-08-27`; Today updated at `18:51` Asia/Shanghai.
+- Freshness: `2026-08-20` evidence is now correctly labeled `7 days old`, calculated against the current Shanghai date.
+- Gates: definition preflight installed; timer enabled/active; HTTPS health 200; public 80/443 open and 8707/11434 closed.
