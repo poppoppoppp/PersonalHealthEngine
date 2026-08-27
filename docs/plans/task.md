@@ -62,8 +62,8 @@
 | Deploy, reboot, benchmark, build APK, and seal V1 | Production/APK/reboot pass; physical launch unmeasured and raw MedGemma target fails | In progress |
 | Defer long medical Q&A through the durable worker | 202 persisted ack p95 81.54 ms, authenticated result polling, fail-closed Flutter UX | Complete |
 | Diagnose stale 2026-08-20 production data | L1/L2 PASS; L3 heart-rate definition checksum drift identified | Complete |
-| Correct evidence freshness semantics | Red/green test uses current Shanghai date rather than stale analysis date | In progress |
-| Add fail-closed definition reconciliation preflight | systemd ordering test and deployment suite pass | Pending |
+| Correct evidence freshness semantics | Red/green test uses current Shanghai date rather than stale analysis date | Complete |
+| Add fail-closed definition reconciliation preflight | systemd ordering test and deployment suite pass | Complete |
 | Recover and verify 2026-08-27 daily pipeline | L1-L7 PASS, L5 date advances, public Today freshness verified | Pending |
 
 Verification snapshot (2026-08-24):

@@ -154,4 +154,3 @@ Require service `Result=success`, L1-L7 PASS evidence, L5 maximum date advanceme
 **Step 5: Verify user-facing freshness**
 
 Refresh the authenticated Today projection and confirm the exact data date and freshness label are consistent with the current Shanghai date.
-
