@@ -72,6 +72,22 @@ def test_reconcile_repairs_eol_only(tmp_path):
     assert source.read_bytes() == lf
 
 
+def test_reconcile_repairs_lf_to_registry_crlf(tmp_path):
+    definitions = tmp_path / "definitions"
+    definitions.mkdir()
+    lf = b'{\n  "definition_id": "l3.test",\n  "definition_version": "0.1"\n}\n'
+    crlf = lf.replace(b"\n", b"\r\n")
+    source = definitions / "test.json"
+    source.write_bytes(lf)
+    database = tmp_path / "layer.sqlite3"
+    _registry(database, "l3.test", "0.1", hashlib.sha256(crlf).hexdigest())
+
+    result = reconcile_layer(definitions, database)
+
+    assert result == {"checked": 1, "paths_repaired": 0, "eol_repaired": 1}
+    assert source.read_bytes() == crlf
+
+
 def test_reconcile_preserves_registry_matched_utf8_bom(tmp_path):
     definitions = tmp_path / "definitions"
     definitions.mkdir()

@@ -1,8 +1,9 @@
 """Reconcile deployed definition paths and bytes against sealed registries.
 
 This fixes only two transport defects: Windows ZIP backslashes embedded in Linux
-filenames and CRLF conversion. A file is rewritten only when its LF bytes match the
-already-sealed registry checksum exactly; registry rows are never changed.
+filenames and LF/CRLF conversion. A file is rewritten only when one canonical EOL
+variant matches the already-sealed registry checksum exactly; registry rows are
+never changed.
 """
 
 from __future__ import annotations
@@ -57,8 +58,13 @@ def reconcile_layer(definitions_root: Path, database: Path) -> dict[str, int]:
 
         repaired = raw
         if sha256(raw) != registry_sha:
-            repaired = raw.replace(b"\r\n", b"\n")
-            if sha256(repaired) != registry_sha:
+            lf = raw.replace(b"\r\n", b"\n")
+            crlf = lf.replace(b"\n", b"\r\n")
+            repaired = next(
+                (candidate for candidate in (lf, crlf) if sha256(candidate) == registry_sha),
+                None,
+            )
+            if repaired is None:
                 raise RuntimeError(f"definition checksum mismatch is not EOL-only: {path}")
 
         relative = path.relative_to(definitions_root).as_posix()
