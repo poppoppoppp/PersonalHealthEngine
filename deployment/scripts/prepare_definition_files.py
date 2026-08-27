@@ -60,8 +60,11 @@ def reconcile_layer(definitions_root: Path, database: Path) -> dict[str, int]:
         if sha256(raw) != registry_sha:
             lf = raw.replace(b"\r\n", b"\n")
             crlf = lf.replace(b"\n", b"\r\n")
+            candidates = [lf, crlf]
+            if lf.endswith(b"\n"):
+                candidates.append(lf[:-1] + b"\r\n")
             repaired = next(
-                (candidate for candidate in (lf, crlf) if sha256(candidate) == registry_sha),
+                (candidate for candidate in candidates if sha256(candidate) == registry_sha),
                 None,
             )
             if repaired is None:
