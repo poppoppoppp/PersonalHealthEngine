@@ -41,6 +41,8 @@ Expected: FAIL because `evidence_freshness` does not exist.
 - Add `evidence_freshness(feature_date, reference_date)` in `readers.py`.
 - Add a required keyword-only `freshness_date` to `exact_bundle_evidence` and use the helper.
 - Pass `datetime.now(ZoneInfo(config.timezone_name)).date().isoformat()` from both callers.
+- Refresh structured evidence labels when a persisted Today projection is read,
+  without invoking a model or changing the semantic version.
 - Keep future-dated evidence clamped to zero days, matching existing behavior.
 
 **Step 4: Run focused and backend tests**

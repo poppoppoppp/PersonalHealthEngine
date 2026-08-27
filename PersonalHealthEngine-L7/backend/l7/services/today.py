@@ -20,6 +20,39 @@ from l7.rendering.labels import (
 )
 
 
+def today_local_date(timezone_name: str) -> str:
+    return datetime.now(ZoneInfo(timezone_name)).date().isoformat()
+
+
+def refresh_evidence_freshness(payload: dict, reference_date: str) -> dict:
+    evidence = payload.get("evidence")
+    if not isinstance(evidence, list) or not evidence:
+        return payload
+    refreshed = dict(payload)
+    refreshed_evidence = []
+    text_replacements = {}
+    for raw_fact in evidence:
+        fact = dict(raw_fact)
+        feature_date = fact.get("feature_date")
+        if isinstance(feature_date, str):
+            old_label = fact.get("freshness_label")
+            age_days, label = readers.evidence_freshness(feature_date, reference_date)
+            fact["freshness_days"] = age_days
+            fact["freshness_label"] = label
+            old_text = fact.get("text")
+            if isinstance(old_text, str) and isinstance(old_label, str):
+                new_text = old_text.replace(old_label, label)
+                fact["text"] = new_text
+                text_replacements[old_text] = new_text
+        refreshed_evidence.append(fact)
+    refreshed["evidence"] = refreshed_evidence
+    refreshed["evidence_level2"] = [
+        text_replacements.get(text, text)
+        for text in payload.get("evidence_level2", [])
+    ]
+    return refreshed
+
+
 class TodayService:
     def __init__(self, config: Config, l7: sqlite3.Connection, orchestrator: EngineOrchestrator):
         self.cfg = config
@@ -34,7 +67,10 @@ class TodayService:
             ).fetchone()
             if row is None:
                 raise LookupError("today projection is not ready")
-            return json.loads(row["rendered_json"])
+            return refresh_evidence_freshness(
+                json.loads(row["rendered_json"]),
+                today_local_date(self.cfg.timezone_name),
+            )
         result: EvaluationResult = self.orch.evaluate(user_id, trigger)
         return result.today_payload
 

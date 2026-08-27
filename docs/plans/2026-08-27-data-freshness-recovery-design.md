@@ -21,6 +21,8 @@ local date is 2026-08-27.
    ACTIVE registry checksum; all other drift remains a hard failure.
 3. Compute evidence age against the current date in the configured
    `Asia/Shanghai` timezone, while continuing to show the exact source date.
+   Recalculate the age when a persisted Today projection is read so a future
+   pipeline stall cannot freeze the displayed number of days.
 4. Repair production definitions with the same reconciliation tool, rerun the
    daily service, and verify L1-L7 plus public Today freshness.
 

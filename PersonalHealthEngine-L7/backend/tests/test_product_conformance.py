@@ -7,6 +7,7 @@ import json
 import pytest
 
 from l7.rendering.renderer import evidence_level2, render_today_payload
+from l7.services import today as today_module
 from l7.services.history import _label
 from l7.services.qna import QnAService
 from l7.upstream import readers
@@ -30,6 +31,39 @@ def test_freshness_uses_real_local_date_not_stale_analysis_date():
 
     assert days == 7
     assert label == "7 天前的数据"
+
+
+def test_app_open_refreshes_persisted_evidence_age(env, monkeypatch):
+    initial = env["orch"].evaluate("owner", "seed-stale-freshness").today_payload
+    assert initial["evidence"]
+    stale = json.loads(json.dumps(initial, ensure_ascii=False))
+    stale_fact = stale["evidence"][0]
+    stale_fact.update({
+        "feature_date": "2026-08-20",
+        "freshness_days": 4,
+        "freshness_label": "4 天前的数据",
+        "text": "测试指标偏高：1，个人近期基线约 0（2026-08-20，4 天前的数据）",
+    })
+    stale["evidence_level2"][0] = stale_fact["text"]
+    env["l7"].execute(
+        "UPDATE today_versions SET rendered_json=? WHERE id=?",
+        (json.dumps(stale, ensure_ascii=False), initial["version_id"]),
+    )
+    env["l7"].commit()
+    monkeypatch.setattr(
+        today_module,
+        "today_local_date",
+        lambda timezone_name: "2026-08-27",
+        raising=False,
+    )
+    calls_before = env["adapter"].reason_daily_calls
+
+    refreshed = env["service"].get_today("owner", trigger="app_open")
+
+    assert refreshed["evidence"][0]["freshness_days"] == 7
+    assert refreshed["evidence"][0]["freshness_label"] == "7 天前的数据"
+    assert "2026-08-20，7 天前的数据" in refreshed["evidence_level2"][0]
+    assert env["adapter"].reason_daily_calls == calls_before
 
 
 def test_level2_keeps_distinct_sleep_features_instead_of_collapsing_metric():
