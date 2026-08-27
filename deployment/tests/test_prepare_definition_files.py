@@ -1,10 +1,29 @@
 import hashlib
 import os
 import sqlite3
+from pathlib import Path
 
 import pytest
 
 from deployment.scripts.prepare_definition_files import reconcile_layer
+
+
+def test_daily_service_reconciles_definitions_before_pipeline():
+    service = (
+        Path(__file__).parents[1] / "systemd" / "phe-daily.service"
+    ).read_text(encoding="utf-8")
+    preflight = (
+        "ExecStartPre=/opt/phe/.venv/bin/python "
+        "/opt/phe/deployment/scripts/prepare_definition_files.py "
+        "--code-root /opt/phe --data-root /srv/phe"
+    )
+    pipeline = (
+        "ExecStart=/opt/phe/.venv/bin/python "
+        "/opt/phe/deployment/scripts/run_daily_pipeline.py"
+    )
+
+    assert preflight in service
+    assert service.index(preflight) < service.index(pipeline)
 
 
 def _registry(database, definition_id, version, checksum):

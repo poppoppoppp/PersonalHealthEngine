@@ -19,6 +19,9 @@ EnvironmentFile=/etc/phe/runtime.env
 
 Environment=PYTHONUNBUFFERED=1
 
+# Repair only transport-level path/EOL drift whose bytes still match the sealed registry.
+ExecStartPre=/opt/phe/.venv/bin/python /opt/phe/deployment/scripts/prepare_definition_files.py --code-root /opt/phe --data-root /srv/phe
+
 # Stage 1:
 # Xiaomi -> L1 -> L2 -> L3 -> L4 -> L5
 ExecStart=/opt/phe/.venv/bin/python /opt/phe/deployment/scripts/run_daily_pipeline.py
