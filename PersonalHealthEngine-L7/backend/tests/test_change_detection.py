@@ -102,12 +102,36 @@ def test_failed_degraded_reasoning_recovery_keeps_current_projection(env, l6_wri
     result = env["orch"].evaluate("owner", "manual_refresh")
 
     assert attempts == 1
+    assert result.model_calls == 1
     assert result.today_payload["version_id"] == degraded.today_payload["version_id"]
     assert DEGRADED_REASONING in result.today_payload["cause"]["text"]
     count = env["l7"].execute(
         "SELECT COUNT(*) AS n FROM today_versions WHERE user_id='owner'"
     ).fetchone()["n"]
     assert count == 1
+
+
+def test_invalid_cached_recovery_output_is_retried(env, l6_write, monkeypatch):
+    from l7.engine import model_cache
+
+    set_degraded_reasoning(l6_write)
+    env["orch"].evaluate("owner", "app_open")
+    monkeypatch.setattr(
+        model_cache,
+        "lookup",
+        lambda *_args: {
+            "primary_hypothesis_type": "NOT_ALLOWED",
+            "secondary_hypothesis_type": None,
+            "confidence": "LOW",
+            "reasoning_summary": "无效缓存",
+            "recommended_actions": [],
+        },
+    )
+
+    result = env["orch"].evaluate("owner", "manual_refresh")
+
+    assert env["adapter"].reason_daily_calls == 1
+    assert DEGRADED_REASONING not in result.today_payload["cause"]["text"]
 
 
 def test_hypothesis_changing_recovery_is_rejected(env, l6_write):

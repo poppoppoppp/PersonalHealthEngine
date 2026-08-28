@@ -34,6 +34,7 @@ from l7.upstream.l6_bridge import L6Bridge
 from l7.upstream.l6_bridge import ProductDeepSeekReasoningAdapter
 
 CONFIDENCE_ORDER = ("VERY_LOW", "LOW", "MODERATE", "HIGH")
+DEGRADED_REASONING_SUMMARY = "（推理模型暂不可用，仅保留结构化证据。）"
 
 
 @dataclass
@@ -437,6 +438,26 @@ class EngineOrchestrator:
         if same_judgment:
             prior = json.loads(latest["rendered_json"])
             if prior.get("presentation_contract_version") == 2:
+                if trigger == "manual_refresh" and self._is_degraded_projection(prior):
+                    recovered_dr, recovery_calls = self._retry_degraded_reasoning(dr, bundle)
+                    if recovered_dr is not None:
+                        rendered, render_calls, complete = self._render_product_copy(
+                            recovered_dr, bundle, product_state, analysis_date, facts, None,
+                            False, "推理说明已恢复，健康判断未改变。",
+                        )
+                        if complete:
+                            version_id = self._insert_today_version(
+                                user_id, analysis_date, dr["id"], bhash, product_state,
+                                sig_sha, rendered, False, trigger,
+                            )
+                            return (
+                                self._touch_rendered(rendered, version_id), False,
+                                version_id, recovery_calls + render_calls,
+                            )
+                    return (
+                        self._touch_rendered(prior, latest["id"]), False,
+                        latest["id"], recovery_calls,
+                    )
                 return self._touch_rendered(prior, latest["id"]), False, latest["id"], 0
             rendered, calls, complete = self._render_product_copy(
                 dr, bundle, product_state, analysis_date, facts, prior, False,
@@ -475,10 +496,16 @@ class EngineOrchestrator:
         latest = self.l7.execute(
             "SELECT * FROM today_versions WHERE user_id=? ORDER BY id DESC LIMIT 1", (user_id,)
         ).fetchone()
+        prior = None
+        recover_degraded = False
         if latest is not None and latest["analysis_date"] == analysis_date:
             prior = json.loads(latest["rendered_json"])
             if prior.get("presentation_contract_version") == 2:
-                return self._touch_rendered(prior, latest["id"]), 0, latest["id"]
+                recover_degraded = (
+                    trigger == "manual_refresh" and self._is_degraded_projection(prior)
+                )
+                if not recover_degraded:
+                    return self._touch_rendered(prior, latest["id"]), 0, latest["id"]
 
         dr = readers.read_current_daily_reasoning(l6, analysis_date)
         if dr is None:
@@ -491,6 +518,29 @@ class EngineOrchestrator:
             dr, readers.symptom_context_active(l6, analysis_date),
         )
         sig_sha = judgment_signature(dr, product_state)
+        if recover_degraded:
+            recovered_dr, recovery_calls = self._retry_degraded_reasoning(dr, bundle)
+            if recovered_dr is None:
+                return self._touch_rendered(prior, latest["id"]), recovery_calls, latest["id"]
+            rendered, render_calls, complete = self._render_product_copy(
+                recovered_dr, bundle, product_state, analysis_date, facts, None, False,
+                "推理说明已恢复，健康判断未改变。",
+            )
+            if not complete:
+                return (
+                    self._touch_rendered(prior, latest["id"]),
+                    recovery_calls + render_calls,
+                    latest["id"],
+                )
+            version_id = self._insert_today_version(
+                user_id, analysis_date, dr["id"], stored["bundle_sha256"] if stored else "",
+                product_state, sig_sha, rendered, False, trigger,
+            )
+            return (
+                self._touch_rendered(rendered, version_id),
+                recovery_calls + render_calls,
+                version_id,
+            )
         presentation_repair = latest is not None and latest["analysis_date"] == analysis_date
         source = json.loads(latest["rendered_json"]) if presentation_repair else None
         change_note = (
@@ -508,6 +558,82 @@ class EngineOrchestrator:
             product_state, sig_sha, rendered, False, trigger,
         )
         return self._touch_rendered(rendered, version_id), calls, version_id
+
+    @staticmethod
+    def _is_degraded_projection(payload: dict) -> bool:
+        return str((payload.get("cause") or {}).get("text") or "").strip() == (
+            DEGRADED_REASONING_SUMMARY
+        )
+
+    def _retry_degraded_reasoning(self, dr: dict, bundle: dict) -> tuple[dict | None, int]:
+        """Recover display copy only; sealed L6 evidence and judgment remain unchanged."""
+        from l7.upstream.l6_bridge import _is_chinese_product_text
+
+        core = self.bridge.core
+        ranked = core.generate_candidates(bundle)
+        for candidate in ranked:
+            support = len(candidate.get("supporting", []))
+            candidate["confidence"] = core.base_confidence(
+                support,
+                0,
+                bundle.get("overall_state") == "INSUFFICIENT_EVIDENCE",
+                bool(bundle.get("recent_context")),
+            )
+            candidate["origin"] = "CANDIDATE"
+
+        request_payload = {
+            "bundle": bundle,
+            "candidates": [candidate["hypothesis_type"] for candidate in ranked],
+            "adapter_contract_version": getattr(
+                self.reasoning_adapter, "contract_version", "l6-v0.1",
+            ),
+        }
+        request_hash = core.sha256_text(core.canonical_json(request_payload))
+        allowed = [candidate["hypothesis_type"] for candidate in ranked] + ["UNKNOWN"]
+
+        def acceptable(payload: dict | None) -> bool:
+            ok, _ = core.validate_daily_output(payload, allowed, dr["confidence"])
+            if not ok:
+                return False
+            if (
+                payload.get("primary_hypothesis_type") != dr["primary_hypothesis_type"]
+                or payload.get("secondary_hypothesis_type")
+                != dr["secondary_hypothesis_type"]
+            ):
+                return False
+            summary = payload.get("reasoning_summary")
+            actions = payload.get("recommended_actions")
+            return (
+                isinstance(summary, str)
+                and _is_chinese_product_text(summary)
+                and isinstance(actions, list)
+                and all(
+                    isinstance(action, str) and _is_chinese_product_text(action)
+                    for action in actions
+                )
+            )
+
+        output = model_cache.lookup(self.l7, request_hash, "REASONING")
+        calls = 0
+        if not acceptable(output):
+            calls = 1
+            try:
+                output = self.reasoning_adapter.reason_daily(bundle, ranked)
+            except Exception:
+                return None, calls
+            if not acceptable(output):
+                return None, calls
+            model_cache.store(
+                self.l7, request_hash, "REASONING", self.reasoning_adapter.model_id, output,
+            )
+            self.l7.commit()
+
+        summary = output.get("reasoning_summary")
+        actions = output.get("recommended_actions")
+        recovered = dict(dr)
+        recovered["reasoning_summary"] = summary
+        recovered["recommended_actions_json"] = json.dumps(actions[:3], ensure_ascii=False)
+        return recovered, calls
 
     def _exact_evidence(self, l6, l5, l4, l3, stored, analysis_date):
         if stored is None:
