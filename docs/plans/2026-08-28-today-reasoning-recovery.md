@@ -157,4 +157,3 @@ ID, model-call count, and update time. Expected:
 **Step 4: Verify production boundaries**
 
 Confirm HTTPS health 200, daily timer active, and public ports 8707/11434 closed.
-

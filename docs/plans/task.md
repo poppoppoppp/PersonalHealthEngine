@@ -65,6 +65,9 @@
 | Correct evidence freshness semantics | Red/green test uses current Shanghai date rather than stale analysis date | Complete |
 | Add fail-closed definition reconciliation preflight | systemd ordering test and deployment suite pass | Complete |
 | Recover and verify 2026-08-27 daily pipeline | L1-L7 PASS, L5 date advances, public Today freshness verified | Complete |
+| Lock degraded Today recovery behavior with red tests | 4 red/green cases cover app-open, successful recovery, outage, and invalid cache/hypothesis rejection | Complete |
+| Implement guarded degraded Today presentation recovery | 11 focused tests pass; manual refresh only, same L6 judgment, append-only L7 version | Complete |
+| Verify, deploy, and accept Today reasoning recovery | Full regression, production symptom, dates, health, and ports | In progress |
 
 Verification snapshot (2026-08-24):
 
