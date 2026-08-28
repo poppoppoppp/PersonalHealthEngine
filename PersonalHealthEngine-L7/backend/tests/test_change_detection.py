@@ -9,6 +9,18 @@ import sqlite3
 from pathlib import Path
 
 
+DEGRADED_REASONING = "（推理模型暂不可用，仅保留结构化证据。）"
+
+
+def set_degraded_reasoning(l6_write):
+    l6_write.execute(
+        "UPDATE daily_reasoning SET reasoning_summary=?,recommended_actions_json='[]' "
+        "WHERE status='CURRENT'",
+        (DEGRADED_REASONING,),
+    )
+    l6_write.commit()
+
+
 def read_l6_current(l6_path, analysis_date):
     con = sqlite3.connect(f"file:{l6_path}?mode=ro", uri=True)
     con.row_factory = sqlite3.Row
@@ -54,6 +66,66 @@ def test_second_evaluation_is_a_no_op(env):
     assert env["adapter"].reason_daily_calls == 0
     assert r1.today_payload["version_id"] == r2.today_payload["version_id"]
     assert r2.today_payload["judgment_updated"] is False
+
+
+def test_manual_refresh_recovers_degraded_reasoning_without_changing_judgment(env, l6_write):
+    set_degraded_reasoning(l6_write)
+
+    degraded = env["orch"].evaluate("owner", "app_open")
+    assert DEGRADED_REASONING in degraded.today_payload["cause"]["text"]
+    assert env["adapter"].reason_daily_calls == 0
+
+    recovered = env["orch"].evaluate("owner", "manual_refresh")
+
+    assert env["adapter"].reason_daily_calls == 1
+    assert DEGRADED_REASONING not in recovered.today_payload["cause"]["text"]
+    assert recovered.today_payload["judgment_updated"] is False
+    assert recovered.today_payload["version_id"] != degraded.today_payload["version_id"]
+    versions = env["l7"].execute(
+        "SELECT l6_daily_reasoning_id FROM today_versions WHERE user_id='owner' ORDER BY id"
+    ).fetchall()
+    assert len(versions) == 2
+    assert versions[0]["l6_daily_reasoning_id"] == versions[1]["l6_daily_reasoning_id"]
+
+
+def test_failed_degraded_reasoning_recovery_keeps_current_projection(env, l6_write):
+    set_degraded_reasoning(l6_write)
+    degraded = env["orch"].evaluate("owner", "app_open")
+    attempts = 0
+
+    def fail_recovery(bundle, candidates):
+        nonlocal attempts
+        attempts += 1
+        raise RuntimeError("temporary model outage")
+
+    env["adapter"].reason_daily = fail_recovery
+    result = env["orch"].evaluate("owner", "manual_refresh")
+
+    assert attempts == 1
+    assert result.today_payload["version_id"] == degraded.today_payload["version_id"]
+    assert DEGRADED_REASONING in result.today_payload["cause"]["text"]
+    count = env["l7"].execute(
+        "SELECT COUNT(*) AS n FROM today_versions WHERE user_id='owner'"
+    ).fetchone()["n"]
+    assert count == 1
+
+
+def test_hypothesis_changing_recovery_is_rejected(env, l6_write):
+    set_degraded_reasoning(l6_write)
+    degraded = env["orch"].evaluate("owner", "app_open")
+    original_reason_daily = env["adapter"].reason_daily
+
+    def change_hypothesis(bundle, candidates):
+        output = original_reason_daily(bundle, candidates)
+        output["primary_hypothesis_type"] = "UNKNOWN"
+        return output
+
+    env["adapter"].reason_daily = change_hypothesis
+    result = env["orch"].evaluate("owner", "manual_refresh")
+
+    assert env["adapter"].reason_daily_calls == 1
+    assert result.today_payload["version_id"] == degraded.today_payload["version_id"]
+    assert DEGRADED_REASONING in result.today_payload["cause"]["text"]
 
 
 def test_irrelevant_context_change_does_not_rewrite_wording(env, l6_write):
