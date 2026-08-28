@@ -67,7 +67,7 @@
 | Recover and verify 2026-08-27 daily pipeline | L1-L7 PASS, L5 date advances, public Today freshness verified | Complete |
 | Lock degraded Today recovery behavior with red tests | 4 red/green cases cover app-open, successful recovery, outage, and invalid cache/hypothesis rejection | Complete |
 | Implement guarded degraded Today presentation recovery | 11 focused tests pass; manual refresh only, same L6 judgment, append-only L7 version | Complete |
-| Verify, deploy, and accept Today reasoning recovery | Full regression, production symptom, dates, health, and ports | In progress |
+| Verify, deploy, and accept Today reasoning recovery | 165 tests; production version 9 recovered with same L6 ID; truthful 2026-08-28 dates; HTTPS/ports PASS | Complete |
 
 Verification snapshot (2026-08-24):
 
@@ -92,3 +92,11 @@ Data freshness recovery snapshot (2026-08-27):
 - Dates: L5 max date, Today analysis date, and Today data-as-of are all `2026-08-27`; Today updated at `18:51` Asia/Shanghai.
 - Freshness: `2026-08-20` evidence is now correctly labeled `7 days old`, calculated against the current Shanghai date.
 - Gates: definition preflight installed; timer enabled/active; HTTPS health 200; public 80/443 open and 8707/11434 closed.
+
+Today reasoning recovery snapshot (2026-08-28):
+
+- Local: backend `165 passed`; focused change detection `11 passed`; diff and credential scans PASS.
+- Production: deployed commit `082346e`; SQLite backup at `/srv/phe/backups/today-reasoning-recovery-20260828-165200` passed integrity check.
+- Recovery: Today version 9 reuses L6 reasoning ID 7, `judgment_updated=false`, fallback text absent, and the recovery run recorded one model call.
+- Freshness: analysis/data-as-of are `2026-08-28`; calories and steps have sufficient same-day evidence. Xiaomi returned no new heart-rate, resting-heart-rate, SpO2, or stress records, so their older dates remain truthful.
+- Performance/gates: five ordinary Today reads took 91.95–129.72 ms without creating an evaluation run; HTTPS health 200; public 443 open and 8707/11434 closed.
