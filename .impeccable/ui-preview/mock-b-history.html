@@ -13,6 +13,10 @@ html,body{width:390px;height:844px;overflow:hidden;}
 .masthead .rule.thin{height:1px;margin-top:2px;}
 .scroll{flex:1;overflow:hidden;padding:0 24px;display:flex;flex-direction:column;}
 .section-label{font-size:12px;font-weight:800;letter-spacing:2px;color:#3E5C76;margin:16px 0 10px;display:flex;align-items:center;gap:8px;}
+.daylist{border:1px solid #E5E1D8;border-radius:12px;background:#FFFFFF;padding:4px 14px;}
+.day{display:flex;justify-content:space-between;font-size:12.5px;padding:8px 0;border-bottom:1px solid #F0EDE6;color:#33373d;}
+.day:last-child{border-bottom:none;}
+.day span:last-child{font-weight:700;}
 .section-label::after{content:"";flex:1;height:1px;background:#d9d5cd;}
 .footer{margin-top:auto;padding:12px 0 16px;font-size:10.5px;color:#a0a4ab;display:flex;justify-content:space-between;border-top:1px solid #d9d5cd;}
 .tabbar{flex:0 0 auto;display:flex;padding:10px 10px 22px;background:#FFFFFF;border-top:1px solid #E5E1D8;}
@@ -85,6 +89,25 @@ html,body{width:390px;height:844px;overflow:hidden;}
 <div class="night"><div class="row1"><b>8月29日 · 7 小时 53 分</b><span>清醒 16 分 · 3.3%</span></div><div class="nbar"><div class="sleep" style="width:96.7%"></div><div class="awake" style="width:3.3%"></div></div></div>
 <div class="night"><div class="row1"><b>8月28日 · 5 小时 48 分</b><span>清醒 25 分 · 6.8%</span></div><div class="nbar"><div class="sleep" style="width:93.2%"></div><div class="awake" style="width:6.8%"></div></div></div>
 <div class="night"><div class="row1"><b>8月27日 · 9 小时 08 分</b><span>无清醒记录</span></div><div class="nbar"><div class="sleep" style="width:100%"></div></div></div>
+
+<div class="section-label">切到「步数」小点时</div>
+<div class="chips"><span class="chip">睡眠</span><span class="chip on">步数</span><span class="chip">心率</span><span class="chip">静息心率</span><span class="chip">血氧</span><span class="chip">压力</span></div>
+<div class="section-label">最近 14 天 步数</div>
+<div class="bars">
+  <div class="b"><i style="height:78%"></i></div><div class="b"><i style="height:64%"></i></div><div class="b"><i style="height:85%"></i></div><div class="b weak"><i style="height:22%"></i></div><div class="b"><i style="height:70%"></i></div><div class="b"><i style="height:58%"></i></div><div class="b"><i style="height:92%"></i></div><div class="b"><i style="height:66%"></i></div><div class="b"><i style="height:74%"></i></div><div class="b weak"><i style="height:18%"></i></div><div class="b"><i style="height:60%"></i></div><div class="b"><i style="height:80%"></i></div><div class="b weak"><i style="height:12%"></i></div><div class="b weak"><i style="height:10%"></i></div>
+</div>
+<div class="lbl"><span>8/16</span><span></span><span></span><span></span><span></span><span></span><span>8/22</span><span></span><span></span><span></span><span></span><span></span><span></span><span>8/29</span></div>
+<div class="baseline-note"><span>┄ 你的通常水平 6,900 步</span><span>今天 868 步（还没走完）</span></div>
+<div class="section-label">每日数值</div>
+<div class="daylist">
+  <div class="day"><span>8月29日</span><span>868 步 · 进行中</span></div>
+  <div class="day"><span>8月28日</span><span>4,820 步</span></div>
+  <div class="day"><span>8月27日</span><span>3,150 步</span></div>
+  <div class="day"><span>8月26日</span><span>7,420 步</span></div>
+  <div class="day"><span>8月25日</span><span>6,980 步</span></div>
+  <div class="day"><span>8月24日</span><span>8,110 步</span></div>
+</div>
+<div class="section-label">睡眠结构 · 清醒占比</div>
 <div class="section-label">身体变化记录</div>
 <div class="index-row"><span class="d">8月29日</span><span class="t">睡眠不足</span><span class="st open">进行中</span></div>
 <div class="index-row"><span class="d">8月28日</span><span class="t">原因还不明确</span><span class="st closed">已结束</span></div>

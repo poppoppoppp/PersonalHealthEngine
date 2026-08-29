@@ -373,3 +373,21 @@ def test_scheduled_model_gate_matrix():
     assert scheduled_model_worthy("2026-08-29", "2026-08-29", noon, True, False) is False
     assert scheduled_model_worthy("2026-08-29", "2026-08-29", outside_before, True, False) is False
     assert scheduled_model_worthy("2026-08-29", "2026-08-29", outside_after, True, False) is False
+
+
+def test_reference_ranges_and_safety_floors():
+    from l7.rendering.reference_ranges import reference_for, safety_breach
+
+    # 展示参考带：有临床标准的指标才有
+    assert reference_for("resting_heart_rate") == {"low": 60, "high": 100}
+    assert reference_for("spo2") == {"low": 95, "high": 100}
+    assert reference_for("steps") is None, "生活方式指标没有临床标准，不给参考带"
+
+    # 安全底座：与个人基线无关的硬阈值
+    assert safety_breach("spo2", 97.8) is None
+    assert safety_breach("spo2", 88.0) == "low"
+    assert safety_breach("resting_heart_rate", 64.0) is None
+    assert safety_breach("resting_heart_rate", 130.0) == "high"
+    assert safety_breach("resting_heart_rate", 35.0) == "low"
+    assert safety_breach("heart_rate", 150.0) == "high"
+    assert safety_breach("steps", 100000) is None

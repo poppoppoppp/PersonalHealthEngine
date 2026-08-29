@@ -11,6 +11,7 @@ import sqlite3
 from datetime import date
 from typing import Any
 
+from l7.rendering.reference_ranges import SAFETY_FEATURES, reference_for, safety_breach
 from l7.rendering.labels import (
     baseline_maturity_label,
     deviation_direction_label,
@@ -109,6 +110,7 @@ def health_metric_overviews(
                 "key": key,
                 "label": label,
                 "feature_name": None,
+                "reference": None,
                 "value_display": "暂无数据",
                 "data_date": None,
                 "freshness_days": None,
@@ -135,6 +137,7 @@ def health_metric_overviews(
                 "key": key,
                 "label": label,
                 "feature_name": feature_name,
+                "reference": reference_for(key),
                 "value_display": "暂无数据",
                 "data_date": None,
                 "freshness_days": None,
@@ -176,6 +179,7 @@ def health_metric_overviews(
             "key": key,
             "label": label,
             "feature_name": feature_name,
+            "reference": reference_for(key),
             "value_display": format_health_value(
                 feature_name, latest["value_num"], latest["unit"],
             ),
@@ -619,3 +623,29 @@ def exact_feature_series(
         (feature_name, source_sid, limit),
     ).fetchall()
     return [dict(r) for r in rows]
+
+
+def safety_floor_breaches(l3: sqlite3.Connection) -> list[dict]:
+    """安全底座：检查带硬危险阈值指标的最新 CURRENT 值（与个人基线无关）。
+
+    返回越界列表（空 = 安全），用于把今日状态升级为「健康安全关注」。"""
+    breaches: list[dict] = []
+    for feature_name, metric in SAFETY_FEATURES.items():
+        row = l3.execute(
+            "SELECT value_num, local_date FROM derived_features"
+            " WHERE feature_name=? AND status='CURRENT' AND value_num IS NOT NULL"
+            " ORDER BY local_date DESC, id DESC LIMIT 1",
+            (feature_name,),
+        ).fetchone()
+        if row is None:
+            continue
+        direction = safety_breach(metric, row["value_num"])
+        if direction:
+            breaches.append({
+                "metric": metric,
+                "feature_name": feature_name,
+                "value": row["value_num"],
+                "local_date": row["local_date"],
+                "direction": direction,
+            })
+    return breaches

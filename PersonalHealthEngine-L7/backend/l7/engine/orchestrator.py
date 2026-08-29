@@ -524,6 +524,10 @@ class EngineOrchestrator:
             l6.close()
 
         product_state = map_product_state(dr, symptom_active)
+        # 安全底座：个别指标越过硬危险阈值时，无论个人基线如何都升级为「健康安全关注」。
+        breaches = readers.safety_floor_breaches(l3)
+        if breaches and product_state not in ("D", "E"):
+            product_state = "E"
         sig_sha = judgment_signature(dr, product_state)
         latest = self.l7.execute(
             "SELECT * FROM today_versions WHERE user_id=? ORDER BY id DESC LIMIT 1", (user_id,)
@@ -615,6 +619,9 @@ class EngineOrchestrator:
         product_state = map_product_state(
             dr, readers.symptom_context_active(l6, analysis_date),
         )
+        breaches = readers.safety_floor_breaches(l3)
+        if breaches and product_state not in ("D", "E"):
+            product_state = "E"
         sig_sha = judgment_signature(dr, product_state)
         if recover_degraded:
             recovered_dr, recovery_calls = self._retry_degraded_reasoning(dr, bundle)

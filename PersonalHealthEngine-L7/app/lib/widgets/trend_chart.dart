@@ -8,7 +8,17 @@ class TrendChart extends StatelessWidget {
   final List<(String, double?)> points;
   final double? baselineMedian;
 
-  const TrendChart({super.key, required this.points, this.baselineMedian});
+  /// 科学参考带（一般成人常见范围）：low/high 为指标自然单位，仅作展示坐标。
+  final double? referenceLow;
+  final double? referenceHigh;
+
+  const TrendChart({
+    super.key,
+    required this.points,
+    this.baselineMedian,
+    this.referenceLow,
+    this.referenceHigh,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -22,8 +32,15 @@ class TrendChart extends StatelessWidget {
 class _TrendPainter extends CustomPainter {
   final List<(String, double?)> points;
   final double? baselineMedian;
+  final double? referenceLow;
+  final double? referenceHigh;
 
-  _TrendPainter({required this.points, this.baselineMedian});
+  _TrendPainter({
+    required this.points,
+    this.baselineMedian,
+    this.referenceLow,
+    this.referenceHigh,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -50,6 +67,12 @@ class _TrendPainter extends CustomPainter {
       lo = lo < baselineMedian! ? lo : baselineMedian!;
       hi = hi > baselineMedian! ? hi : baselineMedian!;
     }
+    if (referenceLow != null) {
+      lo = lo < referenceLow! ? lo : referenceLow!;
+    }
+    if (referenceHigh != null) {
+      hi = hi > referenceHigh! ? hi : referenceHigh!;
+    }
     if (hi - lo < 1e-9) {
       hi = lo + 1;
     }
@@ -59,6 +82,16 @@ class _TrendPainter extends CustomPainter {
 
     double yOf(double v) =>
         size.height - 14 - (v - lo) / (hi - lo) * (size.height - 24);
+
+    if (referenceLow != null && referenceHigh != null) {
+      final bandTop = yOf(referenceHigh!);
+      final bandBottom = yOf(referenceLow!);
+      final band = Paint()..color = const Color(0x148A6A4F);
+      canvas.drawRect(
+        Rect.fromLTRB(0, bandTop, size.width, bandBottom),
+        band,
+      );
+    }
 
     if (baselineMedian != null) {
       final ref = Paint()
@@ -123,5 +156,7 @@ class _TrendPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _TrendPainter oldDelegate) =>
       oldDelegate.points != points ||
-      oldDelegate.baselineMedian != baselineMedian;
+      oldDelegate.baselineMedian != baselineMedian ||
+      oldDelegate.referenceLow != referenceLow ||
+      oldDelegate.referenceHigh != referenceHigh;
 }

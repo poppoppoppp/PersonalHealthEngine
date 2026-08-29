@@ -715,10 +715,20 @@ void main() {
   testWidgets('History timeline and Patterns use backend display labels', (
     tester,
   ) async {
-    final env = AppEnv(baseUrl: 'http://localhost:0', token: 't');
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final env = AppEnv(baseUrl: 'http://localhost:0', token: 't', preferences: prefs);
     env.client = ProductConformanceClient(todayBase());
     await tester.pumpWidget(MaterialApp(home: HistoryScreen(env: env)));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    // The redesigned history screen is taller; bring the older episode card on-screen.
+    for (var i = 0; i < 8; i++) {
+      await tester.drag(find.byType(ListView).first, const Offset(0, -260));
+      await tester.pump(const Duration(milliseconds: 200));
+      if (find.textContaining('恢复压力：').evaluate().isNotEmpty) break;
+    }
+    await tester.pump(const Duration(milliseconds: 200));
     await tester.tap(find.textContaining('恢复压力：'));
     await tester.pumpAndSettle();
     expect(find.textContaining('健康判断'), findsOneWidget);

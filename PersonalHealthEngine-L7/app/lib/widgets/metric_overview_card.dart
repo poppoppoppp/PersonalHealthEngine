@@ -90,6 +90,10 @@ class MetricOverviewCard extends StatelessWidget {
                   points: points,
                   baselineMedian:
                       (metric['baseline_median'] as num?)?.toDouble(),
+                  referenceLow:
+                      (metric['reference']?['low'] as num?)?.toDouble(),
+                  referenceHigh:
+                      (metric['reference']?['high'] as num?)?.toDouble(),
                 ),
               ),
               const SizedBox(height: 8),
@@ -109,6 +113,46 @@ class MetricOverviewCard extends StatelessWidget {
                       ),
                     ),
                 ],
+              ),
+            ],
+            if (points.isNotEmpty && false) ...[
+              const SizedBox(height: 14),
+              const Text(
+                '每日数值',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: const Color(0xFFE5E1D8)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: Column(
+                  children: [
+                    for (final entry in _recentDays(points))
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              _md(entry.$1),
+                              style: const TextStyle(
+                                  fontSize: 12.5, color: Colors.black87),
+                            ),
+                            Text(
+                              _fmtValue(entry.$2, '${metric['unit'] ?? ''}'),
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ],
             if (status == 'STALE') ...[
@@ -160,6 +204,44 @@ class MetricOverviewCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// 最近 10 天（新→旧）：日期 + 数值。
+  List<(String, double)> _recentDays(List<(String, double?)> points) {
+    final rows = <(String, double)>[];
+    for (final p in points.reversed) {
+      final v = p.$2;
+      if (v == null) continue;
+      rows.add((p.$1, v));
+      if (rows.length >= 10) break;
+    }
+    return rows.reversed.toList();
+  }
+
+  String _fmtValue(double? v, String unit) {
+    if (v == null) return '暂无';
+    switch (unit) {
+      case 'seconds':
+        final m = (v / 60).round();
+        final h = m ~/ 60;
+        return h > 0 ? '$h 小时 ${m % 60} 分钟' : '$m 分钟';
+      case 'steps':
+        return '${v.round()} 步';
+      case 'bpm':
+        return '${v.toStringAsFixed(1)} 次/分';
+      case 'percent':
+        return '${v.toStringAsFixed(1)}%';
+      case 'ratio':
+        return '${(v * 100).toStringAsFixed(1)}%';
+      case 'vendor_calories':
+        return '${v.round()}（设备记录）';
+      case 'vendor_score':
+        return '${v.toStringAsFixed(1)}';
+      case 'count':
+        return '${v.round()} 个';
+      default:
+        return v.toStringAsFixed(2);
+    }
   }
 
   String _md(String isoDate) {
