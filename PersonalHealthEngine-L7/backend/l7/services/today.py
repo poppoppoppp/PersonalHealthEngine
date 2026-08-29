@@ -142,7 +142,8 @@ class TodayService:
                 baseline = dict(fact["baseline"])
                 metrics.append({
                     **{k: fact[k] for k in (
-                        "metric", "feature_name", "feature_label", "feature_date", "freshness_days",
+                        "metric", "feature_name", "feature_label", "display_label",
+                        "feature_date", "freshness_days",
                         "freshness_label", "deviation_class", "deviation_label",
                         "baseline_maturity", "baseline_maturity_label", "evidence_status",
                         "evidence_status_label", "current_value", "baseline_median", "unit",

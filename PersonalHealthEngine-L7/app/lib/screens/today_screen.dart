@@ -508,6 +508,10 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   String _evidenceLabel(Map<String, dynamic> fact) {
+    // Backend supplies a display label: the metric name for primary features and the
+    // specific sub-feature name for secondaries (e.g. 睡眠中清醒时长).
+    final display = '${fact['display_label'] ?? ''}'.trim();
+    if (display.isNotEmpty) return display;
     final metric = '${fact['metric'] ?? ''}';
     final feature = '${fact['feature_name'] ?? ''}';
     if (metric == 'steps' || feature.startsWith('steps.')) return '步数';

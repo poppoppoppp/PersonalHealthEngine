@@ -171,8 +171,8 @@ def render_today_payload(
 
     product_evidence = [
         {k: fact[k] for k in (
-            "feature_name", "feature_label", "feature_date", "freshness_days",
-            "freshness_label", "deviation_class", "deviation_label",
+            "feature_name", "feature_label", "display_label", "feature_date",
+            "freshness_days", "freshness_label", "deviation_class", "deviation_label",
             "baseline_maturity_label", "evidence_status_label", "current_value_display",
             "baseline_value_display", "l5_deviation_id", "l3_feature_id", "l4_baseline_id",
             "text",
@@ -183,7 +183,7 @@ def render_today_payload(
         "schema": "l7.today/v1",
         # v3 (2026-08-29): evidence facts are the canonical per-metric features only —
         # diagnostic sub-features and same-value duplicates never ship to the client.
-        "presentation_contract_version": 3,
+        "presentation_contract_version": 4,
         "product_state": product_state,
         "product_state_label": STATE_LABELS[product_state],
         "headline": STATE_HEADLINES[product_state],

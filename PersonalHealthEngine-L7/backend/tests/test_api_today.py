@@ -79,26 +79,65 @@ def test_evidence_detail_exposes_only_deviating_metrics(client):
 
 
 def test_today_evidence_contains_only_primary_features(client):
-    """Regression 2026-08-29: sleep sub-features (segment count, awake duration, stage
-    duplicates) surfaced on the home screen as separate '睡眠' entries with meaningless
-    values, and the count disagreed with the evidence page. User-facing evidence facts
-    must be the canonical per-metric features only."""
-    from l7.upstream.readers import PRIMARY_FEATURE_NAMES
+    """Regression 2026-08-29: sleep sub-features (segment count, stage duplicates)
+    surfaced on the home screen as separate '睡眠' entries with meaningless values.
+    User-facing evidence facts must be canonical per-metric features, plus the one
+    meaningful secondary (awake duration), with primaries leading."""
+    from l7.upstream.readers import PRIMARY_FEATURE_NAMES, SECONDARY_FEATURE_NAMES
 
     today = client.get("/today", headers=AUTH).json()
     assert today["evidence"], "fixture bundle must carry at least one primary deviation"
     for fact in today["evidence"]:
-        assert fact["feature_name"] in PRIMARY_FEATURE_NAMES, (
-            f"non-primary feature surfaced as evidence: {fact['feature_name']}"
+        assert fact["feature_name"] in PRIMARY_FEATURE_NAMES | SECONDARY_FEATURE_NAMES, (
+            f"non-user-facing feature surfaced as evidence: {fact['feature_name']}"
         )
+        assert fact["display_label"], "every fact needs a display label"
     names = [fact["feature_name"] for fact in today["evidence"]]
     assert len(names) == len(set(names)), "no duplicate values for the same metric"
+    primary_positions = [
+        i for i, fact in enumerate(today["evidence"])
+        if fact["feature_name"] in PRIMARY_FEATURE_NAMES
+    ]
+    secondary_positions = [
+        i for i, fact in enumerate(today["evidence"])
+        if fact["feature_name"] in SECONDARY_FEATURE_NAMES
+    ]
+    assert not primary_positions or not secondary_positions or (
+        max(primary_positions) < min(secondary_positions)
+    ), "primaries must lead, secondaries follow"
 
     detail = client.get("/evidence/today", headers=AUTH).json()
     used = [m for m in detail["all_metrics"] if m["used_in_judgment"]]
-    assert len(today["evidence"]) == len(used), (
-        "home evidence count must match the evidence page's 本次使用 count"
+    primary_facts = [
+        fact for fact in today["evidence"]
+        if fact["feature_name"] in PRIMARY_FEATURE_NAMES
+    ]
+    assert len(primary_facts) == len(used), (
+        "primary evidence count must match the evidence page's 本次使用 count"
     )
+
+
+def test_refresh_returns_current_copy_while_a_job_is_in_flight(client):
+    """Pull-to-refresh must not spin for minutes behind the worker's re-evaluation
+    after a context correction: with a job queued, refresh returns the current copy
+    immediately instead of starting a duplicate model evaluation."""
+    r = client.post(
+        "/context",
+        json={"text": "今晚早点睡"},
+        headers={**AUTH, "Idempotency-Key": "refresh-fast-path-test"},
+    )
+    assert r.status_code == 202
+    import time
+
+    started = time.monotonic()
+    refresh = client.post("/today/refresh", headers=AUTH)
+    elapsed = time.monotonic() - started
+    assert refresh.status_code == 200
+    body = refresh.json()
+    assert body["outcome"] == "JOB_IN_PROGRESS"
+    assert body["model_calls"] == 0
+    assert body["today"]["schema"] == "l7.today/v1"
+    assert elapsed < 10, "fast path must not wait on the worker's evaluation"
 
 
 def test_evidence_detail_includes_eight_readable_metric_overviews(client):
