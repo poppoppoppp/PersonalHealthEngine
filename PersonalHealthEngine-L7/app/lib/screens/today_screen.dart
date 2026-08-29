@@ -6,18 +6,29 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../api_client.dart';
+import '../design.dart';
 import '../main.dart';
 import '../widgets/api_error_view.dart';
+import '../widgets/masthead.dart';
 import 'context_screen.dart';
 import 'evidence_screen.dart';
 import 'qa_screen.dart';
 
+// 编辑式状态色：E 用印章红，C 用暖琥珀，其余墨灰系（不使用红黄绿灯的饱和色）。
 const Map<String, Color> _stateColors = {
-  'A': Color(0xFF4A6B57),
-  'B': Color(0xFF5B6B7A),
-  'C': Color(0xFF4F5D9E),
-  'D': Color(0xFF7A7466),
-  'E': Color(0xFF9E3B3B),
+  'A': Color(0xFF2F6E5D),
+  'B': Color(0xFF5C6066),
+  'C': Color(0xFFB66A00),
+  'D': Color(0xFF8A8E96),
+  'E': Color(0xFFC0492E),
+};
+
+const Map<String, Color> _stateTints = {
+  'A': Color(0xFFE3EEE7),
+  'B': Color(0xFFECECE6),
+  'C': Color(0xFFF6ECDD),
+  'D': Color(0xFFEFEFEA),
+  'E': Color(0xFFF4E3E0),
 };
 
 class TodayScreen extends StatefulWidget {
@@ -125,59 +136,56 @@ class _TodayScreenState extends State<TodayScreen> {
   Widget build(BuildContext context) {
     final p = today;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('今日'),
-        centerTitle: false,
-        actions: [
-          if (p != null)
-            Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: Center(
-                child: Text(
-                  '更新于 ${p.updatedAtLocal}',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: Colors.black54),
-                ),
+      body: SafeArea(
+        bottom: false,
+        child: RefreshIndicator(
+          onRefresh: _refresh,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(0, 0, 0, 24),
+            children: [
+              Masthead(
+                brand: 'PHE 晨报',
+                title: '今日',
+                trailing: p == null ? null : '更新于 ${p.updatedAtLocal}',
               ),
-            ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _refresh,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-          children: [
-            if (fromCache && loading)
-              const Padding(
-                padding: EdgeInsets.only(bottom: 8),
-                child: Row(
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                child: Column(
                   children: [
-                    SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                    SizedBox(width: 8),
-                    Text(
-                      '正在检查最新证据…',
-                      style: TextStyle(color: Colors.black54, fontSize: 12),
-                    ),
+                    if (fromCache && loading)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              '正在检查最新证据…',
+                              style: TextStyle(color: Colors.black54, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (error != null && p == null) _errorCard(context),
+                    if (error != null && p != null) ...[
+                      ApiErrorView(error: error!, onRetry: _refresh),
+                      const SizedBox(height: 8),
+                    ],
+                    if (p != null) ..._todayBody(context, p),
+                    if (p == null && error == null && loading)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 80),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
                   ],
                 ),
               ),
-            if (error != null && p == null) _errorCard(context),
-            if (error != null && p != null) ...[
-              ApiErrorView(error: error!, onRetry: _refresh),
-              const SizedBox(height: 8),
             ],
-            if (p != null) ..._todayBody(context, p),
-            if (p == null && error == null && loading)
-              const Padding(
-                padding: EdgeInsets.only(top: 80),
-                child: Center(child: CircularProgressIndicator()),
-              ),
-          ],
+          ),
         ),
       ),
     );
@@ -203,83 +211,83 @@ class _TodayScreenState extends State<TodayScreen> {
     return [
       if (p.judgmentUpdated)
         Container(
-          margin: const EdgeInsets.only(bottom: 8),
+          margin: const EdgeInsets.only(bottom: 10),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.08),
+            color: Ed.sealTint,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Row(
             children: [
-              Icon(Icons.published_with_changes, size: 16, color: color),
+              const Icon(Icons.published_with_changes, size: 16, color: Ed.seal),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   p.changeNote ?? '判断已更新',
-                  style: TextStyle(fontSize: 13, color: color),
+                  style: const TextStyle(fontSize: 13, color: Ed.seal),
                 ),
               ),
               TextButton(
                 onPressed: () => _showVersionHistory(context),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: Size.zero,
+                  textStyle: const TextStyle(fontSize: 12),
+                ),
                 child: const Text('查看变化来源'),
               ),
             ],
           ),
         ),
-      // Conclusion-first header card.
+      // Conclusion-first header card: 大标题即结论，报头式排版。
       Container(
-        padding: const EdgeInsets.all(20),
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.25)),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Ed.hairline),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    p.productStateLabel,
-                    style: TextStyle(
-                      color: color,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                    ),
-                  ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: _stateTints[p.productState] ?? Ed.dataTint,
+                borderRadius: BorderRadius.circular(99),
+              ),
+              child: Text(
+                p.productStateLabel,
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                  letterSpacing: 1,
                 ),
-                const Spacer(),
-                Text(
-                  '置信度：${p.confidenceLabel}',
-                  style: const TextStyle(fontSize: 12, color: Colors.black45),
-                ),
-              ],
+              ),
             ),
             const SizedBox(height: 14),
             Text(
               p.headline,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+              style: const TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w900,
+                height: 1.35,
+                color: Ed.ink,
+              ),
             ),
             if (p.dataAsOf != null) ...[
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Text(
-                '基于截至 ${p.dataAsOf} 的全部已知信息',
-                style: const TextStyle(fontSize: 12, color: Colors.black45),
+                '更新于 ${p.updatedAtLocal} · 判断依据截至 ${p.dataAsOf}',
+                style: const TextStyle(fontSize: 11.5, color: Ed.inkFaint),
               ),
             ],
           ],
         ),
       ),
-      const SizedBox(height: 12),
+      const SizedBox(height: 4),
       ...ordered,
       const SizedBox(height: 12),
       _evidenceBlock(context, p),
@@ -293,37 +301,34 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   Widget _causeBlock(BuildContext context, TodayPayload p) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '最可能原因',
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.black54,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              p.causeText.isEmpty ? '（暂无）' : p.causeText,
-              style: const TextStyle(fontSize: 15, height: 1.5),
-            ),
-            if (p.secondaryCause != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  '次要可能：${p.secondaryCause!['hypothesis_label'] ?? '暂无法确定原因'}',
-                  style: const TextStyle(fontSize: 12, color: Colors.black45),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionLabel('最可能原因'),
+        Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  p.causeText.isEmpty ? '（暂无）' : p.causeText,
+                  style: const TextStyle(fontSize: 14.5, height: 1.75, color: Ed.ink),
                 ),
-              ),
-          ],
+                if (p.secondaryCause != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      '次要可能：${p.secondaryCause!['hypothesis_label'] ?? '还不明确'}',
+                      style: const TextStyle(fontSize: 12, color: Ed.inkSoft),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 
@@ -331,43 +336,49 @@ class _TodayScreenState extends State<TodayScreen> {
     if (p.actions.isEmpty) {
       return const SizedBox.shrink(); // stable day: 0 actions is allowed (§15)
     }
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '今日行动',
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.black54,
-                fontWeight: FontWeight.w600,
-              ),
+    const numerals = ['一', '二', '三'];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionLabel('今日行动'),
+        Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var i = 0; i < p.actions.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 5),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          width: 24,
+                          child: Text(
+                            numerals[i],
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                              color: Ed.seal,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            p.actions[i],
+                            style: const TextStyle(height: 1.6, color: Ed.ink),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
             ),
-            const SizedBox(height: 8),
-            for (final a in p.actions)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(
-                      Icons.check_circle_outline,
-                      size: 18,
-                      color: Colors.black45,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(a, style: const TextStyle(height: 1.4)),
-                    ),
-                  ],
-                ),
-              ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 
@@ -407,11 +418,12 @@ class _TodayScreenState extends State<TodayScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Text(
+                  const Text(
                     '全部指标',
                     style: TextStyle(
                       fontSize: 12.5,
-                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.w700,
+                      color: Ed.ink,
                     ),
                   ),
                   const Icon(Icons.chevron_right, size: 18),
@@ -434,15 +446,13 @@ class _TodayScreenState extends State<TodayScreen> {
                           width: 34,
                           height: 34,
                           decoration: BoxDecoration(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.primary.withValues(alpha: 0.08),
+                            color: Ed.dataTint,
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Icon(
                             _evidenceIcon(fact),
                             size: 18,
-                            color: Theme.of(context).colorScheme.primary,
+                            color: Ed.data,
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -484,12 +494,10 @@ class _TodayScreenState extends State<TodayScreen> {
                                   ),
                                   Text(
                                     '${fact['deviation_label'] ?? '用于本次判断'}',
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       fontSize: 11.5,
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.primary,
-                                      fontWeight: FontWeight.w600,
+                                      color: Ed.data,
+                                      fontWeight: FontWeight.w700,
                                     ),
                                   ),
                                 ],

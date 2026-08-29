@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PHE 配色方向 · 效果图对比</title>
+<style>
+  :root{
+    --frame-w: 300px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{
+    font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;
+    background:#1c2128;color:#e8eaf0;padding:28px 24px 48px;
+  }
+  h1{font-size:20px;font-weight:700;margin-bottom:6px;}
+  .sub{font-size:13px;color:#9aa3b2;margin-bottom:24px;line-height:1.6;}
+  .sub b{color:#cfd6e4;}
+  .row{display:flex;gap:22px;overflow-x:auto;padding:8px 4px 28px;}
+  .option{flex:0 0 auto;width:var(--frame-w);}
+  .label{margin-bottom:10px;min-height:66px;}
+  .label .name{font-size:15px;font-weight:700;}
+  .label .desc{font-size:12px;color:#9aa3b2;line-height:1.55;margin-top:4px;}
+  .badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:99px;margin-left:6px;vertical-align:2px;}
+  .badge.now{background:#3a4250;color:#aeb8c9;}
+  .badge.rec{background:#2e4a3d;color:#8fd4b8;}
+
+  /* ===== 手机框 ===== */
+  .phone{
+    width:var(--frame-w);height:640px;border-radius:34px;overflow:hidden;
+    box-shadow:0 12px 40px rgba(0,0,0,.45), 0 0 0 8px #0d0f13;
+    display:flex;flex-direction:column;position:relative;
+  }
+  .statusbar{height:34px;display:flex;justify-content:space-between;align-items:center;
+    padding:0 20px;font-size:11px;font-weight:600;flex:0 0 auto;}
+  .appbar{padding:10px 18px 12px;display:flex;justify-content:space-between;align-items:baseline;flex:0 0 auto;}
+  .appbar .title{font-size:21px;font-weight:800;letter-spacing:.5px;}
+  .appbar .updated{font-size:10.5px;opacity:.62;}
+  .scroll{flex:1;overflow:hidden;padding:0 14px;display:flex;flex-direction:column;gap:10px;}
+
+  .card{border-radius:18px;padding:15px 16px;}
+  /* hero */
+  .hero .state{font-size:10.5px;font-weight:700;letter-spacing:1px;padding:3px 9px;border-radius:99px;display:inline-block;margin-bottom:9px;}
+  .hero .headline{font-size:17px;font-weight:800;line-height:1.45;margin-bottom:10px;}
+  .hero .cause{font-size:12px;line-height:1.7;opacity:.88;}
+  .hero .actions{margin-top:11px;display:flex;flex-direction:column;gap:7px;}
+  .hero .action{display:flex;gap:8px;font-size:11.5px;line-height:1.55;align-items:flex-start;}
+  .hero .action .tick{flex:0 0 auto;width:14px;height:14px;border-radius:50%;margin-top:2px;position:relative;}
+  .hero .action .tick::after{content:"";position:absolute;left:4px;top:2.5px;width:4px;height:7px;
+    border-right:1.6px solid currentColor;border-bottom:1.6px solid currentColor;transform:rotate(40deg);}
+  .hero .divider{height:1px;margin:12px 0 10px;}
+  .hero .evidence{font-size:10.5px;opacity:.6;display:flex;align-items:center;gap:5px;}
+  /* 证据行 */
+  .evi{display:flex;gap:10px;align-items:center;padding:13px 15px;}
+  .evi .ic{width:36px;height:36px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .evi .ic svg{width:18px;height:18px;}
+  .evi .mid{flex:1;min-width:0;}
+  .evi .name{font-size:13px;font-weight:700;}
+  .evi .meta{font-size:10.5px;opacity:.6;margin-top:2px;}
+  .evi .val{font-size:14px;font-weight:800;text-align:right;}
+  .evi .dev{font-size:10px;text-align:right;margin-top:2px;font-weight:600;}
+  /* 双列小卡 */
+  .duo{display:flex;gap:10px;}
+  .duo .mini{flex:1;border-radius:16px;padding:12px 13px;}
+  .duo .k{font-size:10px;opacity:.6;}
+  .duo .v{font-size:15px;font-weight:800;margin-top:3px;}
+  .duo .s{font-size:9.5px;opacity:.55;margin-top:2px;}
+  /* 快捷按钮 */
+  .quick{display:flex;gap:10px;}
+  .qbtn{flex:1;border-radius:14px;padding:11px 0;text-align:center;font-size:12.5px;font-weight:700;}
+  /* 底栏 */
+  .tabbar{flex:0 0 auto;display:flex;padding:8px 8px 16px;}
+  .tab{flex:1;text-align:center;font-size:9.5px;opacity:.55;padding-top:3px;}
+  .tab svg{width:19px;height:19px;display:block;margin:0 auto 3px;}
+  .tab.on{opacity:1;font-weight:700;}
+  .tab.on .pill{display:block;width:34px;height:3px;border-radius:2px;margin:4px auto 0;}
+
+  /* ===== 五套配色 ===== */
+  /* 0 现状 */
+  .p0{--bg:#F2F4F8;--ink:#1E2530;--card:#FFFFFF;--primary:#33557A;--pri-tint:#E7EDF5;
+      --state-bg:#EDF1F7;--state-fg:#33557A;--hair:#E4E8EF;}
+  /* 1 青瓷 */
+  .p1{--bg:#EEF3F0;--ink:#1F2D28;--card:#FDFEFD;--primary:#2F6E5D;--pri-tint:#DFEDE7;
+      --state-bg:#E0EEE7;--state-fg:#2F6E5D;--hair:#E0E8E3;--warn:#B98A3D;}
+  /* 2 墨与印 */
+  .p2{--bg:#F7F5F1;--ink:#23262B;--card:#FFFFFF;--primary:#2A2E33;--pri-tint:#ECEAE5;
+      --state-bg:#ECEAE4;--state-fg:#4A4E55;--hair:#E7E3DB;--seal:#C0492E;}
+  /* 3 雾灰蓝 */
+  .p3{--bg:#F4F6F9;--ink:#242B36;--card:#FFFFFF;--primary:#4A5D74;--pri-tint:#E8EDF3;
+      --state-bg:#E9EEF4;--state-fg:#4A5D74;--hair:#E3E8EF;}
+  /* 4 苔原 */
+  .p4{--bg:#F5F6F0;--ink:#28302A;--card:#FFFFFF;--primary:#587247;--pri-tint:#E7EEE0;
+      --state-bg:#E8EFE1;--state-fg:#587247;--hair:#E4E8DD;}
+  /* 5 暮紫 */
+  .p5{--bg:#F5F4F8;--ink:#26242E;--card:#FFFFFF;--primary:#5D5A7E;--pri-tint:#EAE8F2;
+      --state-bg:#EBE9F2;--state-fg:#5D5A7E;--hair:#E6E4EC;}
+
+  .phone{background:var(--bg);color:var(--ink);}
+  .statusbar{color:var(--ink);}
+  .appbar .title{color:var(--ink);}
+  .card{background:var(--card);box-shadow:0 1px 3px rgba(20,30,40,.06);}
+  .hero{background:var(--card);border:1px solid var(--hair);}
+  .hero .state{background:var(--state-bg);color:var(--state-fg);}
+  .hero .action .tick{background:var(--pri-tint);color:var(--primary);}
+  .hero .divider{background:var(--hair);}
+  .evi{background:var(--card);box-shadow:0 1px 3px rgba(20,30,40,.06);}
+  .evi .ic{background:var(--pri-tint);color:var(--primary);}
+  .dev.low{color:var(--primary);}
+  .qbtn{background:var(--pri-tint);color:var(--primary);}
+  .tabbar{background:var(--card);border-top:1px solid var(--hair);}
+  .tab.on{color:var(--primary);}
+  .tab.on .pill{background:var(--primary);}
+  .p2 .seal-dot{display:inline-block;width:7px;height:7px;border-radius:2px;background:var(--seal);margin-right:6px;vertical-align:1px;}
+  .p2 .appbar .title::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--seal);margin-right:8px;}
+  .foot{margin-top:20px;font-size:12.5px;color:#9aa3b2;line-height:1.7;max-width:760px;}
+</style>
+</head>
+<body>
+<h1>PHE 配色方向 · 同一张首页，五种气质</h1>
+<div class="sub">布局与信息完全相同，只有颜色系统不同。每张图都是真实数据（8月29日 · 睡眠不足）。现状是默认的"程序蓝"，其余四个方向来自不同的物质世界。<b>看完挑一个编号告诉我</b>，我再用选定的颜色出全套页面效果图。</div>
+
+<div class="row">
+  <!-- 0 现状 -->
+  <div class="option">
+    <div class="label"><span class="name">现状对照</span><span class="badge now">当前</span>
+      <div class="desc">默认的"程序蓝"。偏冷、偏工具感，和"私人决策助手"的气质有距离。</div></div>
+    <div class="phone p0">
+      <div class="statusbar"><span>14:40</span><span>●●●</span></div>
+      <div class="appbar"><span class="title">今日</span><span class="updated">更新于 14:40</span></div>
+      <div class="scroll">
+        <div class="card hero">
+          <span class="state">睡眠不足</span>
+          <div class="headline">今天有一些变化，<br>建议优先补觉、降低强度。</div>
+          <div class="cause">根据最近的数据，睡眠时长低于平时水平，夜间清醒时间偏多，这可能意味着睡眠质量有所下降。</div>
+          <div class="actions">
+            <div class="action"><span class="tick"></span><span>今晚提前 30 分钟入睡，保持规律作息</span></div>
+            <div class="action"><span class="tick"></span><span>今天训练安排轻度量，避免力竭</span></div>
+          </div>
+          <div class="divider"></div>
+          <div class="evidence">依据来自 8 月 29 日的个人数据 · 点按查看完整依据</div>
+        </div>
+        <div class="evi">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></div>
+          <div class="mid"><div class="name">睡眠</div><div class="meta">当日数据 · 8月29日</div></div>
+          <div><div class="val">7 小时 53 分</div><div class="dev low">低于个人基线</div></div>
+        </div>
+        <div class="quick"><div class="qbtn">问我的状态</div><div class="qbtn">补充情况</div></div>
+      </div>
+      <div class="tabbar">
+        <div class="tab on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>今日<span class="pill"></span></div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>历史</div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/></svg>我的规律</div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 5-6 8-6s6.5 2 8 6"/></svg>我的</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 1 青瓷 -->
+  <div class="option">
+    <div class="label"><span class="name">① 青瓷</span><span class="badge rec">推荐</span>
+      <div class="desc">中国青瓷器的釉色：灰绿、温润、安静。比蓝更有"养护"的意味，比绿健康app少了功利味。信任感强。</div></div>
+    <div class="phone p1">
+      <div class="statusbar"><span>14:40</span><span>●●●</span></div>
+      <div class="appbar"><span class="title">今日</span><span class="updated">更新于 14:40</span></div>
+      <div class="scroll">
+        <div class="card hero">
+          <span class="state">睡眠不足</span>
+          <div class="headline">今天有一些变化，<br>建议优先补觉、降低强度。</div>
+          <div class="cause">根据最近的数据，睡眠时长低于平时水平，夜间清醒时间偏多，这可能意味着睡眠质量有所下降。</div>
+          <div class="actions">
+            <div class="action"><span class="tick"></span><span>今晚提前 30 分钟入睡，保持规律作息</span></div>
+            <div class="action"><span class="tick"></span><span>今天训练安排轻度量，避免力竭</span></div>
+          </div>
+          <div class="divider"></div>
+          <div class="evidence">依据来自 8 月 29 日的个人数据 · 点按查看完整依据</div>
+        </div>
+        <div class="evi">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></div>
+          <div class="mid"><div class="name">睡眠</div><div class="meta">当日数据 · 8月29日</div></div>
+          <div><div class="val">7 小时 53 分</div><div class="dev low">低于个人基线</div></div>
+        </div>
+        <div class="quick"><div class="qbtn">问我的状态</div><div class="qbtn">补充情况</div></div>
+      </div>
+      <div class="tabbar">
+        <div class="tab on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>今日<span class="pill"></span></div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>历史</div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/></svg>我的规律</div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 5-6 8-6s6.5 2 8 6"/></svg>我的</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2 墨与印 -->
+  <div class="option">
+    <div class="label"><span class="name">② 墨与印</span>
+      <div class="desc">水墨的黑白灰 + 一点印章朱红。最有"私人日志"的气质，冷静克制，朱红只用在极小的地方（像钤印）。气质最独特。</div></div>
+    <div class="phone p2">
+      <div class="statusbar"><span>14:40</span><span>●●●</span></div>
+      <div class="appbar"><span class="title">今日</span><span class="updated">更新于 14:40</span></div>
+      <div class="scroll">
+        <div class="card hero">
+          <span class="state"><span class="seal-dot"></span>睡眠不足</span>
+          <div class="headline">今天有一些变化，<br>建议优先补觉、降低强度。</div>
+          <div class="cause">根据最近的数据，睡眠时长低于平时水平，夜间清醒时间偏多，这可能意味着睡眠质量有所下降。</div>
+          <div class="actions">
+            <div class="action"><span class="tick"></span><span>今晚提前 30 分钟入睡，保持规律作息</span></div>
+            <div class="action"><span class="tick"></span><span>今天训练安排轻度量，避免力竭</span></div>
+          </div>
+          <div class="divider"></div>
+          <div class="evidence">依据来自 8 月 29 日的个人数据 · 点按查看完整依据</div>
+        </div>
+        <div class="evi">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></div>
+          <div class="mid"><div class="name">睡眠</div><div class="meta">当日数据 · 8月29日</div></div>
+          <div><div class="val">7 小时 53 分</div><div class="dev low">低于个人基线</div></div>
+        </div>
+        <div class="quick"><div class="qbtn">问我的状态</div><div class="qbtn">补充情况</div></div>
+      </div>
+      <div class="tabbar">
+        <div class="tab on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>今日<span class="pill"></span></div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>历史</div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/></svg>我的规律</div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 5-6 8-6s6.5 2 8 6"/></svg>我的</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3 雾灰蓝 -->
+  <div class="option">
+    <div class="label"><span class="name">③ 雾灰蓝</span>
+      <div class="desc">现在的蓝的"进化版"：灰度大幅提高、明度提高，去掉程序感。如果你其实不讨厌蓝，只是嫌它土，选这个。</div></div>
+    <div class="phone p3">
+      <div class="statusbar"><span>14:40</span><span>●●●</span></div>
+      <div class="appbar"><span class="title">今日</span><span class="updated">更新于 14:40</span></div>
+      <div class="scroll">
+        <div class="card hero">
+          <span class="state">睡眠不足</span>
+          <div class="headline">今天有一些变化，<br>建议优先补觉、降低强度。</div>
+          <div class="cause">根据最近的数据，睡眠时长低于平时水平，夜间清醒时间偏多，这可能意味着睡眠质量有所下降。</div>
+          <div class="actions">
+            <div class="action"><span class="tick"></span><span>今晚提前 30 分钟入睡，保持规律作息</span></div>
+            <div class="action"><span class="tick"></span><span>今天训练安排轻度量，避免力竭</span></div>
+          </div>
+          <div class="divider"></div>
+          <div class="evidence">依据来自 8 月 29 日的个人数据 · 点按查看完整依据</div>
+        </div>
+        <div class="evi">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></div>
+          <div class="mid"><div class="name">睡眠</div><div class="meta">当日数据 · 8月29日</div></div>
+          <div><div class="val">7 小时 53 分</div><div class="dev low">低于个人基线</div></div>
+        </div>
+        <div class="quick"><div class="qbtn">问我的状态</div><div class="qbtn">补充情况</div></div>
+      </div>
+      <div class="tabbar">
+        <div class="tab on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>今日<span class="pill"></span></div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>历史</div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/></svg>我的规律</div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 5-6 8-6s6.5 2 8 6"/></svg>我的</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4 苔原 -->
+  <div class="option">
+    <div class="label"><span class="name">④ 苔原绿</span>
+      <div class="desc">苔藓与晨间草地的绿。健康类app常见色，亲和但容易撞脸别的健康软件——选它就是选"熟悉感"。</div></div>
+    <div class="phone p4">
+      <div class="statusbar"><span>14:40</span><span>●●●</span></div>
+      <div class="appbar"><span class="title">今日</span><span class="updated">更新于 14:40</span></div>
+      <div class="scroll">
+        <div class="card hero">
+          <span class="state">睡眠不足</span>
+          <div class="headline">今天有一些变化，<br>建议优先补觉、降低强度。</div>
+          <div class="cause">根据最近的数据，睡眠时长低于平时水平，夜间清醒时间偏多，这可能意味着睡眠质量有所下降。</div>
+          <div class="actions">
+            <div class="action"><span class="tick"></span><span>今晚提前 30 分钟入睡，保持规律作息</span></div>
+            <div class="action"><span class="tick"></span><span>今天训练安排轻度量，避免力竭</span></div>
+          </div>
+          <div class="divider"></div>
+          <div class="evidence">依据来自 8 月 29 日的个人数据 · 点按查看完整依据</div>
+        </div>
+        <div class="evi">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></div>
+          <div class="mid"><div class="name">睡眠</div><div class="meta">当日数据 · 8月29日</div></div>
+          <div><div class="val">7 小时 53 分</div><div class="dev low">低于个人基线</div></div>
+        </div>
+        <div class="quick"><div class="qbtn">问我的状态</div><div class="qbtn">补充情况</div></div>
+      </div>
+      <div class="tabbar">
+        <div class="tab on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>今日<span class="pill"></span></div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>历史</div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/></svg>我的规律</div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 5-6 8-6s6.5 2 8 6"/></svg>我的</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5 暮紫 -->
+  <div class="option">
+    <div class="label"><span class="name">⑤ 暮紫</span>
+      <div class="desc">傍晚天空的灰紫。柔和、有夜间氛围（你常在晚上看数据），但紫色调在健康工具里偏少见，有人会觉得偏"时尚"。</div></div>
+    <div class="phone p5">
+      <div class="statusbar"><span>14:40</span><span>●●●</span></div>
+      <div class="appbar"><span class="title">今日</span><span class="updated">更新于 14:40</span></div>
+      <div class="scroll">
+        <div class="card hero">
+          <span class="state">睡眠不足</span>
+          <div class="headline">今天有一些变化，<br>建议优先补觉、降低强度。</div>
+          <div class="cause">根据最近的数据，睡眠时长低于平时水平，夜间清醒时间偏多，这可能意味着睡眠质量有所下降。</div>
+          <div class="actions">
+            <div class="action"><span class="tick"></span><span>今晚提前 30 分钟入睡，保持规律作息</span></div>
+            <div class="action"><span class="tick"></span><span>今天训练安排轻度量，避免力竭</span></div>
+          </div>
+          <div class="divider"></div>
+          <div class="evidence">依据来自 8 月 29 日的个人数据 · 点按查看完整依据</div>
+        </div>
+        <div class="evi">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></div>
+          <div class="mid"><div class="name">睡眠</div><div class="meta">当日数据 · 8月29日</div></div>
+          <div><div class="val">7 小时 53 分</div><div class="dev low">低于个人基线</div></div>
+        </div>
+        <div class="quick"><div class="qbtn">问我的状态</div><div class="qbtn">补充情况</div></div>
+      </div>
+      <div class="tabbar">
+        <div class="tab on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>今日<span class="pill"></span></div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>历史</div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/></svg>我的规律</div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 5-6 8-6s6.5 2 8 6"/></svg>我的</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="foot">说明：这一轮只决定<b>颜色气质</b>。你选定后，我会用该配色出<b>全部五个页面的完整效果图</b>（今日 / 历史+睡眠结构 / 问答 / 我的规律 / 我的），布局也会一并精修，你再次确认后才改真正的 Flutter 代码。</div>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:390px;height:844px;overflow:hidden;}
+.phone{width:390px;height:844px;display:flex;flex-direction:column;position:relative;
+  background:#0E141B;color:#E8EEF4;
+  font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;}
+.statusbar{height:44px;display:flex;justify-content:space-between;align-items:center;padding:0 26px 0 30px;font-size:14px;font-weight:600;flex:0 0 auto;color:#E8EEF4;}
+.appbar{padding:6px 24px 14px;display:flex;justify-content:space-between;align-items:baseline;flex:0 0 auto;}
+.appbar .title{font-size:30px;font-weight:800;color:#E8EEF4;}
+.appbar .updated{font-size:13px;color:#5d7285;}
+.scroll{flex:1;overflow:hidden;padding:0 18px;display:flex;flex-direction:column;gap:12px;}
+.card{border-radius:22px;padding:20px;}
+.hero{background:#1B2530;border:1px solid #243240;box-shadow:0 2px 10px rgba(0,0,0,.4);}
+.hero .state{font-size:12px;font-weight:700;letter-spacing:1px;padding:4px 12px;border-radius:99px;display:inline-block;margin-bottom:12px;background:#173029;color:#7FD1AE;border:1px solid #2A4A3E;}
+.hero .headline{font-size:23px;font-weight:800;line-height:1.42;margin-bottom:12px;color:#F2F6FA;}
+.hero .readout{display:flex;gap:12px;margin-bottom:14px;}
+.hero .ro{flex:1;background:#131C25;border:1px solid #22303D;border-radius:14px;padding:11px 14px;}
+.hero .ro .k{font-size:10.5px;color:#5d7285;letter-spacing:1px;}
+.hero .ro .v{font-size:19px;font-weight:800;margin-top:3px;color:#7FD1AE;}
+.hero .ro .v.amber{color:#E8A13C;}
+.hero .cause{font-size:13px;line-height:1.75;color:#AEBDC9;}
+.hero .actions{margin-top:14px;display:flex;flex-direction:column;gap:9px;}
+.hero .action{display:flex;gap:10px;font-size:13px;line-height:1.6;align-items:flex-start;color:#DDE7EE;}
+.hero .action .tick{flex:0 0 auto;width:17px;height:17px;border-radius:50%;margin-top:3px;background:#173029;color:#7FD1AE;position:relative;}
+.hero .action .tick::after{content:"";position:absolute;left:5px;top:3.5px;width:4.5px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(40deg);}
+.hero .divider{height:1px;background:#243240;margin:15px 0 12px;}
+.hero .evidence{font-size:11.5px;color:#5d7285;}
+.evi{display:flex;gap:12px;align-items:center;padding:16px 18px;background:#1B2530;border:1px solid #22303D;border-radius:18px;}
+.evi .ic{width:42px;height:42px;border-radius:14px;background:#173029;color:#7FD1AE;display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+.evi .ic svg{width:21px;height:21px;}
+.evi .mid{flex:1;}
+.evi .name{font-size:15px;font-weight:700;color:#E8EEF4;}
+.evi .meta{font-size:11.5px;color:#5d7285;margin-top:2px;}
+.evi .val{font-size:16px;font-weight:800;text-align:right;color:#7FD1AE;}
+.evi .dev{font-size:11px;text-align:right;margin-top:2px;font-weight:600;color:#7FD1AE;opacity:.8;}
+.quick{display:flex;gap:12px;}
+.qbtn{flex:1;border-radius:16px;padding:14px 0;text-align:center;font-size:14px;font-weight:700;background:#173029;color:#7FD1AE;border:1px solid #2A4A3E;}
+.nights{background:#1B2530;border:1px solid #243240;border-radius:22px;padding:16px 18px;}
+.nights .t{font-size:13px;font-weight:700;color:#AEBDC9;margin-bottom:10px;}
+.night{display:flex;align-items:center;gap:8px;margin-bottom:7px;}
+.night .d{font-size:10px;color:#5d7285;width:38px;flex:0 0 auto;}
+.night .bar{flex:1;height:7px;border-radius:4px;background:#131C25;overflow:hidden;display:flex;}
+.night .bar .sleep{background:#2E6B57;height:100%;}
+.night .bar .awake{background:#E8A13C;height:100%;}
+.night .pct{font-size:9.5px;color:#5d7285;width:52px;text-align:right;flex:0 0 auto;}
+.tabbar{flex:0 0 auto;display:flex;padding:10px 10px 22px;background:#101820;border-top:1px solid #1E2E3A;}
+.tab{flex:1;text-align:center;font-size:10.5px;color:#5d7285;padding-top:4px;}
+.tab svg{width:22px;height:22px;display:block;margin:0 auto 4px;}
+.tab.on{color:#7FD1AE;font-weight:700;}
+.tab.on .pill{display:block;width:38px;height:3.5px;border-radius:2px;margin:5px auto 0;background:#7FD1AE;}
+</style></head><body>
+<div class="phone">
+  <div class="statusbar"><span>14:40</span><span>●●●</span></div>
+  <div class="appbar"><span class="title">今日</span><span class="updated">更新于 14:40</span></div>
+  <div class="scroll">
+    <div class="card hero">
+      <span class="state">睡眠不足</span>
+      <div class="readout">
+        <div class="ro"><div class="k">睡眠时长</div><div class="v">7小时53分</div></div>
+        <div class="ro"><div class="k">夜间清醒</div><div class="v amber">16分钟</div></div>
+      </div>
+      <div class="headline" style="font-size:19px;">今天优先补觉、降低强度。</div>
+      <div class="cause">根据最近的数据，睡眠时长低于平时水平，夜间清醒时间偏多，睡眠质量可能有所下降。</div>
+      <div class="actions">
+        <div class="action"><span class="tick"></span><span>今晚提前 30 分钟入睡，保持规律作息</span></div>
+        <div class="action"><span class="tick"></span><span>今天训练安排轻度量，避免力竭</span></div>
+      </div>
+      <div class="divider"></div>
+      <div class="evidence">依据来自 8 月 29 日的个人数据 · 点按查看完整依据</div>
+    </div>
+    <div class="nights">
+      <div class="t">最近 7 晚结构</div>
+      <div class="night"><span class="d">8月29日</span><div class="bar"><div class="sleep" style="width:96.7%"></div><div class="awake" style="width:3.3%"></div></div><span class="pct">清醒 3.3%</span></div>
+      <div class="night"><span class="d">8月27日</span><div class="bar"><div class="sleep" style="width:100%"></div></div><span class="pct">清醒 0%</span></div>
+      <div class="night"><span class="d">8月26日</span><div class="bar"><div class="sleep" style="width:98%"></div><div class="awake" style="width:2%"></div></div><span class="pct">清醒 2.0%</span></div>
+      <div class="night"><span class="d">8月24日</span><div class="bar"><div class="sleep" style="width:94%"></div><div class="awake" style="width:6%"></div></div><span class="pct">清醒 6.0%</span></div>
+    </div>
+    <div class="quick"><div class="qbtn">问我的状态</div><div class="qbtn">补充情况</div></div>
+  </div>
+  <div class="tabbar">
+    <div class="tab on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>今日<span class="pill"></span></div>
+    <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>历史</div>
+    <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/></svg>我的规律</div>
+    <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 5-6 8-6s6.5 2 8 6"/></svg>我的</div>
+  </div>
+</div>
+</body></html>

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:390px;height:844px;overflow:hidden;}
+.phone{width:390px;height:844px;display:flex;flex-direction:column;position:relative;
+  background:#FAF8F4;color:#191C20;
+  font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;}
+.statusbar{height:44px;display:flex;justify-content:space-between;align-items:center;padding:0 26px 0 30px;font-size:14px;font-weight:600;flex:0 0 auto;}
+.masthead{padding:10px 24px 0;flex:0 0 auto;}
+.masthead .brand{font-size:11px;font-weight:700;letter-spacing:3px;color:#C0492E;}
+.masthead .date{font-size:12px;color:#6b6f76;margin-top:3px;display:flex;justify-content:space-between;}
+.masthead .rule{height:3px;background:#191C20;margin-top:8px;}
+.masthead .rule.thin{height:1px;margin-top:2px;}
+.scroll{flex:1;overflow:hidden;padding:0 24px;display:flex;flex-direction:column;}
+.headline{font-size:31px;font-weight:900;line-height:1.38;margin:18px 0 4px;letter-spacing:.5px;}
+.headline .accent{color:#C0492E;}
+.dateline{font-size:12px;color:#8a8e96;margin-bottom:14px;}
+.lede{font-size:14.5px;line-height:1.85;color:#33373d;border-top:1px solid #d9d5cd;border-bottom:1px solid #d9d5cd;padding:14px 0;}
+.section-label{font-size:12px;font-weight:800;letter-spacing:2px;color:#3E5C76;margin:18px 0 10px;display:flex;align-items:center;gap:8px;}
+.section-label::after{content:"";flex:1;height:1px;background:#d9d5cd;}
+.news{display:flex;flex-direction:column;gap:11px;}
+.item{display:flex;gap:12px;align-items:flex-start;}
+.item .no{font-size:15px;font-weight:900;color:#C0492E;flex:0 0 auto;width:22px;}
+.item .txt{font-size:13.5px;line-height:1.65;color:#2b2f35;}
+.evi{display:flex;gap:12px;align-items:center;padding:15px 18px;background:#FFFFFF;border:1px solid #E5E1D8;border-radius:14px;margin-top:18px;}
+.evi .ic{width:42px;height:42px;border-radius:12px;background:#EFF1F4;color:#3E5C76;display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+.evi .ic svg{width:21px;height:21px;}
+.evi .mid{flex:1;}
+.evi .name{font-size:15px;font-weight:700;}
+.evi .meta{font-size:11.5px;color:#8a8e96;margin-top:2px;}
+.evi .val{font-size:16px;font-weight:800;text-align:right;}
+.evi .dev{font-size:11px;text-align:right;margin-top:2px;font-weight:700;color:#3E5C76;}
+.footer{margin-top:auto;padding:12px 0 18px;font-size:10.5px;color:#a0a4ab;display:flex;justify-content:space-between;border-top:1px solid #d9d5cd;}
+.tabbar{flex:0 0 auto;display:flex;padding:10px 10px 22px;background:#FFFFFF;border-top:1px solid #E5E1D8;}
+.tab{flex:1;text-align:center;font-size:10.5px;color:#8a8e96;padding-top:4px;}
+.tab svg{width:22px;height:22px;display:block;margin:0 auto 4px;}
+.tab.on{color:#191C20;font-weight:700;}
+.tab.on .pill{display:block;width:38px;height:3.5px;border-radius:2px;margin:5px auto 0;background:#C0492E;}
+</style></head><body>
+<div class="phone">
+  <div class="statusbar"><span>14:40</span><span>●●●</span></div>
+  <div class="masthead">
+    <div class="brand">PHE 晨报</div>
+    <div class="date"><span>2026年8月29日 · 星期六</span><span>私人版 · 仅你可见</span></div>
+    <div class="rule"></div><div class="rule thin"></div>
+  </div>
+  <div class="scroll">
+    <div class="headline">睡眠不足。<br>今天优先<span class="accent">补觉</span>、降低强度。</div>
+    <div class="dateline">更新于 14:40 · 判断依据截至 8 月 29 日晨</div>
+    <div class="lede">根据最近的数据，睡眠时长低于平时水平，夜间清醒时间偏多，这可能意味着睡眠质量有所下降。目前证据有限，其他指标没有明显异常，建议先关注睡眠和恢复。</div>
+    <div class="section-label">今日要闻</div>
+    <div class="news">
+      <div class="item"><span class="no">一</span><span class="txt">今晚提前 30 分钟入睡，保持规律作息。</span></div>
+      <div class="item"><span class="no">二</span><span class="txt">今天训练安排轻度量，避免力竭。</span></div>
+      <div class="item"><span class="no">三</span><span class="txt">若感到明显疲劳，以恢复为主，减少安排。</span></div>
+    </div>
+    <div class="evi">
+      <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></div>
+      <div class="mid"><div class="name">睡眠</div><div class="meta">当日数据 · 8月29日</div></div>
+      <div><div class="val">7 小时 53 分</div><div class="dev">低于个人基线 ↓</div></div>
+    </div>
+    <div class="footer"><span>本页由 PHE 生成 · 不构成诊断</span><span>第 289 期</span></div>
+  </div>
+  <div class="tabbar">
+    <div class="tab on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>今日<span class="pill"></span></div>
+    <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>历史</div>
+    <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/></svg>我的规律</div>
+    <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 5-6 8-6s6.5 2 8 6"/></svg>我的</div>
+  </div>
+</div>
+</body></html>

@@ -95,6 +95,7 @@ abstract class L7Client {
   Future<Map<String, dynamic>> getSettings();
   Future<Map<String, dynamic>> putSettings(Map<String, dynamic> values);
   Future<Map<String, dynamic>> getUsage();
+  Future<Map<String, dynamic>> getEvalRuns();
   Future<Map<String, dynamic>> health();
   // Phase E
   Future<Map<String, dynamic>> qaOpenConversation();
@@ -271,6 +272,9 @@ class HttpApiClient implements L7Client, ConditionalL7Client {
 
   @override
   Future<Map<String, dynamic>> getUsage() => _get('/usage');
+
+  @override
+  Future<Map<String, dynamic>> getEvalRuns() => _get('/today/eval-runs');
 
   @override
   Future<Map<String, dynamic>> health() => _get('/health');

@@ -16,6 +16,7 @@ class SleepStructureCard extends StatelessWidget {
     }
     return Card(
       clipBehavior: Clip.antiAlias,
+      color: const Color(0xFFFFFFFF),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -85,7 +86,7 @@ class _NightRow extends StatelessWidget {
                 ),
                 child: const Text(
                   '昨晚',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF33557A)),
+                  style: TextStyle(fontSize: 11, color: Color(0xFF191C20)),
                 ),
               ),
           ],
@@ -99,12 +100,12 @@ class _NightRow extends StatelessWidget {
               children: [
                 Expanded(
                   flex: total - awakeMin > 0 ? total - awakeMin : 1,
-                  child: Container(color: const Color(0xFF33557A)),
+                  child: Container(color: const Color(0xFF8A6A4F)),
                 ),
                 if (awakeMin > 0)
                   Expanded(
                     flex: awakeMin,
-                    child: Container(color: const Color(0xFFE8A13C)),
+                    child: Container(color: const Color(0xFFC0492E)),
                   ),
               ],
             ),

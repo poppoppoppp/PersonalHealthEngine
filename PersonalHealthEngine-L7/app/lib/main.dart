@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'api_client.dart';
 import 'connection_store.dart';
 import 'data_repository.dart';
+import 'design.dart';
 import 'read_cache.dart';
 import 'screens/history_screen.dart';
 import 'screens/me_screen.dart';
@@ -98,21 +99,7 @@ class HealthEngineApp extends StatelessWidget {
     return MaterialApp(
       title: 'Personal Health Engine',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF33557A)),
-        scaffoldBackgroundColor: const Color(0xFFF7F8FA),
-        cardTheme: CardThemeData(
-          color: Colors.white,
-          elevation: 1,
-          shadowColor: const Color(0x140F172A),
-          surfaceTintColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: Color(0xFFE0E5EC)),
-          ),
-        ),
-      ),
+      theme: Ed.theme(),
       home: const RootLoader(),
     );
   }

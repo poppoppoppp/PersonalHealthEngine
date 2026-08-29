@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:390px;height:844px;overflow:hidden;}
+.phone{width:390px;height:844px;display:flex;flex-direction:column;position:relative;
+  background:#FAF8F4;color:#191C20;
+  font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;}
+.statusbar{height:44px;display:flex;justify-content:space-between;align-items:center;padding:0 26px 0 30px;font-size:14px;font-weight:600;flex:0 0 auto;}
+.masthead{padding:10px 24px 0;flex:0 0 auto;}
+.masthead .brand{font-size:11px;font-weight:700;letter-spacing:3px;color:#C0492E;}
+.masthead .date{font-size:12px;color:#6b6f76;margin-top:3px;display:flex;justify-content:space-between;}
+.masthead .rule{height:3px;background:#191C20;margin-top:8px;}
+.masthead .rule.thin{height:1px;margin-top:2px;}
+.scroll{flex:1;overflow:hidden;padding:0 24px;display:flex;flex-direction:column;}
+.section-label{font-size:12px;font-weight:800;letter-spacing:2px;color:#3E5C76;margin:16px 0 10px;display:flex;align-items:center;gap:8px;}
+.section-label::after{content:"";flex:1;height:1px;background:#d9d5cd;}
+.footer{margin-top:auto;padding:12px 0 16px;font-size:10.5px;color:#a0a4ab;display:flex;justify-content:space-between;border-top:1px solid #d9d5cd;}
+.tabbar{flex:0 0 auto;display:flex;padding:10px 10px 22px;background:#FFFFFF;border-top:1px solid #E5E1D8;}
+.tab{flex:1;text-align:center;font-size:10.5px;color:#8a8e96;padding-top:4px;}
+.tab svg{width:22px;height:22px;display:block;margin:0 auto 4px;}
+.tab.on{color:#191C20;font-weight:700;}
+.tab.on .pill{display:block;width:38px;height:3.5px;border-radius:2px;margin:5px auto 0;background:#C0492E;}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px;}
+.chip{font-size:12px;padding:5px 13px;border-radius:99px;border:1px solid #d9d5cd;color:#5c6066;}
+.chip.on{background:#8A6A4F;color:#FAF8F4;border-color:#8A6A4F;font-weight:700;}
+.bars{display:flex;align-items:flex-end;gap:7px;height:90px;padding:6px 2px 0;}
+.bars .b{flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%;}
+.bars .b i{display:block;background:#8A6A4F;border-radius:3px 3px 0 0;}
+.bars .b.weak i{background:#CFC3B2;}
+.baseline-note{font-size:10.5px;color:#8a8e96;margin-top:7px;display:flex;justify-content:space-between;}
+.night{margin-bottom:11px;}
+.night .row1{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px;}
+.night .row1 b{font-weight:700;}
+.night .row1 span{color:#6b6f76;font-size:11px;}
+.nbar{height:10px;border-radius:5px;background:#EAE6DD;overflow:hidden;display:flex;}
+.nbar .sleep{background:#8A6A4F;height:100%;}
+.nbar .awake{background:#C0492E;height:100%;}
+.index-row{display:flex;justify-content:space-between;align-items:baseline;padding:11px 0;border-bottom:1px solid #E5E1D8;}
+.index-row .d{font-size:12px;color:#8a8e96;width:64px;flex:0 0 auto;}
+.index-row .t{flex:1;font-size:13.5px;font-weight:600;}
+.index-row .st{font-size:10.5px;flex:0 0 auto;padding:2px 9px;border-radius:99px;}
+.st.open{background:#F4E3E0;color:#C0492E;}
+.st.closed{background:#EAE6DD;color:#6b6f76;}
+.answer{border:1px solid #E5E1D8;border-radius:14px;padding:14px 16px;background:#FFFFFF;}
+.answer .lead{font-size:15.5px;font-weight:800;line-height:1.6;margin-bottom:8px;}
+.answer .body{font-size:13px;line-height:1.8;color:#33373d;}
+.answer .news{margin-top:9px;display:flex;flex-direction:column;gap:7px;}
+.answer .item{display:flex;gap:10px;font-size:12.5px;line-height:1.65;align-items:flex-start;}
+.answer .item .no{color:#C0492E;font-weight:900;flex:0 0 auto;}
+.ans-meta{font-size:10.5px;color:#a0a4ab;margin-top:9px;}
+.bubble{background:#191C20;color:#FAF8F4;font-size:13.5px;padding:10px 15px;border-radius:16px 16px 4px 16px;margin:4px 0 12px;align-self:flex-end;max-width:70%;margin-left:auto;}
+.inputbar{flex:0 0 auto;display:flex;gap:10px;padding:10px 20px 20px;background:#FAF8F4;border-top:1px solid #E5E1D8;}
+.inputbar .field{flex:1;border:1.5px solid #191C20;border-radius:14px;padding:12px 15px;font-size:13px;color:#8a8e96;}
+.inputbar .send{width:46px;height:46px;border-radius:14px;background:#191C20;color:#FAF8F4;display:flex;align-items:center;justify-content:center;}
+.pattern{border:1px solid #E5E1D8;border-radius:14px;background:#FFFFFF;padding:14px 16px;margin-bottom:11px;}
+.pattern .trig{font-size:14.5px;font-weight:800;margin-bottom:6px;}
+.pattern .trig .arrow{color:#C0492E;font-weight:900;margin:0 4px;}
+.pattern .stat{font-size:12px;color:#5c6066;line-height:1.7;}
+.pattern .meta{font-size:10.5px;color:#a0a4ab;margin-top:6px;display:flex;justify-content:space-between;}
+.obs{display:flex;gap:10px;padding:12px 14px;border:1px dashed #C9C4BA;border-radius:12px;margin-bottom:9px;align-items:center;}
+.obs .ic{color:#C0492E;font-weight:900;font-size:14px;flex:0 0 auto;}
+.obs .tx{font-size:12.5px;color:#4a4e55;line-height:1.6;}
+.setrow{display:flex;justify-content:space-between;align-items:center;padding:13px 2px;border-bottom:1px solid #E5E1D8;}
+.setrow .l .n{font-size:14px;font-weight:700;}
+.setrow .l .s{font-size:11px;color:#8a8e96;margin-top:2px;}
+.setrow .mark{width:18px;height:18px;border-radius:50%;border:1.5px solid #C9C4BA;flex:0 0 auto;}
+.setrow.on .mark{border-color:#C0492E;position:relative;}
+.setrow.on .mark::after{content:"";position:absolute;inset:4px;background:#C0492E;border-radius:50%;}
+.colophon{font-size:10.5px;color:#a0a4ab;line-height:1.9;}
+.colophon b{color:#5c6066;font-weight:700;}
+
+.stats{display:flex;gap:10px;margin-bottom:6px;}
+.stat{flex:1;background:#FFFFFF;border:1px solid #E5E1D8;border-radius:14px;padding:14px 12px;text-align:center;}
+.stat .k{font-size:10.5px;color:#8a8e96;}
+.stat .v{font-size:17px;font-weight:900;margin-top:4px;color:#191C20;}
+.stat .v.done{color:#2F6E5D;}
+.engine{background:#FFFFFF;border:1px solid #E5E1D8;border-radius:14px;padding:13px 15px;}
+.engine .line{display:flex;align-items:baseline;gap:8px;font-size:12px;color:#4a4e55;line-height:1.7;}
+.engine .dot{flex:0 0 auto;width:8px;height:8px;border-radius:50%;align-self:center;}
+.engine .dot.done{background:#8A6A4F;}
+.engine .dot.next{background:#C0492E;}
+</style></head><body>
+<div class="phone">
+  <div class="statusbar"><span>14:40</span><span>●●●</span></div>
+  <div class="masthead"><div class="brand">PHE 版权页</div><div class="date"><span>我的 · 数据与引擎状态</span><span>私人版 · 仅你可见</span></div><div class="rule"></div><div class="rule thin"></div></div>
+  <div class="scroll">
+<div class="section-label">数据概览</div>
+<div class="stats">
+  <div class="stat"><div class="k">连续记录</div><div class="v">14 天</div></div>
+  <div class="stat"><div class="k">最新数据</div><div class="v">今天晨</div></div>
+  <div class="stat"><div class="k">今日分析</div><div class="v done">已完成</div></div>
+</div>
+<div class="section-label">引擎在做什么</div>
+<div class="engine">
+  <div class="line"><span class="dot done"></span>今天 15:07 —— 已完成今日分析，结论可在「今日」查看</div>
+  <div class="line"><span class="dot done"></span>昨天 22:30 —— 自动补充了晚间数据</div>
+  <div class="line"><span class="dot next"></span>下次自动更新 —— 今天 16:30（每 2 小时一次）</div>
+</div>
+<div style="font-size:11.5px;color:#a0a4ab;line-height:1.8;padding:8px 2px 4px;">手环数据每天自动同步；你补充的情况和纠正会让分析越来越准。不需要做任何操作。</div>
+<div class="section-label">通知</div>
+<div class="setrow" style="border-bottom:none;"><div class="l"><div class="n">智能通知（开启）</div><div class="s">只在重要变化时提醒 · 免打扰 22:00-07:00</div></div><span style="color:#8a8e96;">›</span></div>
+<div class="section-label">记录</div>
+<div class="setrow" style="border-bottom:none;"><div class="l"><div class="n">通知与决策记录</div><div class="s">已发送与被抑制的通知都留痕</div></div><span style="color:#8a8e96;">›</span></div>
+<div class="section-label">关于</div>
+<div style="font-size:13px;line-height:1.85;color:#33373d;padding:2px 0 8px;">PHE 只对比「现在的你」和「你自己的长期正常状态」。它不做诊断，没有健康分，你补充的每一条情况都会让它更懂你。</div>
+<div class="section-label">技术信息</div>
+<div class="colophon">
+  <b>连接</b> 已连接 · 服务器正常（点按修改地址或令牌）<br>
+  <b>数据</b> 全部数据仅你可见，可随时导出或删除。<br>
+  <b>版本</b> PHE 0.2.0 · 2026年8月29日
+</div>
+</div>
+  <div class="tabbar">
+    <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>今日</div>
+    <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>历史</div>
+    <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/></svg>我的规律</div>
+    <div class="tab on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 5-6 8-6s6.5 2 8 6"/></svg>我的<span class="pill"></span></div>
+  </div>
+</div></body></html>
