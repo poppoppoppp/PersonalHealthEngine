@@ -140,88 +140,91 @@ class _MeScreenState extends State<MeScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          _sectionTitle('引擎连接'),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                children: [
-                  TextField(
-                    controller: urlController,
-                    decoration: const InputDecoration(
-                      labelText: '服务器地址',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: tokenController,
-                    obscureText: true,
-                    enableSuggestions: false,
-                    autocorrect: false,
-                    decoration: const InputDecoration(
-                      labelText: '访问令牌',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: FilledButton.tonal(
-                      onPressed: () async {
-                        await widget.env.updateConnection(
-                          urlController.text,
-                          tokenController.text,
-                        );
-                        if (mounted) {
-                          setState(() {
-                            settings = null;
-                            usage = null;
-                            error = null;
-                          });
-                          _load();
-                        }
-                      },
-                      child: const Text('保存并测试'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          _sectionTitle('模型调用（成本透明）'),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: usage == null
-                  ? const Text('暂无数据', style: TextStyle(color: Colors.black45))
-                  : Text(
-                      '评估运行 ${usage!['eval_runs']} 次 · 实际模型调用 ${usage!['total_model_calls']} 次 · 缓存命中项 ${usage!['cached_entries']} 条\n'
-                      '原则：科学性不能省，不必要的模型调用必须省。',
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        height: 1.7,
-                        color: Colors.black87,
-                      ),
-                    ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          _sectionTitle('关于'),
+          _sectionTitle('关于这个应用'),
           const Card(
             child: Padding(
               padding: EdgeInsets.all(14),
               child: Text(
-                'Personal Health Engine · Layer 7\n'
-                '核心逻辑：现在的你 vs 你自己的长期正常状态。\n'
-                '本应用不含任何健康分、恢复分或红黄绿灯。',
+                'PHE 只对比"现在的你"和"你自己的长期正常状态"，'
+                '帮你决定今天怎么安排。它不做诊断，没有健康分，'
+                '你补充的每一条情况都会让它更懂你。',
                 style: TextStyle(
-                  fontSize: 12.5,
+                  fontSize: 13,
                   height: 1.7,
-                  color: Colors.black54,
+                  color: Colors.black87,
                 ),
               ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _sectionTitle('技术信息'),
+          Card(
+            child: ExpansionTile(
+              title: const Text('连接与工作量'),
+              subtitle: const Text(
+                '服务器连接、引擎工作量统计。日常使用不需要打开。',
+              ),
+              childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+              children: [
+                TextField(
+                  controller: urlController,
+                  decoration: const InputDecoration(
+                    labelText: '服务器地址',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: tokenController,
+                  obscureText: true,
+                  enableSuggestions: false,
+                  autocorrect: false,
+                  decoration: const InputDecoration(
+                    labelText: '访问令牌',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton.tonal(
+                    onPressed: () async {
+                      await widget.env.updateConnection(
+                        urlController.text,
+                        tokenController.text,
+                      );
+                      if (mounted) {
+                        setState(() {
+                          settings = null;
+                          usage = null;
+                          error = null;
+                        });
+                        _load();
+                      }
+                    },
+                    child: const Text('保存并测试'),
+                  ),
+                ),
+                const Divider(height: 24),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: usage == null
+                      ? const Text(
+                          '暂无工作量数据',
+                          style: TextStyle(color: Colors.black45, fontSize: 12.5),
+                        )
+                      : Text(
+                          '引擎累计完成 ${usage!['eval_runs']} 次完整分析；'
+                          '其中 ${usage!['total_model_calls']} 次用到了人工智能，'
+                          '其余都靠直接复用之前的结果完成（相同的数据不重复计算）。',
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            height: 1.7,
+                            color: Colors.black87,
+                          ),
+                        ),
+                ),
+              ],
             ),
           ),
         ],
