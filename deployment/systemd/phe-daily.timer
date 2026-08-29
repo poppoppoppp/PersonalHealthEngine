@@ -1,12 +1,16 @@
 [Unit]
-Description=Run Personal Health Engine Daily Pipeline
+Description=Run Personal Health Engine Collection Cycle
 
 [Timer]
 
-# Every day at 10:30 China Standard Time.
-OnCalendar=*-*-* 10:30:00 Asia/Shanghai
+# Every 2 hours at :30 China Standard Time (00:30, 02:30, ... 22:30).
+# The pipeline is checkpoint-based and idempotent, so extra runs only pick up
+# whatever new data Xiaomi Cloud has since the previous run. The L1 collector
+# is a handful of lightweight read-only API calls per run — well below any
+# rate Xiaomi's own app generates.
+OnCalendar=*-*-* 0/2:30:00 Asia/Shanghai
 
-# If the VPS was offline at 10:30, run after it comes back.
+# If the VPS was offline at a scheduled time, run once after it comes back.
 Persistent=true
 
 # One minute precision is more than enough for health data sync.

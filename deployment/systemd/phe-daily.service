@@ -1,5 +1,5 @@
 [Unit]
-Description=Personal Health Engine Daily L1-L5 Pipeline
+Description=Personal Health Engine L1-L5 Collection Cycle
 Wants=network-online.target
 After=network-online.target
 
