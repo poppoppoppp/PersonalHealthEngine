@@ -13,7 +13,6 @@ import sqlite3
 
 from l7.config import Config
 from l7.rendering.labels import (
-    confidence_label,
     context_label,
     feedback_status_label,
     hypothesis_label,
@@ -24,9 +23,24 @@ from l7.store.db import open_readonly, utc_now
 NOTABLE_STATES = ("NOTABLE_CHANGE",)  # sealed L6 vocabulary; MILD_CHANGE never opens an episode
 EPISODE_GAP_DAYS = 1  # a one-day data gap does not split an episode
 
+# UNKNOWN is an engine enum, not something a person can act on; the summary says what the
+# user actually wants to know instead of exposing the internal label.
+FRIENDLY_PRIMARY = {
+    "UNKNOWN": "身体出现一些变化，具体原因还不明确",
+}
+
 
 def _label(htype: str | None) -> str:
-    return hypothesis_label(htype)
+    return FRIENDLY_PRIMARY.get(htype or "", hypothesis_label(htype))
+
+
+def _md(iso_date: str) -> str:
+    """2026-08-16 -> 8月16日 (history copy is for people, not for sorting)."""
+    try:
+        parts = iso_date.split("-")
+        return f"{int(parts[1])}月{int(parts[2])}日"
+    except (IndexError, ValueError):
+        return iso_date
 
 
 class HistoryService:
@@ -92,15 +106,13 @@ class HistoryService:
         latest_date = dates[-1]
         projected = []
         for ep in episodes:
-            last_row = by_date[ep["end_date"]]
             still_open = ep["end_date"] == latest_date
             phase = "DEVELOPING" if still_open else "CLOSED"
-            summary = (
-                f"{_label(ep['primary'])}：{ep['start_date']} 起"
-                + (f"，持续到 {ep['end_date']}。" if ep['end_date'] != ep['start_date'] else "。")
-                + (f"最新判断置信度{confidence_label(last_row['confidence'])}。"
-                   if last_row.get('confidence') else "")
+            span = (
+                f"，持续到 {_md(ep['end_date'])}（共 {len(ep['dates'])} 天）"
+                if ep["end_date"] != ep["start_date"] else ""
             )
+            summary = f"{_label(ep['primary'])}：从 {_md(ep['start_date'])} 开始{span}。"
             projected.append({
                 "episode_key": f"{ep['primary']}:{ep['start_date']}",
                 "start_date": ep["start_date"],
@@ -150,7 +162,9 @@ class HistoryService:
                     ids[ep["episode_key"]] = cur.lastrowid
             self.l7.execute("DELETE FROM episode_events WHERE episode_id IN ({})".format(
                 ",".join(str(i) for i in ids.values())))
-            for row in reasoning:
+            # One timeline judgment per day: the canonical (CURRENT or latest) row.
+            # Superseded same-day versions stay in L6 for audit but never reach the UI.
+            for row in by_date.values():
                 key = self._episode_for(row["analysis_date"], projected)
                 if key is None:
                     continue
