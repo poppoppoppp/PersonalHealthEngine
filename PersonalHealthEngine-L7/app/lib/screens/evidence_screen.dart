@@ -3,6 +3,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../design.dart';
 import '../main.dart';
 import '../widgets/api_error_view.dart';
 import '../widgets/trend_chart.dart';
@@ -82,6 +83,12 @@ class _EvidenceScreenState extends State<EvidenceScreen> {
           const Text(
             '先看本次判断实际参考的数据；其他指标用于确认数据是否齐全、是否需要更新。',
             style: TextStyle(fontSize: 13, height: 1.45, color: Colors.black87),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            '判断生成之后新到达的数据，会参与下一次分析（每天早晚各一档；'
+            '也可在「今日」页点「立即重新分析」马上用最新数据重算）。',
+            style: TextStyle(fontSize: 12, height: 1.5, color: Ed.inkSoft),
           ),
           const SizedBox(height: 16),
           SingleChildScrollView(
