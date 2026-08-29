@@ -41,15 +41,13 @@ class MetricOverviewCard extends StatelessWidget {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.08),
+                    color: const Color(0xFFF0E9E0),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
                     _metricIcon('${metric['key'] ?? ''}'),
                     size: 21,
-                    color: Theme.of(context).colorScheme.primary,
+                    color: const Color(0xFF8A6A4F),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -131,18 +129,18 @@ class MetricOverviewCard extends StatelessWidget {
 
   Widget _freshnessChip(String status, Map<String, dynamic> metric) {
     return switch (status) {
-      'TODAY' => _chip('今日数据', const Color(0xFFEEF3F8), const Color(0xFF33557A)),
+      'TODAY' => _chip('今日数据', const Color(0xFFEFECE4), const Color(0xFF191C20)),
       'RECENT' => _chip(
         '数据更新于 ${_md('${metric['data_date'] ?? ''}')}',
-        const Color(0xFFEFF1F4),
-        const Color(0xFF667085),
+        const Color(0xFFEFECE4),
+        const Color(0xFF8A8E96),
       ),
       'STALE' => _chip(
         '数据停在 ${_md('${metric['data_date'] ?? ''}')}',
-        const Color(0xFFFFF4DD),
-        const Color(0xFFB66A00),
+        const Color(0xFFF4E3E0),
+        const Color(0xFFC0492E),
       ),
-      _ => _chip('暂无数据', const Color(0xFFEFF1F4), const Color(0xFF667085)),
+      _ => _chip('暂无数据', const Color(0xFFEFECE4), const Color(0xFF8A8E96)),
     };
   }
 

@@ -8,6 +8,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../main.dart';
+import '../widgets/masthead.dart';
 import '../widgets/api_error_view.dart';
 
 class PatternsScreen extends StatefulWidget {
@@ -72,19 +73,25 @@ class _PatternsScreenState extends State<PatternsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('我的规律')),
-      body: RefreshIndicator(
-        onRefresh: _load,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
+      body: SafeArea(
+        bottom: false,
+        child: RefreshIndicator(
+          onRefresh: _load,
+          child: ListView(
+          padding: const EdgeInsets.fromLTRB(0, 0, 0, 16),
           children: [
-            const Text(
+            const Masthead(brand: 'PHE 观察', title: '我的规律 · 反复验证的关联'),
+            const SizedBox(height: 14),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
               '规律 = 系统从重复历史中学到的、有现实行动价值的个人模式。'
               '它与“历史”不同：历史是发生过什么，规律是学到了什么。',
               style: TextStyle(
                 fontSize: 12.5,
                 color: Colors.black54,
                 height: 1.6,
+              ),
               ),
             ),
             const SizedBox(height: 12),
@@ -96,8 +103,13 @@ class _PatternsScreenState extends State<PatternsScreen> {
                 padding: EdgeInsets.only(top: 40),
                 child: Center(child: CircularProgressIndicator()),
               ),
-            if (data != null) ..._body(),
+            if (data != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(children: [..._body()]),
+            ),
           ],
+          ),
         ),
       ),
     );

@@ -9,7 +9,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../api_client.dart';
+import '../design.dart';
 import '../main.dart';
+import '../widgets/masthead.dart';
 import '../widgets/api_error_view.dart';
 
 class QnAScreen extends StatefulWidget {
@@ -244,14 +246,19 @@ class _QnAScreenState extends State<QnAScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('问问我的状态')),
-      body: Column(
-        children: [
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+          const Masthead(brand: 'PHE 问答', title: '问我的状态'),
           const Padding(
-            padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Text(
+            padding: EdgeInsets.fromLTRB(24, 14, 24, 0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
               '以你的身体状态为核心的决策助手。回答基于引擎的当前证据，不是通用聊天。',
-              style: TextStyle(fontSize: 12, color: Colors.black45),
+              style: TextStyle(fontSize: 12.5, color: Ed.inkSoft, height: 1.6),
+              ),
             ),
           ),
           Expanded(
@@ -449,6 +456,7 @@ class _QnAScreenState extends State<QnAScreen> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

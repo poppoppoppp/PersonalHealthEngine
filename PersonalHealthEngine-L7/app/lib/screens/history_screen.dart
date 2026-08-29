@@ -7,8 +7,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../design.dart';
 import '../main.dart';
 import '../widgets/api_error_view.dart';
+import '../widgets/masthead.dart';
 import '../widgets/metric_overview_card.dart';
 import '../widgets/sleep_structure_card.dart';
 
@@ -179,17 +181,23 @@ class _HistoryScreenState extends State<HistoryScreen> {
         .toList();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('历史')),
-      body: RefreshIndicator(
-        onRefresh: _load,
-        child: ListView.builder(
-          padding: const EdgeInsets.all(16),
+      body: SafeArea(
+        bottom: false,
+        child: RefreshIndicator(
+          onRefresh: _load,
+          child: ListView.builder(
+          padding: const EdgeInsets.fromLTRB(0, 0, 0, 24),
           itemCount: items.length + 5,
           itemBuilder: (context, index) {
             if (index == 0) {
               return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  const Masthead(brand: 'PHE 档案', title: '历史 · 数据回看最近 14 天'),
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
                     children: [
                       Expanded(
                         child: TextField(
@@ -210,6 +218,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       ),
                     ],
                   ),
+                  ),
                   const SizedBox(height: 12),
                   if (loading && episodes != null)
                     const LinearProgressIndicator(minHeight: 2),
@@ -226,20 +235,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
             // 数据回看：指标切换 + 单指标趋势卡。
             if (index == 1) {
               if (metricList.isEmpty) return const SizedBox.shrink();
-              return _metricExplorer(metricList, selected);
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: _metricExplorer(metricList, selected),
+              );
             }
             if (index == 2) {
               if (episodes == null) return const SizedBox.shrink();
-              return Padding(
-                padding: const EdgeInsets.only(top: 20, bottom: 4),
-                child: Text(
-                  items.isEmpty ? '' : '身体变化记录',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              );
+              return items.isEmpty
+                  ? const SizedBox.shrink()
+                  : const Padding(
+                      padding: EdgeInsets.only(top: 20, bottom: 4, left: 20),
+                      child: SectionLabel('身体变化记录'),
+                    );
             }
             if (index == 3) {
               if (episodes == null || items.isNotEmpty) {
@@ -259,9 +267,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
             if (episodeIndex < items.length) {
               return _episodeCard(items[episodeIndex]);
             }
-            return Column(
-              children: [
-                if (stableHidden > 0)
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                children: [
+                  if (stableHidden > 0)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
@@ -272,23 +282,25 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       ),
                     ),
                   ),
-                if (nextCursor != null)
-                  Center(
-                    child: TextButton.icon(
-                      onPressed: loadingMore ? null : _loadMore,
-                      icon: loadingMore
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.expand_more),
-                      label: const Text('加载更早的记录'),
+                  if (nextCursor != null)
+                    Center(
+                      child: TextButton.icon(
+                        onPressed: loadingMore ? null : _loadMore,
+                        icon: loadingMore
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.expand_more),
+                        label: const Text('加载更早的记录'),
+                      ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             );
           },
+          ),
         ),
       ),
     );
@@ -318,13 +330,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   child: ChoiceChip(
                     label: Text('${m['label'] ?? m['key']}'),
                     selected: '${m['key'] ?? ''}' == selectedMetricKey,
+                    selectedColor: Ed.data,
+                    labelStyle: TextStyle(
+                      fontSize: 12,
+                      color: '${m['key'] ?? ''}' == selectedMetricKey
+                          ? Colors.white
+                          : Ed.inkSoft,
+                      fontWeight: '${m['key'] ?? ''}' == selectedMetricKey
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                    ),
                     onSelected: (_) {
                       setState(() => selectedMetricKey = '${m['key'] ?? ''}');
                       if (selectedMetricKey == 'sleep') {
                         unawaited(_loadSleepStructure());
                       }
                     },
-                    showCheckmark: false,
                   ),
                 ),
             ],
@@ -349,7 +370,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget _episodeCard(Map<String, dynamic> episode) {
     final developing = '${episode['phase']}' == 'DEVELOPING';
     return Card(
-      margin: const EdgeInsets.only(top: 10),
+      margin: const EdgeInsets.fromLTRB(20, 10, 20, 0),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: episode['id'] == null
@@ -379,19 +400,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: (developing
-                              ? const Color(0xFF4F5D9E)
-                              : const Color(0xFF5B6B7A))
-                          .withValues(alpha: 0.12),
+                      color: developing ? Ed.sealTint : const Color(0xFFECECE6),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
                       developing ? '进行中' : '已结束',
                       style: TextStyle(
                         fontSize: 11,
-                        color: developing
-                            ? const Color(0xFF4F5D9E)
-                            : const Color(0xFF5B6B7A),
+                        fontWeight: FontWeight.w700,
+                        color: developing ? Ed.seal : Ed.inkSoft,
                       ),
                     ),
                   ),

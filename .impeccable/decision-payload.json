@@ -1,0 +1,63 @@
+{
+  "title": "PHE 视觉世界 · 选一个方向",
+  "question": "三个完整的设计方向。布局和配色会整体换掉现在的样子——选一个，或换一批。",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "夜航仪表",
+      "kicker": "THE ROLL",
+      "lineage": "夜间航班驾驶舱与精密表盘",
+      "thesis": "身体状态读起来像一组校准过的仪表读数：深夜和清晨看不刺眼，数字精确、安静、一眼可读。",
+      "palette": ["#0E141B", "#1B2530", "#7FD1AE", "#E8EEF4", "#E8A13C"],
+      "materials": ["哑光深色面板", "发光读数与细网格"],
+      "viewport": "今日页顶部是大号结论读数（睡眠不足 + 清醒 16 分钟），中部两条行动，底部最近 7 晚结构条，全部深色面板。",
+      "risk": "白天强光下深色可读性弱；对比度把控不好会变成「黑客风」，必须克制。",
+      "wireframe": {
+        "cols": 12, "rows": 16,
+        "regions": [
+          {"label": "结论读数（大字号）", "x": 0, "y": 0, "w": 12, "h": 4, "accent": true},
+          {"label": "原因分析", "x": 0, "y": 4, "w": 12, "h": 3},
+          {"label": "今日行动", "x": 0, "y": 7, "w": 12, "h": 3},
+          {"label": "7 晚结构条", "x": 0, "y": 10, "w": 12, "h": 4},
+          {"label": "底部导航", "x": 0, "y": 15, "w": 12, "h": 1}
+        ]
+      },
+      "comp": ".impeccable/mocks/decision/assigned.webp"
+    },
+    {
+      "id": "model-pick",
+      "label": "晨间简报",
+      "kicker": "IMPECCABLE'S PICK",
+      "lineage": "早报头版与编辑部排版",
+      "thesis": "每天的身体判断就是一张头版：大标题是结论，导语是原因，要闻是行动——结论优先做到极致。",
+      "palette": ["#FAF8F4", "#191C20", "#3E5C76", "#C0492E"],
+      "materials": ["纸感底色", "大号标题字与细分隔线"],
+      "viewport": "顶部超大标题式结论占半屏（像头版头条），原因作为导语，行动是今日要闻三条，页脚是证据日期。",
+      "risk": "和内容类应用长得像的概率最高；暖纸底色容易做俗，需要克制。",
+      "wireframe": {
+        "cols": 12, "rows": 16,
+        "regions": [
+          {"label": "头条结论（超大标题）", "x": 0, "y": 0, "w": 12, "h": 5, "accent": true},
+          {"label": "导语·原因", "x": 0, "y": 5, "w": 12, "h": 3},
+          {"label": "今日要闻·行动", "x": 0, "y": 8, "w": 12, "h": 4},
+          {"label": "证据页脚", "x": 0, "y": 12, "w": 12, "h": 2},
+          {"label": "底部导航", "x": 0, "y": 15, "w": 12, "h": 1}
+        ]
+      },
+      "comp": ".impeccable/mocks/decision/model-pick.webp"
+    }
+  ],
+  "reroll": { "registers": ["safer", "bolder"] },
+  "buildPath": { "value": "code" },
+  "canon": true,
+  "canonCard": {
+    "label": "常规干净款",
+    "thesis": "这个类别标配的样子：白卡片、圆角、一个强调色，执行得非常干净。",
+    "palette": ["#FFFFFF", "#1F2937", "#2F6E5D"],
+    "materials": ["白卡片", "标准圆角与留白"],
+    "viewport": "和大多数健康类应用一致的布局，做到同类最佳工艺。",
+    "risk": "和竞争对手长得一样是设计出来的。",
+    "comp": ".impeccable/mocks/decision/canon.webp"
+  },
+  "steer": true
+}

@@ -59,6 +59,9 @@ class FakeClient implements L7Client {
   Future<Map<String, dynamic>> getUsage() async => {'eval_runs': 0};
 
   @override
+  Future<Map<String, dynamic>> getEvalRuns() async => {'runs': []};
+
+  @override
   Future<Map<String, dynamic>> health() async => {'status': 'ok'};
 
   @override

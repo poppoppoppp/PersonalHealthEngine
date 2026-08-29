@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:390px;height:844px;overflow:hidden;}
+.phone{width:390px;height:844px;display:flex;flex-direction:column;position:relative;
+  background:#F6F8F5;color:#1E2620;
+  font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;}
+.statusbar{height:44px;display:flex;justify-content:space-between;align-items:center;padding:0 26px 0 30px;font-size:14px;font-weight:600;flex:0 0 auto;}
+.appbar{padding:6px 24px 14px;display:flex;justify-content:space-between;align-items:baseline;flex:0 0 auto;}
+.appbar .title{font-size:28px;font-weight:800;}
+.appbar .updated{font-size:13px;color:#7d8781;}
+.scroll{flex:1;overflow:hidden;padding:0 18px;display:flex;flex-direction:column;gap:12px;}
+.card{background:#FFFFFF;border-radius:20px;padding:20px;box-shadow:0 1px 4px rgba(30,50,35,.07);}
+.hero .state{font-size:12px;font-weight:700;padding:4px 12px;border-radius:99px;display:inline-block;margin-bottom:12px;background:#E3EEE0;color:#2F6E5D;}
+.hero .headline{font-size:22px;font-weight:800;line-height:1.42;margin-bottom:11px;}
+.hero .cause{font-size:13px;line-height:1.75;color:#4a544d;}
+.hero .actions{margin-top:13px;display:flex;flex-direction:column;gap:9px;}
+.hero .action{display:flex;gap:10px;font-size:13px;line-height:1.6;align-items:flex-start;}
+.hero .action .tick{flex:0 0 auto;width:17px;height:17px;border-radius:50%;margin-top:3px;background:#E3EEE0;color:#2F6E5D;position:relative;}
+.hero .action .tick::after{content:"";position:absolute;left:5px;top:3.5px;width:4.5px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(40deg);}
+.hero .divider{height:1px;background:#E7EDE4;margin:14px 0 11px;}
+.hero .evidence{font-size:11.5px;color:#8a938c;}
+.evi{display:flex;gap:12px;align-items:center;padding:16px 18px;background:#FFFFFF;border-radius:20px;box-shadow:0 1px 4px rgba(30,50,35,.07);}
+.evi .ic{width:42px;height:42px;border-radius:14px;background:#E3EEE0;color:#2F6E5D;display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+.evi .ic svg{width:21px;height:21px;}
+.evi .mid{flex:1;}
+.evi .name{font-size:15px;font-weight:700;}
+.evi .meta{font-size:11.5px;color:#7d8781;margin-top:2px;}
+.evi .val{font-size:16px;font-weight:800;text-align:right;}
+.evi .dev{font-size:11px;text-align:right;margin-top:2px;font-weight:700;color:#2F6E5D;}
+.quick{display:flex;gap:12px;}
+.qbtn{flex:1;border-radius:16px;padding:14px 0;text-align:center;font-size:14px;font-weight:700;background:#E3EEE0;color:#2F6E5D;}
+.tabbar{flex:0 0 auto;display:flex;padding:10px 10px 22px;background:#FFFFFF;border-top:1px solid #E7EDE4;}
+.tab{flex:1;text-align:center;font-size:10.5px;color:#9aa39d;padding-top:4px;}
+.tab svg{width:22px;height:22px;display:block;margin:0 auto 4px;}
+.tab.on{color:#2F6E5D;font-weight:700;}
+.tab.on .pill{display:block;width:38px;height:3.5px;border-radius:2px;margin:5px auto 0;background:#2F6E5D;}
+</style></head><body>
+<div class="phone">
+  <div class="statusbar"><span>14:40</span><span>●●●</span></div>
+  <div class="appbar"><span class="title">今日</span><span class="updated">更新于 14:40</span></div>
+  <div class="scroll">
+    <div class="card hero">
+      <span class="state">睡眠不足</span>
+      <div class="headline">今天有一些变化，<br>建议优先补觉、降低强度。</div>
+      <div class="cause">根据最近的数据，睡眠时长低于平时水平，夜间清醒时间偏多，这可能意味着睡眠质量有所下降。</div>
+      <div class="actions">
+        <div class="action"><span class="tick"></span><span>今晚提前 30 分钟入睡，保持规律作息</span></div>
+        <div class="action"><span class="tick"></span><span>今天训练安排轻度量，避免力竭</span></div>
+      </div>
+      <div class="divider"></div>
+      <div class="evidence">依据来自 8 月 29 日的个人数据 · 点按查看完整依据</div>
+    </div>
+    <div class="evi">
+      <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></div>
+      <div class="mid"><div class="name">睡眠</div><div class="meta">当日数据 · 8月29日</div></div>
+      <div><div class="val">7 小时 53 分</div><div class="dev">低于个人基线 ↓</div></div>
+    </div>
+    <div class="quick"><div class="qbtn">问我的状态</div><div class="qbtn">补充情况</div></div>
+  </div>
+  <div class="tabbar">
+    <div class="tab on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>今日<span class="pill"></span></div>
+    <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>历史</div>
+    <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/></svg>我的规律</div>
+    <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 5-6 8-6s6.5 2 8 6"/></svg>我的</div>
+  </div>
+</div>
+</body></html>

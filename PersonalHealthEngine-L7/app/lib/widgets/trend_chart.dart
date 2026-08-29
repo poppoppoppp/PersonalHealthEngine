@@ -62,7 +62,7 @@ class _TrendPainter extends CustomPainter {
 
     if (baselineMedian != null) {
       final ref = Paint()
-        ..color = Colors.teal.withOpacity(0.6)
+        ..color = const Color(0xFF8A6A4F).withValues(alpha: 0.6)
         ..strokeWidth = 1
         ..style = PaintingStyle.stroke;
       final y = yOf(baselineMedian!);
@@ -74,7 +74,7 @@ class _TrendPainter extends CustomPainter {
     }
 
     final line = Paint()
-      ..color = const Color(0xFF33557A)
+      ..color = const Color(0xFF8A6A4F)
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
     final path = Path();
@@ -96,7 +96,7 @@ class _TrendPainter extends CustomPainter {
     }
     canvas.drawPath(path, line);
 
-    final dot = Paint()..color = const Color(0xFF33557A);
+    final dot = Paint()..color = const Color(0xFF8A6A4F);
     for (var i = 0; i < n; i++) {
       final v = points[i].$2;
       if (v == null) continue;
