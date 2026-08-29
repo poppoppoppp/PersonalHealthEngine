@@ -72,6 +72,37 @@ class HistoryMockClient extends Fake implements L7Client {
   };
 
   @override
+  Future<Map<String, dynamic>> getSleepStructure({int days = 14}) async => {
+    'nights': [
+      {
+        'local_date': '2026-08-28',
+        'sleep_minutes': 473,
+        'awake_minutes': 16,
+        'total_minutes': 489,
+        'awake_ratio': 0.032,
+        'segment_count': 3,
+      },
+      {
+        'local_date': '2026-08-27',
+        'sleep_minutes': 344,
+        'awake_minutes': 25,
+        'total_minutes': 369,
+        'awake_ratio': 0.068,
+        'segment_count': 5,
+      },
+      {
+        'local_date': '2026-08-26',
+        'sleep_minutes': 431,
+        'awake_minutes': 8,
+        'total_minutes': 439,
+        'awake_ratio': 0.018,
+        'segment_count': 2,
+      },
+    ],
+    'note': '两段结构',
+  };
+
+  @override
   Future<Map<String, dynamic>> getEpisodes({
     int? cursor,
     int limit = 30,

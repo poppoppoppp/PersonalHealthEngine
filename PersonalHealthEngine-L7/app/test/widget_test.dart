@@ -143,6 +143,12 @@ class FakeClient implements L7Client {
   Future<Map<String, dynamic>> searchHistory(String q) async => {'results': []};
 
   @override
+  Future<Map<String, dynamic>> getSleepStructure({int days = 14}) async => {
+    'nights': [],
+    'note': null,
+  };
+
+  @override
   Future<Map<String, dynamic>> getNotifications() async => {
     'notifications': [],
   };

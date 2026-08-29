@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import '../main.dart';
 import '../widgets/api_error_view.dart';
 import '../widgets/metric_overview_card.dart';
+import '../widgets/sleep_structure_card.dart';
 
 class HistoryScreen extends StatefulWidget {
   final AppEnv env;
@@ -23,6 +24,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   List<dynamic>? episodes;
   List<Map<String, dynamic>>? metrics;
   String selectedMetricKey = '';
+  Map<String, dynamic>? sleepStructure;
   int stableHidden = 0;
   String? note;
   Object? error;
@@ -90,8 +92,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
               : '${all.first['key'] ?? ''}';
         }
       });
+      if (selectedMetricKey == 'sleep') {
+        unawaited(_loadSleepStructure());
+      }
     } catch (_) {
       if (mounted) setState(() => metrics = const []);
+    }
+  }
+
+  Future<void> _loadSleepStructure() async {
+    if (sleepStructure != null) return;
+    try {
+      final r = await widget.env.client.getSleepStructure();
+      if (mounted) setState(() => sleepStructure = r);
+    } catch (_) {
+      if (mounted) setState(() => sleepStructure = {'nights': const []});
     }
   }
 
@@ -303,8 +318,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   child: ChoiceChip(
                     label: Text('${m['label'] ?? m['key']}'),
                     selected: '${m['key'] ?? ''}' == selectedMetricKey,
-                    onSelected: (_) =>
-                        setState(() => selectedMetricKey = '${m['key'] ?? ''}'),
+                    onSelected: (_) {
+                      setState(() => selectedMetricKey = '${m['key'] ?? ''}');
+                      if (selectedMetricKey == 'sleep') {
+                        unawaited(_loadSleepStructure());
+                      }
+                    },
                     showCheckmark: false,
                   ),
                 ),
@@ -313,6 +332,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ),
         const SizedBox(height: 8),
         if (selected.isNotEmpty) MetricOverviewCard(metric: selected.first),
+        if (selectedMetricKey == 'sleep' && sleepStructure != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: SleepStructureCard(
+              nights: (sleepStructure!['nights'] as List? ?? const [])
+                  .whereType<Map>()
+                  .map((item) => item.cast<String, dynamic>())
+                  .toList(),
+            ),
+          ),
       ],
     );
   }

@@ -416,6 +416,13 @@ def create_app(config: Config | None = None, orchestrator: EngineOrchestrator | 
     def history_search(q: str = "", user_id: str = Depends(require_auth)):
         return history_service.search(user_id, q)
 
+    @app.get("/history/sleep-structure")
+    def history_sleep_structure(
+        days: int = Query(14, ge=1, le=60),
+        user_id: str = Depends(require_auth),
+    ):
+        return history_service.sleep_structure(user_id, days=days)
+
     # ---------------- Notifications (§48–§52) ----------------
     @app.get("/notifications")
     def notifications_feed(user_id: str = Depends(require_auth)):
