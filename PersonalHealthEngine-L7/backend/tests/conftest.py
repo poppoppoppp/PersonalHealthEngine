@@ -151,7 +151,7 @@ class CountingMockReasoningAdapter:
                 "LATEST" if scope == "HEALTH_DATA" else None
             ),
             "medical_consequence": consequence,
-            "needs_medical_review": consequence in {"MODERATE", "HIGH"},
+            "needs_medical_review": consequence == "HIGH",
             "potential_context": scope == "HEALTH_CONTEXT",
             "context_write": "AUTO_SAVE" if scope == "HEALTH_CONTEXT" else "NONE",
             "reason": "test_fixture_classification",

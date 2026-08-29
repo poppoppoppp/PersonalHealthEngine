@@ -20,6 +20,7 @@ from l7.performance import measure_stage, record_cache_result, record_model_meta
 from l7.engine.qna_orchestration import (
     MEDICAL_CRITIC_PROMPT_VERSION,
     MEDICAL_REVIEW_SCHEMA_VERSION,
+    MEDICAL_SAFETY_CONTEXT_TYPES,
     PRODUCT_META_TEXT,
     REFUSAL_TEXT,
     SEMANTIC_UNAVAILABLE_TEXT,
@@ -444,6 +445,10 @@ class QnAService:
                     today_medical_state,
                     candidate,
                     candidate_issues,
+                    has_medical_safety_context=any(
+                        item.get("context_type") in MEDICAL_SAFETY_CONTEXT_TYPES
+                        for item in bundle.get("recent_context", [])
+                    ),
                 )
                 if review_required:
                     medical_model = self.medical_adapter.model_id

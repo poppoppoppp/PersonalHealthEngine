@@ -235,6 +235,62 @@ class ProductDeepSeekReasoningAdapter:
         return self._base.extract_context(text, today)
 
 
+class ProductDeepSeekMedicalCriticAdapter:
+    """DeepSeek-backed medical critic implementing the sealed review contract.
+
+    The 2-vCPU host runs the local 4B reviewer at ~1.2 tokens/s — a real review takes
+    minutes and always exceeds the adapter timeout, leaving medical-flagged days
+    permanently fail-closed. The cloud transport reviews the compact candidate bundle
+    in seconds and reads better than a quantized 4B. Same statuses, strict JSON, and
+    user-facing text stays Simplified Chinese."""
+
+    model_id = "deepseek-v4-flash-medical-critic"
+
+    def __init__(self, **kwargs):
+        real = importlib.import_module("l6_real_adapters_v0_1")
+        self._real = real
+        self._base = real.RealDeepSeekReasoningModelAdapter(**kwargs)
+
+    def review(self, review_bundle, hypothesis_types, question_text=None):
+        schema = {
+            "review_status": (
+                "APPROVED | APPROVED_WITH_CHANGES | REJECTED | ESCALATE | UNAVAILABLE"
+            ),
+            "medical_concerns": ["Simplified-Chinese concerns, or empty"],
+            "causality_concerns": ["unfounded causal claims in the candidate, or empty"],
+            "missing_safety_considerations": ["or empty"],
+            "unsafe_actions": ["actions that are unsafe given the evidence, or empty"],
+            "required_changes": [
+                "concrete Simplified-Chinese edits when APPROVED_WITH_CHANGES, else empty"
+            ],
+            "escalation_reason": "Simplified-Chinese reason when ESCALATE, else null",
+            "review_summary": "one Simplified-Chinese sentence",
+        }
+        system = (
+            "You are a conservative medical safety reviewer for a personal-health "
+            "decision assistant. Review the candidate answer strictly against the "
+            "resolved evidence and safety context. You are not diagnosing the user. "
+            "Escalate when the question or evidence suggests acute illness or a red "
+            "flag. Reject or require changes when the candidate asserts unfounded "
+            "causality, invents symptoms, or gives advice unsafe for the reported "
+            "state. Every string field MUST be Simplified Chinese. Return STRICT JSON "
+            "matching: " + json.dumps(schema, ensure_ascii=False)
+        )
+        user = self._real.canonical_json({
+            "medical_review_bundle": review_bundle,
+            "hypothesis_types": hypothesis_types,
+            "question": question_text,
+        })
+        content = self._base._chat(system, user, operation="qna_medical_review")
+        result = self._real._extract_json(content)
+        status = result.get("review_status")
+        if status not in (
+            "APPROVED", "APPROVED_WITH_CHANGES", "REJECTED", "ESCALATE", "UNAVAILABLE",
+        ):
+            raise self._real.RealModelError(f"invalid review_status {status!r}")
+        return result
+
+
 class L6Bridge:
     """Lazily-imported handles to the sealed L6 modules."""
 

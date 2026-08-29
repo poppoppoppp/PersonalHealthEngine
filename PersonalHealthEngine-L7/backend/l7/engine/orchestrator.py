@@ -81,6 +81,10 @@ class EngineOrchestrator:
         if self._medical_adapter is None:
             if self.cfg.medical_adapter == "medgemma":
                 self._medical_adapter = self.bridge.real_adapters.RealMedGemmaMedicalModelAdapter()
+            elif self.cfg.medical_adapter == "deepseek":
+                from l7.upstream.l6_bridge import ProductDeepSeekMedicalCriticAdapter
+
+                self._medical_adapter = ProductDeepSeekMedicalCriticAdapter()
             else:
                 self._medical_adapter = self.bridge.adapters.MockMedicalModelAdapter()
         return self._medical_adapter
