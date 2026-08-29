@@ -124,6 +124,38 @@ def test_day_diff():
     assert _day_diff("2026-08-10", "2026-08-10") == 0
 
 
+def test_episode_summary_is_plain_language(env):
+    seed_reasoning(env, "2026-08-13", "NOTABLE_CHANGE", "UNKNOWN")
+
+    svc = make_history(env)
+    r = svc.rebuild("owner")
+    for ep in r["episodes"]:
+        assert "置信度" not in ep["summary"], "internal confidence wording never ships"
+    unknown = next(
+        e for e in r["episodes"] if e["episode_key"].startswith("UNKNOWN")
+    )
+    assert "原因还不明确" in unknown["summary"]
+    assert "暂无法确定原因" not in unknown["summary"]
+
+
+def test_timeline_keeps_one_judgment_per_day(env):
+    seed_reasoning(
+        env, "2026-08-16", "NOTABLE_CHANGE", "RECOVERY_STRAIN",
+        status="STALE",
+    )
+    svc = make_history(env)
+    r = svc.rebuild("owner")
+    ep = next(
+        e for e in r["episodes"] if e["episode_key"].startswith("SLEEP_DEFICIT")
+    )
+    detail = svc.episode_detail("owner", ep["id"])
+    judgments = [
+        e for e in detail["timeline"]
+        if e["kind"] == "JUDGMENT" and e["event_date"] == "2026-08-16"
+    ]
+    assert len(judgments) == 1, "superseded same-day versions never reach the UI"
+
+
 # ---------------------------------------------------------------- patterns display
 
 def test_pattern_display_status_semantics(env):

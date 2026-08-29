@@ -1,6 +1,6 @@
-/// 历史 — organized by Health Episode (§37–§40): continuous related changes aggregated
-/// into 开始 → 发展 → 变化 → 恢复/结束. Ordinary stable days are hidden by default but
-/// never deleted. This is a projection of append-only L6 history.
+/// 历史 — 两个问题：这段时间我的数据长什么样（数据回看），以及引擎记下了哪些变化
+/// （身体变化记录，按 Health Episode 投影，§37–§40）。稳定日默认隐藏但完整保存。
+/// 界面只讲人话：数值、图表、白话摘要；不出现置信度、枚举标签或版本管理词汇。
 library;
 
 import 'dart:async';
@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 
 import '../main.dart';
 import '../widgets/api_error_view.dart';
+import '../widgets/metric_overview_card.dart';
 
 class HistoryScreen extends StatefulWidget {
   final AppEnv env;
@@ -20,6 +21,8 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   final searchController = TextEditingController();
   List<dynamic>? episodes;
+  List<Map<String, dynamic>>? metrics;
+  String selectedMetricKey = '';
   int stableHidden = 0;
   String? note;
   Object? error;
@@ -38,6 +41,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   void _onDataChanged() => unawaited(_load());
 
   Future<void> _load() async {
+    unawaited(_loadMetrics());
     final repository = await widget.env.repository();
     final cached = await repository.cached('history');
     if (cached != null && mounted && episodes == null) {
@@ -63,6 +67,31 @@ class _HistoryScreenState extends State<HistoryScreen> {
           loading = false;
         });
       }
+    }
+  }
+
+  /// 指标回看与事件记录互不阻塞：指标加载失败只隐藏回看区，不影响事件列表。
+  Future<void> _loadMetrics() async {
+    try {
+      final r = await widget.env.client.getEvidence();
+      if (!mounted) return;
+      final all = (r['all_metrics'] as List? ?? const [])
+          .whereType<Map>()
+          .map((item) => item.cast<String, dynamic>())
+          .where((m) => (m['series'] as List? ?? const []).isNotEmpty)
+          .toList();
+      setState(() {
+        metrics = all;
+        if (all.isNotEmpty &&
+            !all.any((m) => '${m['key'] ?? ''}' == selectedMetricKey)) {
+          selectedMetricKey =
+              all.any((m) => '${m['key'] ?? ''}' == 'sleep')
+              ? 'sleep'
+              : '${all.first['key'] ?? ''}';
+        }
+      });
+    } catch (_) {
+      if (mounted) setState(() => metrics = const []);
     }
   }
 
@@ -117,18 +146,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
-  Color _phaseColor(String phase) => switch (phase) {
-    'DEVELOPING' => const Color(0xFF4F5D9E),
-    'RECOVERING' => const Color(0xFF4A6B57),
-    _ => const Color(0xFF5B6B7A),
-  };
-
-  String _phaseLabel(String phase) => switch (phase) {
-    'DEVELOPING' => '进行中',
-    'RECOVERING' => '恢复中',
-    _ => '已结束',
-  };
-
   @override
   void dispose() {
     widget.env.removeListener(_onDataChanged);
@@ -141,13 +158,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final items = (episodes ?? const [])
         .map((x) => (x as Map).cast<String, dynamic>())
         .toList();
+    final metricList = metrics ?? const [];
+    final selected = metricList
+        .where((m) => '${m['key'] ?? ''}' == selectedMetricKey)
+        .toList();
+
     return Scaffold(
       appBar: AppBar(title: const Text('历史')),
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView.builder(
           padding: const EdgeInsets.all(16),
-          itemCount: items.length + 2,
+          itemCount: items.length + 5,
           itemBuilder: (context, index) {
             if (index == 0) {
               return Column(
@@ -183,27 +205,52 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       padding: EdgeInsets.only(top: 40),
                       child: Center(child: CircularProgressIndicator()),
                     ),
-                  if (episodes != null && episodes!.isEmpty)
-                    const Card(
-                      child: Padding(
-                        padding: EdgeInsets.all(20),
-                        child: Text(
-                          '还没有形成任何健康事件。稳定日默认不显示，但完整保存。',
-                          style: TextStyle(color: Colors.black54, height: 1.5),
-                        ),
-                      ),
-                    ),
                 ],
               );
             }
-            if (index <= items.length) return _episodeCard(items[index - 1]);
+            // 数据回看：指标切换 + 单指标趋势卡。
+            if (index == 1) {
+              if (metricList.isEmpty) return const SizedBox.shrink();
+              return _metricExplorer(metricList, selected);
+            }
+            if (index == 2) {
+              if (episodes == null) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(top: 20, bottom: 4),
+                child: Text(
+                  items.isEmpty ? '' : '身体变化记录',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              );
+            }
+            if (index == 3) {
+              if (episodes == null || items.isNotEmpty) {
+                return const SizedBox.shrink();
+              }
+              return const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Text(
+                    '这段时间没有记录到需要你注意的变化。\n数据都在，随时可以在上面回看。',
+                    style: TextStyle(color: Colors.black54, height: 1.5),
+                  ),
+                ),
+              );
+            }
+            final episodeIndex = index - 4;
+            if (episodeIndex < items.length) {
+              return _episodeCard(items[episodeIndex]);
+            }
             return Column(
               children: [
                 if (stableHidden > 0)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
-                      '另有 $stableHidden 个稳定日未显示（完整保存）。${note ?? ''}',
+                      '其余 $stableHidden 天状态平稳，没有需要你处理的变化。',
                       style: const TextStyle(
                         fontSize: 12,
                         color: Colors.black45,
@@ -221,7 +268,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.expand_more),
-                      label: const Text('加载更早事件'),
+                      label: const Text('加载更早的记录'),
                     ),
                   ),
               ],
@@ -232,9 +279,48 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
+  Widget _metricExplorer(
+    List<Map<String, dynamic>> metricList,
+    List<Map<String, dynamic>> selected,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(bottom: 8),
+          child: Text(
+            '数据回看',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+          ),
+        ),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (final m in metricList)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text('${m['label'] ?? m['key']}'),
+                    selected: '${m['key'] ?? ''}' == selectedMetricKey,
+                    onSelected: (_) =>
+                        setState(() => selectedMetricKey = '${m['key'] ?? ''}'),
+                    showCheckmark: false,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (selected.isNotEmpty) MetricOverviewCard(metric: selected.first),
+      ],
+    );
+  }
+
   Widget _episodeCard(Map<String, dynamic> episode) {
+    final developing = '${episode['phase']}' == 'DEVELOPING';
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(top: 10),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: episode['id'] == null
@@ -249,42 +335,38 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      '${episode['start_date']} ~ ${episode['end_date'] ?? episode['start_date']}',
+                      '${episode['summary'] ?? ''}',
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
+                        height: 1.5,
                       ),
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: _phaseColor(
-                        '${episode['phase']}',
-                      ).withOpacity(0.12),
+                      color: (developing
+                              ? const Color(0xFF4F5D9E)
+                              : const Color(0xFF5B6B7A))
+                          .withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
-                      _phaseLabel('${episode['phase']}'),
+                      developing ? '进行中' : '已结束',
                       style: TextStyle(
                         fontSize: 11,
-                        color: _phaseColor('${episode['phase']}'),
+                        color: developing
+                            ? const Color(0xFF4F5D9E)
+                            : const Color(0xFF5B6B7A),
                       ),
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '${episode['summary'] ?? ''}',
-                style: const TextStyle(
-                  fontSize: 13,
-                  height: 1.5,
-                  color: Colors.black87,
-                ),
               ),
             ],
           ),
@@ -407,7 +489,7 @@ class _EpisodeDetailScreenState extends State<_EpisodeDetailScreen> {
         .map((e) => (e as Map).cast<String, dynamic>())
         .toList();
     return Scaffold(
-      appBar: AppBar(title: const Text('事件时间线')),
+      appBar: AppBar(title: const Text('这段时间的记录')),
       body: error != null && data == null
           ? Center(
               child: Padding(
@@ -426,14 +508,9 @@ class _EpisodeDetailScreenState extends State<_EpisodeDetailScreen> {
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${ep['summary'] ?? ''}',
-                            style: const TextStyle(fontSize: 14, height: 1.5),
-                          ),
-                        ],
+                      child: Text(
+                        '${ep['summary'] ?? ''}',
+                        style: const TextStyle(fontSize: 14, height: 1.5),
                       ),
                     ),
                   ),
@@ -465,7 +542,7 @@ class _EpisodeDetailScreenState extends State<_EpisodeDetailScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '${ev['event_date']} · ${ev['kind_label'] ?? '事件记录'}',
+                                '${_md('${ev['event_date'] ?? ''}')} · ${ev['kind_label'] ?? '记录'}',
                                 style: const TextStyle(
                                   fontSize: 11,
                                   color: Colors.black45,
@@ -490,7 +567,7 @@ class _EpisodeDetailScreenState extends State<_EpisodeDetailScreen> {
                     child: TextButton.icon(
                       onPressed: loadingMore ? null : _loadMore,
                       icon: const Icon(Icons.expand_more),
-                      label: const Text('加载更早记录'),
+                      label: const Text('加载更早的记录'),
                     ),
                   ),
               ],
@@ -498,21 +575,32 @@ class _EpisodeDetailScreenState extends State<_EpisodeDetailScreen> {
     );
   }
 
+  String _md(String isoDate) {
+    final parts = isoDate.split('-');
+    if (parts.length != 3) return isoDate;
+    final month = int.tryParse(parts[1]);
+    final day = int.tryParse(parts[2]);
+    if (month == null || day == null) return isoDate;
+    return '$month月$day日';
+  }
+
   String _detailText(dynamic detail) {
     if (detail is! Map) return '$detail';
     final m = detail.cast<String, dynamic>();
     if (m.containsKey('overall_state')) {
-      return '判断：${m['overall_state_label'] ?? '状态有变化'}，'
-          '主因 ${m['primary_label'] ?? '暂无法确定原因'}'
-          '${m['version_status_label'] == '历史版本' ? '（已被更新版本取代）' : ''}';
+      final primary = '${m['primary'] ?? 'UNKNOWN'}';
+      final cause = primary == 'UNKNOWN'
+          ? '具体原因还不明确，继续观察。'
+          : '主要线索：${m['primary_label'] ?? '待确认'}。';
+      return '当天判断：${m['overall_state_label'] ?? '身体变化比较明显'}。$cause';
     }
     if (m.containsKey('context_type')) {
-      return '情况：${m['context_type_label'] ?? '其他个人情况'}'
+      return '你补充的情况：${m['context_type_label'] ?? '其他个人情况'}'
           '${m['raw_text'] != null ? ' · ${m['raw_text']}' : ''}';
     }
     if (m.containsKey('feedback_status')) {
-      return '反馈：${m['feedback_status_label'] ?? '已记录反馈'}'
-          '${m['correction'] == true ? '（含纠正）' : ''}';
+      return '你的反馈：${m['feedback_status_label'] ?? '已记录'}'
+          '${m['correction'] == true ? '（含补充）' : ''}';
     }
     return '$detail';
   }
