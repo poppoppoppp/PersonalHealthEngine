@@ -28,7 +28,7 @@ def main() -> int:
 
     request = urllib.request.Request(
         URL,
-        data=b"",
+        data=b'{"trigger": "scheduled"}',
         method="POST",
     )
 

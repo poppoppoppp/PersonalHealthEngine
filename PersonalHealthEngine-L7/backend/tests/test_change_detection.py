@@ -347,3 +347,20 @@ def test_no_data_fallback_is_state_D(env, tmp_path):
     assert result.today_payload["product_state"] == "D"
     assert result.today_payload["actions"] == []
     assert env["adapter"].reason_daily_calls == 0
+
+
+def test_scheduled_model_gate_matrix():
+    from l7.engine.orchestrator import scheduled_model_worthy
+
+    # First analysis of the day: always worth the model.
+    assert scheduled_model_worthy("2026-08-29", "2026-08-29", 14, False, False) is True
+    # User added/corrected context or feedback: worth it.
+    assert scheduled_model_worthy("2026-08-29", "2026-08-29", 14, True, True) is True
+    # The judged day is complete (analysis of yesterday or earlier): worth it.
+    assert scheduled_model_worthy("2026-08-28", "2026-08-29", 14, True, False) is True
+    # Evening convergence window: worth it.
+    assert scheduled_model_worthy("2026-08-29", "2026-08-29", 21, True, False) is True
+    # Early morning: worth it.
+    assert scheduled_model_worthy("2026-08-29", "2026-08-29", 5, True, False) is True
+    # Midday, same-day partial data, no user input: skip the model.
+    assert scheduled_model_worthy("2026-08-29", "2026-08-29", 14, True, False) is False

@@ -47,6 +47,30 @@ class EvaluationResult:
     today_version_id: int | None = None
 
 
+def scheduled_model_worthy(
+    analysis_date: str,
+    local_date: str,
+    now_hour: int,
+    reasoning_exists: bool,
+    user_input_changed: bool,
+) -> bool:
+    """Cost gate for unattended scheduled refreshes.
+
+    Mid-day data dribbles (steps accumulating) rarely changes what today's judgment
+    should say, so the model only pays when something real happened: the user added or
+    corrected context/feedback, the judged day is complete, it is the first analysis of
+    the day, or the evening/early-morning window where the day converges."""
+    if not reasoning_exists:
+        return True
+    if user_input_changed:
+        return True
+    if analysis_date < local_date:
+        return True
+    if now_hour >= 21 or now_hour < 6:
+        return True
+    return False
+
+
 class EngineOrchestrator:
     def __init__(
         self,
@@ -140,6 +164,31 @@ class EngineOrchestrator:
 
             stored = readers.read_current_bundle(l6, analysis_date)
             need_model = stored is None or stored["bundle_sha256"] != bhash
+
+            if need_model and trigger == "scheduled":
+                reasoning_exists = (
+                    readers.read_current_daily_reasoning(l6, analysis_date) is not None
+                )
+                last_sig = json.loads(last["upstream_sig_json"]) if last is not None else {}
+                user_input_changed = (
+                    sig.get("l6_context_max_id") != last_sig.get("l6_context_max_id")
+                    or sig.get("l6_feedback_max_id") != last_sig.get("l6_feedback_max_id")
+                )
+                now_hour = datetime.now(ZoneInfo(self.cfg.timezone_name)).hour
+                if not scheduled_model_worthy(
+                    analysis_date, local_date, now_hour,
+                    reasoning_exists, user_input_changed,
+                ):
+                    payload, _, version_id = self._render_current_today(
+                        user_id, analysis_date, trigger, l6, l3, l4, l5,
+                    )
+                    run_id = self._insert_eval_run(
+                        user_id, started, trigger, sig, bhash,
+                        "SCHEDULED_SKIPPED_MODEL", 0, version_id,
+                    )
+                    return EvaluationResult(
+                        "SCHEDULED_SKIPPED_MODEL", 0, False, payload, run_id, version_id,
+                    )
 
             model_calls = 0
             if need_model:

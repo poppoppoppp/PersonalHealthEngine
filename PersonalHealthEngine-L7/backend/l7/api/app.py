@@ -169,11 +169,21 @@ def create_app(config: Config | None = None, orchestrator: EngineOrchestrator | 
         )
 
     @app.post("/today/refresh")
-    def refresh_today(user_id: str = Depends(require_auth)):
+    async def refresh_today(request: Request, user_id: str = Depends(require_auth)):
         # A queued health-write job (context correction, feedback) is already re-running
         # the engine in the worker. Blocking this request on a second concurrent
         # evaluation only produces a long spinner and a duplicate model call — return the
         # current copy at once; the job's own evaluation updates Today when it lands.
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        # Only the pipeline hook runs unattended (gated by the scheduled model gate);
+        # every other path is user-initiated and always allowed to reason.
+        trigger = (
+            "scheduled" if isinstance(body, dict) and body.get("trigger") == "scheduled"
+            else "manual_refresh"
+        )
         pending = l7.execute(
             "SELECT 1 FROM durable_jobs WHERE user_id=? AND status IN ('PENDING','RUNNING')"
             " LIMIT 1",
@@ -183,7 +193,7 @@ def create_app(config: Config | None = None, orchestrator: EngineOrchestrator | 
             try:
                 current = today_service.get_today(user_id, trigger="app_open")
             except LookupError:
-                result = orch.evaluate(user_id, trigger="manual_refresh")
+                result = orch.evaluate(user_id, trigger=trigger)
                 return {
                     "outcome": result.outcome,
                     "model_calls": result.model_calls,
@@ -196,7 +206,7 @@ def create_app(config: Config | None = None, orchestrator: EngineOrchestrator | 
                 "judgment_updated": False,
                 "today": current,
             }
-        result = orch.evaluate(user_id, trigger="manual_refresh")
+        result = orch.evaluate(user_id, trigger=trigger)
         return {
             "outcome": result.outcome,
             "model_calls": result.model_calls,
