@@ -269,7 +269,7 @@ class _MeScreenState extends State<MeScreen> {
                 : '$lastRun —— 已完成今日分析，结论在「今日」',
           ),
           const SizedBox(height: 8),
-          _engineLine(done: true, text: '数据每 2 小时自动同步补充一次'),
+          _engineLine(done: true, text: '数据每 30 分钟自动同步一次'),
           const SizedBox(height: 8),
           _engineLine(done: false, text: '下次自动更新 —— ${_nextUpdateLabel()}'),
           const SizedBox(height: 12),
