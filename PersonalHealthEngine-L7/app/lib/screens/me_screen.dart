@@ -73,6 +73,25 @@ class _MeScreenState extends State<MeScreen> {
     super.dispose();
   }
 
+  bool _reanalyzing = false;
+  String? _reanalyzeNote;
+
+  Future<void> _reanalyze() async {
+    setState(() {
+      _reanalyzing = true;
+      _reanalyzeNote = null;
+    });
+    try {
+      await widget.env.client.refreshToday();
+      if (mounted) _reanalyzeNote = '分析完成';
+      await _load();
+    } catch (e) {
+      if (mounted) _reanalyzeNote = '暂时没有完成，稍后再试';
+    } finally {
+      if (mounted) setState(() => _reanalyzing = false);
+    }
+  }
+
   String _fmtDate(String? iso) {
     if (iso == null || iso.isEmpty) return '暂无';
     final parts = iso.split('-');
@@ -253,6 +272,32 @@ class _MeScreenState extends State<MeScreen> {
           _engineLine(done: true, text: '数据每 2 小时自动同步补充一次'),
           const SizedBox(height: 8),
           _engineLine(done: false, text: '下次自动更新 —— ${_nextUpdateLabel()}'),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonal(
+              onPressed: _reanalyzing ? null : _reanalyze,
+              style: const ButtonStyle(
+                backgroundColor: WidgetStatePropertyAll(Color(0xFFF0E9E0)),
+                foregroundColor: WidgetStatePropertyAll(Ed.ink),
+              ),
+              child: _reanalyzing
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('立即重新分析', style: TextStyle(fontSize: 13)),
+            ),
+          ),
+          if (_reanalyzeNote != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                _reanalyzeNote!,
+                style: const TextStyle(fontSize: 11.5, color: Ed.inkSoft),
+              ),
+            ),
         ],
       ),
     );

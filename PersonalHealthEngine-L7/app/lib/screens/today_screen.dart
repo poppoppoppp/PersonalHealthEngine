@@ -293,6 +293,23 @@ class _TodayScreenState extends State<TodayScreen> {
       _evidenceBlock(context, p),
       const SizedBox(height: 12),
       _entryRow(context),
+      const SizedBox(height: 4),
+      Center(
+        child: TextButton.icon(
+          onPressed: _reanalyzing ? null : _reanalyze,
+          icon: _reanalyzing
+              ? const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.refresh, size: 16),
+          label: Text(
+            _reanalyzing ? '正在重新分析…' : '立即重新分析',
+            style: const TextStyle(fontSize: 12.5, color: Ed.inkSoft),
+          ),
+        ),
+      ),
       if (p.feedbackPrompt != null) ...[
         const SizedBox(height: 12),
         _feedbackBlock(context, p),
@@ -666,6 +683,14 @@ class _TodayScreenState extends State<TodayScreen> {
         ),
       ),
     );
+  }
+
+  bool _reanalyzing = false;
+
+  Future<void> _reanalyze() async {
+    setState(() => _reanalyzing = true);
+    await _refresh();
+    if (mounted) setState(() => _reanalyzing = false);
   }
 
   bool _feedbackBusy = false;

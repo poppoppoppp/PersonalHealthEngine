@@ -350,17 +350,26 @@ def test_no_data_fallback_is_state_D(env, tmp_path):
 
 
 def test_scheduled_model_gate_matrix():
+    from datetime import datetime
+
     from l7.engine.orchestrator import scheduled_model_worthy
 
-    # First analysis of the day: always worth the model.
-    assert scheduled_model_worthy("2026-08-29", "2026-08-29", 14, False, False) is True
-    # User added/corrected context or feedback: worth it.
-    assert scheduled_model_worthy("2026-08-29", "2026-08-29", 14, True, True) is True
-    # The judged day is complete (analysis of yesterday or earlier): worth it.
-    assert scheduled_model_worthy("2026-08-28", "2026-08-29", 14, True, False) is True
-    # Evening convergence window: worth it.
-    assert scheduled_model_worthy("2026-08-29", "2026-08-29", 21, True, False) is True
-    # Early morning: worth it.
-    assert scheduled_model_worthy("2026-08-29", "2026-08-29", 5, True, False) is True
-    # Midday, same-day partial data, no user input: skip the model.
-    assert scheduled_model_worthy("2026-08-29", "2026-08-29", 14, True, False) is False
+    noon = datetime(2026, 8, 29, 14, 0)
+    morning_window = datetime(2026, 8, 29, 8, 30)
+    evening_window = datetime(2026, 8, 29, 19, 30)
+    outside_before = datetime(2026, 8, 29, 7, 30)
+    outside_after = datetime(2026, 8, 29, 20, 30)
+
+    # First analysis of the day: always worth the model, any time.
+    assert scheduled_model_worthy("2026-08-29", "2026-08-29", noon, False, False) is True
+    # User added/corrected context or feedback: worth it, any time.
+    assert scheduled_model_worthy("2026-08-29", "2026-08-29", noon, True, True) is True
+    # The judged day is complete: worth it.
+    assert scheduled_model_worthy("2026-08-28", "2026-08-29", noon, True, False) is True
+    # Inside the two fixed windows: worth it.
+    assert scheduled_model_worthy("2026-08-29", "2026-08-29", morning_window, True, False) is True
+    assert scheduled_model_worthy("2026-08-29", "2026-08-29", evening_window, True, False) is True
+    # Outside windows, partial day, no user input: skip the model.
+    assert scheduled_model_worthy("2026-08-29", "2026-08-29", noon, True, False) is False
+    assert scheduled_model_worthy("2026-08-29", "2026-08-29", outside_before, True, False) is False
+    assert scheduled_model_worthy("2026-08-29", "2026-08-29", outside_after, True, False) is False

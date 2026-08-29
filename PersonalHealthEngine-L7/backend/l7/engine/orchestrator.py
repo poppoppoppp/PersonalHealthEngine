@@ -47,28 +47,41 @@ class EvaluationResult:
     today_version_id: int | None = None
 
 
+# 每天固定的自动分析档位（本地时间）：晨间档给今天结论，傍晚档汇总白天。
+# 窗口外的定时刷新只同步数据，不调模型。
+ANALYSIS_WINDOWS = (("08:00", "09:00"), ("19:00", "20:00"))
+
+
+def _in_analysis_window(now: datetime) -> bool:
+    minutes = now.hour * 60 + now.minute
+    for start, end in ANALYSIS_WINDOWS:
+        sh, sm = (int(x) for x in start.split(":"))
+        eh, em = (int(x) for x in end.split(":"))
+        if sh * 60 + sm <= minutes <= eh * 60 + em:
+            return True
+    return False
+
+
 def scheduled_model_worthy(
     analysis_date: str,
     local_date: str,
-    now_hour: int,
+    now: datetime,
     reasoning_exists: bool,
     user_input_changed: bool,
 ) -> bool:
     """Cost gate for unattended scheduled refreshes.
 
     Mid-day data dribbles (steps accumulating) rarely changes what today's judgment
-    should say, so the model only pays when something real happened: the user added or
-    corrected context/feedback, the judged day is complete, it is the first analysis of
-    the day, or the evening/early-morning window where the day converges."""
+    should say, so the model only pays at the three fixed daily windows plus when
+    something real happened: user context/feedback changed, the judged day is
+    complete, or it is the first analysis of the day."""
     if not reasoning_exists:
         return True
     if user_input_changed:
         return True
     if analysis_date < local_date:
         return True
-    if now_hour >= 21 or now_hour < 6:
-        return True
-    return False
+    return _in_analysis_window(now)
 
 
 class EngineOrchestrator:
@@ -174,9 +187,9 @@ class EngineOrchestrator:
                     sig.get("l6_context_max_id") != last_sig.get("l6_context_max_id")
                     or sig.get("l6_feedback_max_id") != last_sig.get("l6_feedback_max_id")
                 )
-                now_hour = datetime.now(ZoneInfo(self.cfg.timezone_name)).hour
+                now = datetime.now(ZoneInfo(self.cfg.timezone_name))
                 if not scheduled_model_worthy(
-                    analysis_date, local_date, now_hour,
+                    analysis_date, local_date, now,
                     reasoning_exists, user_input_changed,
                 ):
                     payload, _, version_id = self._render_current_today(
