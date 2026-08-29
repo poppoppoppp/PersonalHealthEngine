@@ -140,6 +140,24 @@ def test_refresh_returns_current_copy_while_a_job_is_in_flight(client):
     assert elapsed < 10, "fast path must not wait on the worker's evaluation"
 
 
+def test_sleep_structure_endpoint(client):
+    r = client.get("/history/sleep-structure?days=14", headers=AUTH)
+    assert r.status_code == 200
+    body = r.json()
+    assert body["note"]
+    nights = body["nights"]
+    assert nights, "production L3 copy carries real sleep episodes"
+    assert len(nights) <= 14
+    newest = nights[0]
+    assert newest["local_date"] >= nights[-1]["local_date"], "nights sorted newest first"
+    for night in nights:
+        assert night["sleep_minutes"] > 0
+        assert night["total_minutes"] >= night["sleep_minutes"]
+        ratio = night["awake_ratio"]
+        assert ratio is None or 0 <= ratio < 1
+    assert "深睡" in body["note"], "must be honest about the two-stage source structure"
+
+
 def test_evidence_detail_includes_eight_readable_metric_overviews(client):
     r = client.get("/evidence/today", headers=AUTH)
     assert r.status_code == 200

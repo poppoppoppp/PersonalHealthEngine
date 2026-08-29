@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from datetime import date
 
 from l7.config import Config
 from l7.rendering.labels import (
@@ -22,6 +23,10 @@ from l7.store.db import open_readonly, utc_now
 
 NOTABLE_STATES = ("NOTABLE_CHANGE",)  # sealed L6 vocabulary; MILD_CHANGE never opens an episode
 EPISODE_GAP_DAYS = 1  # a one-day data gap does not split an episode
+
+SLEEP_FEATURE = "sleep_source_episode.vendor_sleep_like_duration_seconds"
+SLEEP_AWAKE_FEATURE = "sleep_source_episode.vendor_awake_duration_seconds"
+SLEEP_SEGMENTS_FEATURE = "sleep_source_episode.vendor_stage_segment_count"
 
 # UNKNOWN is an engine enum, not something a person can act on; the summary says what the
 # user actually wants to know instead of exposing the internal label.
@@ -326,6 +331,49 @@ class HistoryService:
             (user_id, like, like),
         ).fetchall()
         return {"results": [dict(r) for r in rows]}
+
+    # ------------------------------------------------------------------
+    def sleep_structure(self, user_id: str, *, days: int = 14) -> dict:
+        """Per-night sleep structure from the L3 feature store (read-only, zero model).
+
+        Xiaomi Cloud exposes an awake/sleep two-stage structure for this source — deep/
+        light/REM granularity is not available from the collector, so the structure is
+        honest about that: total sleep, awake time with its share, and segment count."""
+        del user_id  # single-owner MVP; kept for API symmetry
+        l3 = open_readonly(self.cfg.l3_db, immutable_if_checkpointed=True)
+        try:
+            rows = l3.execute(
+                "SELECT local_date, feature_name, value_num FROM derived_features"
+                " WHERE feature_name IN (?, ?, ?) AND status='CURRENT' AND value_num IS NOT NULL"
+                " ORDER BY local_date DESC LIMIT ?",
+                (SLEEP_FEATURE, SLEEP_AWAKE_FEATURE, SLEEP_SEGMENTS_FEATURE, days * 3 * 4),
+            ).fetchall()
+        finally:
+            l3.close()
+        by_date: dict[str, dict] = {}
+        for row in rows:
+            night = by_date.setdefault(row["local_date"], {"local_date": row["local_date"]})
+            value = row["value_num"]
+            if row["feature_name"] == SLEEP_FEATURE:
+                night["sleep_minutes"] = round(value / 60)
+            elif row["feature_name"] == SLEEP_AWAKE_FEATURE:
+                night["awake_minutes"] = round(value / 60)
+            elif row["feature_name"] == SLEEP_SEGMENTS_FEATURE:
+                night["segment_count"] = int(value)
+        nights = []
+        for night in sorted(by_date.values(), key=lambda n: n["local_date"], reverse=True)[:days]:
+            sleep_minutes = night.get("sleep_minutes") or 0
+            awake_minutes = night.get("awake_minutes") or 0
+            total = sleep_minutes + awake_minutes
+            nights.append({
+                **night,
+                "total_minutes": total,
+                "awake_ratio": round(awake_minutes / total, 3) if total else None,
+            })
+        return {
+            "nights": nights,
+            "note": "数据来自小米手环：目前提供清醒/睡眠两段结构，暂无深睡、浅睡、REM 细分。",
+        }
 
 
 def _day_diff(a: str, b: str) -> int:

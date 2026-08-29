@@ -133,6 +133,7 @@ abstract class L7Client {
     int limit = 30,
   });
   Future<Map<String, dynamic>> searchHistory(String q);
+  Future<Map<String, dynamic>> getSleepStructure({int days = 14});
   // Phase G
   Future<Map<String, dynamic>> getNotifications();
   Future<Map<String, dynamic>> getNotificationDecisions();
@@ -379,6 +380,10 @@ class HttpApiClient implements L7Client, ConditionalL7Client {
   @override
   Future<Map<String, dynamic>> searchHistory(String q) =>
       _get('/history/search?q=${Uri.encodeComponent(q)}');
+
+  @override
+  Future<Map<String, dynamic>> getSleepStructure({int days = 14}) =>
+      _get('/history/sleep-structure?days=$days');
 
   // ---------------- Phase G ----------------
   @override
