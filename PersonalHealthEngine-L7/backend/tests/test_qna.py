@@ -8,6 +8,18 @@ from l7.services.qna import QnAService, in_health_scope
 from conftest import CountingMockReasoningAdapter, PROD_L6  # noqa: F401
 
 
+def force_review_hint(adapter):
+    """Pin the semantic review hint on so mechanism tests reach the reviewer even
+    though the narrowed consequence gate bypasses plain workout questions."""
+    original = adapter.classify_question
+
+    def classify(question, conversation_semantics):
+        payload = original(question, conversation_semantics)
+        return {**payload, "needs_medical_review": True}
+
+    adapter.classify_question = classify
+
+
 def make_qna(env):
     return QnAService(
         env["cfg"], env["l7"], env["orch"].bridge,
@@ -129,6 +141,7 @@ def test_semantic_follow_up_uses_bounded_conversation_context(env):
 
 
 def test_answer_is_grounded_in_engine_bundle(env):
+    force_review_hint(env['adapter'])
     qna = make_qna(env)
     r = qna.ask("owner", "今天能不能练腿？")
     assert r["scope"] == "HEALTH_DECISION"
@@ -232,6 +245,7 @@ def strict_review(status, required_changes=None):
 
 
 def test_medgemma_receives_candidate_after_deepseek(env):
+    force_review_hint(env['adapter'])
     events = []
 
     class OrderedReasoning(CountingMockReasoningAdapter):
@@ -251,6 +265,7 @@ def test_medgemma_receives_candidate_after_deepseek(env):
             return strict_review("APPROVED")
 
     reasoning = OrderedReasoning()
+    force_review_hint(reasoning)
     medical = CapturingMedical()
     qna = QnAService(
         env["cfg"], env["l7"], env["orch"].bridge,
@@ -268,6 +283,7 @@ def test_medgemma_receives_candidate_after_deepseek(env):
 
 
 def test_medical_finalizer_paths(env):
+    force_review_hint(env['adapter'])
     expected = {
         "APPROVED": "candidate",
         "APPROVED_WITH_CHANGES": "revised",
@@ -302,6 +318,7 @@ def test_medical_finalizer_paths(env):
                 return strict_review(status, ["降低活动强度"] if status == "APPROVED_WITH_CHANGES" else [])
 
         reasoning = RevisionReasoning()
+        force_review_hint(reasoning)
         qna = QnAService(
             env["cfg"], env["l7"], env["orch"].bridge,
             reasoning_adapter=reasoning,
@@ -314,15 +331,19 @@ def test_medical_finalizer_paths(env):
 
 
 def test_required_medical_review_unavailable_fails_closed(env):
+    force_review_hint(env['adapter'])
+
     class UnavailableMedical:
         model_id = "medgemma1.5"
 
         def review(self, review_bundle, hypothesis_types, question_text=None):
             raise TimeoutError("synthetic timeout")
 
+    reasoning = CountingMockReasoningAdapter()
+    force_review_hint(reasoning)
     qna = QnAService(
         env["cfg"], env["l7"], env["orch"].bridge,
-        reasoning_adapter=CountingMockReasoningAdapter(),
+        reasoning_adapter=reasoning,
         medical_adapter=UnavailableMedical(),
     )
 
@@ -334,6 +355,8 @@ def test_required_medical_review_unavailable_fails_closed(env):
 
 
 def test_qna_audit_records_sanitized_stage_order(env):
+    force_review_hint(env['adapter'])
+
     class ApprovedMedical:
         model_id = "mock-medical-v2"
 
@@ -536,13 +559,15 @@ def test_medical_consequence_gate_reviews_actions_and_bypasses_data(env):
     qna.ask("owner", "我昨晚睡了多久？")
     assert med.calls == 0
 
-    # Physical activity changes health behavior, so the consequence gate reviews it.
-    qna.ask("owner", "今天能不能练腿？")
-    assert med.calls == 1
+    # A plain workout question on an ordinary day carries no medical signal: the gate
+    # skips the local reviewer instead of paying its minutes-long latency for nothing.
+    workout = qna.ask("owner", "今天能不能练腿？")
+    assert med.calls == 0
+    assert workout["medical_review_state"] == "BYPASSED"
 
     # Symptom/medical question also fires the reviewer.
     r = qna.ask("owner", "我发烧了，需要去医院吗？")
-    assert med.calls == 2
+    assert med.calls == 1
     assert r["medical_review_state"] == "PERFORMED"
 
     con = sqlite3.connect(env["l6_copy"]); con.row_factory = sqlite3.Row
@@ -550,7 +575,53 @@ def test_medical_consequence_gate_reviews_actions_and_bypasses_data(env):
         "SELECT * FROM medical_reviews WHERE subject_type='QA' AND review_state='PERFORMED'"
     ).fetchall()
     con.close()
-    assert len(performed) == 2
+    assert len(performed) == 1
+
+
+def test_medical_gate_still_reviews_when_safety_signals_present(env):
+    """The narrowed gate keeps its net: reported symptom contexts, medical claims in the
+    candidate, or a medical-flagged Today each force the reviewer back in."""
+    from l7.engine.qna_orchestration import medical_consequence_gate
+
+    classification = {
+        "medical_consequence": "MODERATE",
+        "needs_medical_review": False,
+        "decision_type": "PHYSICAL_ACTIVITY",
+    }
+    plain_candidate = {"medical_claims": []}
+    claiming_candidate = {"medical_claims": ["你的静息心率升高可能与发热相关"]}
+
+    # Plain workout question, no safety context: bypass.
+    required, reasons = medical_consequence_gate(
+        classification, "BYPASSED", [], None, plain_candidate, [],
+        has_medical_safety_context=False,
+    )
+    assert required is False
+
+    # Same question with a reported fever context: review.
+    required, reasons = medical_consequence_gate(
+        classification, "BYPASSED", [], None, plain_candidate, [],
+        has_medical_safety_context=True,
+    )
+    assert required is True and "moderate_consequence_with_safety_signals" in reasons
+
+    # Candidate volunteering medical claims: review even without context.
+    required, _ = medical_consequence_gate(
+        classification, "BYPASSED", [], None, claiming_candidate, [],
+        has_medical_safety_context=False,
+    )
+    assert required is True
+
+    # High consequence or a medical-flagged Today: review regardless.
+    required, _ = medical_consequence_gate(
+        {**classification, "medical_consequence": "HIGH"},
+        "BYPASSED", [], None, plain_candidate, [],
+    )
+    assert required is True
+    required, _ = medical_consequence_gate(
+        classification, "BYPASSED", [], "PERFORMED", plain_candidate, [],
+    )
+    assert required is True
 
 
 def test_conversation_rollover_after_new_day(env):

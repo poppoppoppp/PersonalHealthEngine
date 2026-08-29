@@ -373,17 +373,27 @@ def medical_consequence_gate(
     today_medical_state: str | None,
     candidate: dict[str, Any],
     candidate_issues: list[str],
+    *,
+    has_medical_safety_context: bool = False,
 ) -> tuple[bool, list[str]]:
-    """Combine model hints with deterministic consequence and sealed safety policy."""
+    """Combine model hints with deterministic consequence and sealed safety policy.
+
+    Review is reserved for signals that actually carry medical risk: high consequence,
+    reported symptom/medical contexts, a medical-flagged Today, explicit model hints,
+    the sealed trigger, or a candidate that itself makes medical claims. Plain
+    physical-activity decisions on an ordinary day no longer pay the local reviewer's
+    latency — the safety net narrows to where it catches something."""
     reasons = set(sealed_reasons)
     if sealed_review_state == "REQUIRED":
         reasons.add("sealed_medical_trigger")
-    if classification["medical_consequence"] in {"MODERATE", "HIGH"}:
-        reasons.add("moderate_or_high_consequence")
+    if classification["medical_consequence"] == "HIGH":
+        reasons.add("high_consequence")
+    elif classification["medical_consequence"] == "MODERATE" and (
+        has_medical_safety_context or candidate.get("medical_claims")
+    ):
+        reasons.add("moderate_consequence_with_safety_signals")
     if classification.get("needs_medical_review"):
         reasons.add("semantic_review_hint")
-    if classification.get("decision_type") == "PHYSICAL_ACTIVITY":
-        reasons.add("physical_activity_decision")
     if today_medical_state in {"REQUIRED", "PERFORMED", "UNAVAILABLE"}:
         reasons.add("current_today_medical_state")
     if candidate.get("medical_claims"):

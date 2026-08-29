@@ -121,6 +121,10 @@ def test_exact_cache_key_changes_for_every_safety_input():
 
 
 def test_identical_valid_medical_reviews_hit_exact_cache(env):
+    from test_qna import force_review_hint
+
+    force_review_hint(env['adapter'])
+
     class CountingMedical:
         model_id = "mock-medical-cache-v1"
 
@@ -132,7 +136,10 @@ def test_identical_valid_medical_reviews_hit_exact_cache(env):
             return strict_approved()
 
     medical = CountingMedical()
-    qna = make_qna(env, reasoning=CountingMockReasoningAdapter(), medical=medical)
+    reasoning = CountingMockReasoningAdapter()
+    from test_qna import force_review_hint
+    force_review_hint(reasoning)
+    qna = make_qna(env, reasoning=reasoning, medical=medical)
     first = qna.ask("owner", "今天适合高强度训练吗？")
     second = qna.ask("owner", "今天适合高强度训练吗？")
     assert first["medical_review_state"] == second["medical_review_state"] == "PERFORMED"

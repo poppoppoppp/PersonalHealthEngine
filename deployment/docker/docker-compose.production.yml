@@ -40,9 +40,9 @@ services:
       MEDGEMMA_MODEL: medgemma1.5
       MEDGEMMA_NUM_PREDICT: "320"
       MEDGEMMA_NUM_CTX: "2048"
-      MEDGEMMA_NUM_THREAD: "1"
+      MEDGEMMA_NUM_THREAD: "2"
       MEDGEMMA_NUM_BATCH: "64"
-      MEDGEMMA_KEEP_ALIVE: 30m
+      MEDGEMMA_KEEP_ALIVE: "-1"
 
     volumes:
       # L3-L5 upstream databases are read-only.
@@ -115,9 +115,9 @@ services:
       MEDGEMMA_MODEL: medgemma1.5
       MEDGEMMA_NUM_PREDICT: "320"
       MEDGEMMA_NUM_CTX: "2048"
-      MEDGEMMA_NUM_THREAD: "1"
+      MEDGEMMA_NUM_THREAD: "2"
       MEDGEMMA_NUM_BATCH: "64"
-      MEDGEMMA_KEEP_ALIVE: 30m
+      MEDGEMMA_KEEP_ALIVE: "-1"
     volumes:
       - /srv/phe/l3/db:/data/l3:ro
       - /srv/phe/l4/db:/data/l4:ro
