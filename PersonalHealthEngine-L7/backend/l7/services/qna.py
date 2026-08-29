@@ -537,17 +537,28 @@ class QnAService:
                         final_candidate = candidate
                         finalization_path = "APPROVED"
                     elif status == "APPROVED_WITH_CHANGES" and not candidate_issues:
-                        try:
-                            audit["stage_events"].append("REVISION")
-                            revised = self.reasoning_adapter.revise_question_candidate(
-                                question, bundle, candidate, medical_result["required_changes"],
-                            )
-                            final_candidate, revision_issues = validate_candidate(revised, bundle)
-                            if revision_issues:
-                                raise ValueError("revised candidate failed safety validation")
+                        # The revision is a fresh model sample per attempt; one imperfect
+                        # sample must not fail the whole answer closed (same reasoning as
+                        # the degraded-Today recovery retries).
+                        audit["stage_events"].append("REVISION")
+                        final_candidate = None
+                        for _ in range(3):
+                            try:
+                                revised = self.reasoning_adapter.revise_question_candidate(
+                                    question, bundle, candidate,
+                                    medical_result["required_changes"],
+                                )
+                                final_candidate, revision_issues = validate_candidate(
+                                    revised, bundle,
+                                )
+                                if not revision_issues:
+                                    break
+                                final_candidate = None
+                            except Exception:
+                                final_candidate = None
+                        if final_candidate is not None:
                             finalization_path = "APPROVED_WITH_CHANGES"
-                        except Exception:
-                            final_candidate = None
+                        else:
                             finalization_path = "APPROVED_WITH_CHANGES_FAILED_CLOSED"
                     else:
                         final_candidate = None
