@@ -115,7 +115,7 @@ class MetricOverviewCard extends StatelessWidget {
                 ],
               ),
             ],
-            if (points.isNotEmpty && false) ...[
+            if (points.isNotEmpty) ...[
               const SizedBox(height: 14),
               const Text(
                 '每日数值',

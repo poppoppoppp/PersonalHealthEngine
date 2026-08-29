@@ -86,7 +86,7 @@ class _TrendPainter extends CustomPainter {
     if (referenceLow != null && referenceHigh != null) {
       final bandTop = yOf(referenceHigh!);
       final bandBottom = yOf(referenceLow!);
-      final band = Paint()..color = const Color(0x148A6A4F);
+      final band = Paint()..color = const Color(0x248A6A4F);
       canvas.drawRect(
         Rect.fromLTRB(0, bandTop, size.width, bandBottom),
         band,
