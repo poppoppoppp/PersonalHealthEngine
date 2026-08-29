@@ -32,7 +32,7 @@ ExecStart=/opt/phe/.venv/bin/python /opt/phe/deployment/scripts/run_daily_pipeli
 # has already been released before L7 tries to acquire its shared lock.
 ExecStartPost=/opt/phe/.venv/bin/python /opt/phe/deployment/scripts/refresh_l7_after_pipeline.py
 
-TimeoutStartSec=90min
+TimeoutStartSec=25min
 
 StandardOutput=journal
 StandardError=journal
