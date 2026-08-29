@@ -78,6 +78,48 @@ def test_evidence_detail_exposes_only_deviating_metrics(client):
     assert m["deviation_class"] in ("ABOVE_TYPICAL_RANGE", "BELOW_TYPICAL_RANGE")
 
 
+def test_evidence_detail_includes_eight_readable_metric_overviews(client):
+    r = client.get("/evidence/today", headers=AUTH)
+    assert r.status_code == 200
+    body = r.json()
+    metrics = body["all_metrics"]
+    assert [item["key"] for item in metrics] == [
+        "steps",
+        "active_calories",
+        "sleep",
+        "heart_rate",
+        "resting_heart_rate",
+        "spo2",
+        "stress",
+        "workouts",
+    ]
+    for item in metrics:
+        for key in (
+            "label",
+            "value_display",
+            "data_date",
+            "freshness_status",
+            "freshness_label",
+            "used_in_judgment",
+            "series",
+        ):
+            assert key in item, f"{item['key']} missing {key}"
+        user_text = " ".join(
+            str(item.get(key) or "")
+            for key in ("label", "value_display", "freshness_label", "availability_note")
+        )
+        assert "bucket_count" not in user_text
+        assert all(layer not in user_text for layer in ("L3", "L4", "L5"))
+
+    unavailable = metrics[-1]
+    assert unavailable["key"] == "workouts"
+    assert unavailable["freshness_status"] == "UNAVAILABLE"
+    assert unavailable["availability_note"]
+    by_key = {item["key"]: item for item in metrics}
+    assert by_key["active_calories"]["value_display"].endswith("（设备记录）")
+    assert by_key["stress"]["value_display"].endswith("（设备原始指标）")
+
+
 def test_patterns_projection_shape(client):
     r = client.get("/patterns", headers=AUTH)
     assert r.status_code == 200

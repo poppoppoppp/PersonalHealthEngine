@@ -240,9 +240,9 @@ def format_health_value(feature_name: str, value: float | int | None, unit: str 
     if unit == "count":
         return f"{round(number):,} 个"
     if unit == "vendor_score":
-        return f"{number:.1f} 分"
+        return f"{number:.0f}（设备原始指标）"
     if unit == "vendor_calories":
-        return f"{number:.1f}（设备活动消耗值）"
+        return f"{number:.0f}（设备记录）"
     return f"{number:.2f}"
 
 

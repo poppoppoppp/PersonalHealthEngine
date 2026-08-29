@@ -68,6 +68,7 @@
 | Lock degraded Today recovery behavior with red tests | 4 red/green cases cover app-open, successful recovery, outage, and invalid cache/hypothesis rejection | Complete |
 | Implement guarded degraded Today presentation recovery | 11 focused tests pass; manual refresh only, same L6 judgment, append-only L7 version | Complete |
 | Verify, deploy, and accept Today reasoning recovery | 165 tests; production version 9 recovered with same L6 ID; truthful 2026-08-28 dates; HTTPS/ports PASS | Complete |
+| Redesign health evidence as readable metric-first UI | 8 metrics; structured Today summary; freshness filters; backend/Flutter tests and signed APK PASS; VPS deployment blocked by Aliyun Cloud Shell `NoPermission` | Complete locally |
 
 Verification snapshot (2026-08-24):
 
@@ -100,3 +101,11 @@ Today reasoning recovery snapshot (2026-08-28):
 - Recovery: Today version 9 reuses L6 reasoning ID 7, `judgment_updated=false`, fallback text absent, and the recovery run recorded one model call.
 - Freshness: analysis/data-as-of are `2026-08-28`; calories and steps have sufficient same-day evidence. Xiaomi returned no new heart-rate, resting-heart-rate, SpO2, or stress records, so their older dates remain truthful.
 - Performance/gates: five ordinary Today reads took 91.95–129.72 ms without creating an evaluation run; HTTPS health 200; public 443 open and 8707/11434 closed.
+
+Health evidence redesign snapshot (2026-08-29):
+
+- Backend: `166 passed`; Flutter: `50 passed`; analyzer has 0 errors, 0 warnings, and 16 pre-existing info-level lints.
+- Evidence contract: eight readable metrics, exact judgment participation, bounded trends, personal baselines, and truthful freshness/date semantics; internal bucket counts are excluded from health conclusions.
+- Visual QA: Today summary, used metrics, all metrics, stale-state, and expanded-trend states pass at a 390 x 844 viewport.
+- APK: V2 signature valid, signer `CN=Personal Health Engine, O=Private, C=CN`; SHA-256 `BB8761A115CDAFE2C6D5218DDC0049A0D5E0524E2F9441B7B4CB904AEC34B9E6`.
+- Deployment: source and release artifact are ready; VPS refresh remains blocked because the logged-in Aliyun Cloud Shell account returns `NoPermission` when restarting its instance.

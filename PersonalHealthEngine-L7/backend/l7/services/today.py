@@ -110,17 +110,32 @@ class TodayService:
         l4 = open_readonly(self.cfg.l4_db, immutable_if_checkpointed=True)
         l3 = open_readonly(self.cfg.l3_db, immutable_if_checkpointed=True)
         try:
+            reference_date = datetime.now(
+                ZoneInfo(self.cfg.timezone_name)
+            ).date().isoformat()
             analysis_date = readers.latest_analysis_date(l5)
             if analysis_date is None:
-                return {"analysis_date": None, "metrics": []}
+                return {
+                    "analysis_date": None,
+                    "metrics": [],
+                    "all_metrics": readers.health_metric_overviews(
+                        l3, reference_date, {},
+                    ),
+                }
             stored = readers.read_current_bundle(l6, analysis_date)
             if stored is None:
-                return {"analysis_date": analysis_date, "metrics": []}
+                return {
+                    "analysis_date": analysis_date,
+                    "metrics": [],
+                    "all_metrics": readers.health_metric_overviews(
+                        l3, reference_date, {},
+                    ),
+                }
             bundle = stored["bundle"]
             metrics: list[dict] = []
             facts = readers.exact_bundle_evidence(
                 l6, l5, l4, l3, stored["id"], bundle, analysis_date,
-                freshness_date=datetime.now(ZoneInfo(self.cfg.timezone_name)).date().isoformat(),
+                freshness_date=reference_date,
             )
             for fact in facts:
                 deviation = dict(fact["deviation"])
@@ -146,6 +161,11 @@ class TodayService:
                 "bundle_sha256": stored["bundle_sha256"],
                 "provenance_note": "数值来自 L3 特征 / L4 个人基线 / L5 分析（只读）。",
                 "metrics": metrics,
+                "all_metrics": readers.health_metric_overviews(
+                    l3,
+                    reference_date,
+                    {fact["feature_name"]: fact for fact in facts},
+                ),
             }
         finally:
             for c in (l6, l5, l4, l3):

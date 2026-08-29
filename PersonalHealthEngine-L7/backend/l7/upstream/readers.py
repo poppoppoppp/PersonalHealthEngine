@@ -34,6 +34,17 @@ SOURCE_LABELS = {
     "NUMERIC_SOURCE": "数值来源",
 }
 
+HEALTH_METRIC_OVERVIEW = (
+    ("steps", "步数", "steps.daily.sum"),
+    ("active_calories", "活动消耗", "calories.daily.sum"),
+    ("sleep", "睡眠", "sleep_source_episode.vendor_sleep_like_duration_seconds"),
+    ("heart_rate", "心率", "heart_rate.daily.mean"),
+    ("resting_heart_rate", "静息心率", "resting_heart_rate.daily.value"),
+    ("spo2", "血氧", "spo2.daily.mean"),
+    ("stress", "压力", "xiaomi_stress_score.daily.mean"),
+    ("workouts", "运动记录", None),
+)
+
 
 def latest_analysis_date(l5: sqlite3.Connection) -> str | None:
     row = l5.execute(
@@ -67,6 +78,111 @@ def evidence_freshness(feature_date: str, reference_date: str) -> tuple[int, str
     )
     label = "当日数据" if age_days == 0 else f"{age_days} 天前的数据"
     return age_days, label
+
+
+def health_metric_overviews(
+    l3: sqlite3.Connection,
+    reference_date: str,
+    used_facts: dict[str, dict],
+    limit: int = 28,
+) -> list[dict]:
+    """Return the fixed user-facing health metric catalogue without coverage counts."""
+    result = []
+    for key, label, feature_name in HEALTH_METRIC_OVERVIEW:
+        used = used_facts.get(feature_name or "")
+        if feature_name is None:
+            result.append({
+                "key": key,
+                "label": label,
+                "feature_name": None,
+                "value_display": "暂无数据",
+                "data_date": None,
+                "freshness_days": None,
+                "freshness_status": "UNAVAILABLE",
+                "freshness_label": "暂无可用数据",
+                "used_in_judgment": False,
+                "deviation_label": None,
+                "baseline_median": None,
+                "baseline_value_display": None,
+                "availability_note": "当前数据源尚未提供可用的运动记录。",
+                "unit": None,
+                "series": [],
+            })
+            continue
+
+        latest = l3.execute(
+            "SELECT local_date, value_num, unit, source_sid FROM derived_features "
+            "WHERE feature_name=? AND status='CURRENT' AND value_num IS NOT NULL "
+            "ORDER BY local_date DESC, id DESC LIMIT 1",
+            (feature_name,),
+        ).fetchone()
+        if latest is None:
+            result.append({
+                "key": key,
+                "label": label,
+                "feature_name": feature_name,
+                "value_display": "暂无数据",
+                "data_date": None,
+                "freshness_days": None,
+                "freshness_status": "UNAVAILABLE",
+                "freshness_label": "暂无可用数据",
+                "used_in_judgment": used is not None,
+                "deviation_label": used.get("deviation_label") if used else None,
+                "baseline_median": used.get("baseline_median") if used else None,
+                "baseline_value_display": (
+                    used.get("baseline_value_display") if used else None
+                ),
+                "availability_note": "尚未采集到这项健康数据。",
+                "unit": None,
+                "series": [],
+            })
+            continue
+
+        latest = dict(latest)
+        age_days, age_label = evidence_freshness(
+            latest["local_date"], reference_date,
+        )
+        freshness_status = (
+            "TODAY" if age_days == 0 else "RECENT" if age_days <= 2 else "STALE"
+        )
+        freshness_label = (
+            "今日数据"
+            if freshness_status == "TODAY"
+            else age_label
+            if freshness_status == "RECENT"
+            else f"数据需更新 · 最后记录 {latest['local_date']}"
+        )
+        rows = l3.execute(
+            "SELECT local_date, value_num FROM derived_features "
+            "WHERE feature_name=? AND source_sid=? AND status='CURRENT' "
+            "AND value_num IS NOT NULL ORDER BY local_date DESC, id DESC LIMIT ?",
+            (feature_name, latest["source_sid"], limit),
+        ).fetchall()
+        result.append({
+            "key": key,
+            "label": label,
+            "feature_name": feature_name,
+            "value_display": format_health_value(
+                feature_name, latest["value_num"], latest["unit"],
+            ),
+            "data_date": latest["local_date"],
+            "freshness_days": age_days,
+            "freshness_status": freshness_status,
+            "freshness_label": freshness_label,
+            "used_in_judgment": used is not None,
+            "deviation_label": used.get("deviation_label") if used else None,
+            "baseline_median": used.get("baseline_median") if used else None,
+            "baseline_value_display": (
+                used.get("baseline_value_display") if used else None
+            ),
+            "availability_note": None,
+            "unit": latest["unit"],
+            "series": [
+                {"local_date": row["local_date"], "value_num": row["value_num"]}
+                for row in reversed(rows)
+            ],
+        })
+    return result
 
 
 def deterministic_health_data_query(

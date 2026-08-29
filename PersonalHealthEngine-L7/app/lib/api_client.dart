@@ -76,6 +76,11 @@ class TodayPayload {
   String? get changeNote => raw['change_note'] as String?;
   List<String> get evidenceLevel2 =>
       (raw['evidence_level2'] as List? ?? const []).map((e) => '$e').toList();
+  List<Map<String, dynamic>> get evidence =>
+      (raw['evidence'] as List? ?? const [])
+          .whereType<Map>()
+          .map((e) => e.cast<String, dynamic>())
+          .toList();
   Map<String, dynamic>? get feedbackPrompt =>
       (raw['feedback_prompt'] as Map?)?.cast<String, dynamic>();
   int? get versionId => raw['version_id'] as int?;
@@ -93,7 +98,11 @@ abstract class L7Client {
   Future<Map<String, dynamic>> health();
   // Phase E
   Future<Map<String, dynamic>> qaOpenConversation();
-  Future<Map<String, dynamic>> qaConversation(int id, {int? cursor, int limit = 30});
+  Future<Map<String, dynamic>> qaConversation(
+    int id, {
+    int? cursor,
+    int limit = 30,
+  });
   Future<Map<String, dynamic>> qaAsk(
     String question, {
     int? conversationId,
@@ -118,7 +127,11 @@ abstract class L7Client {
   Future<Map<String, dynamic>> getJobStatus(int id);
   // Phase F
   Future<Map<String, dynamic>> getEpisodes({int? cursor, int limit = 30});
-  Future<Map<String, dynamic>> getEpisode(int id, {int? cursor, int limit = 30});
+  Future<Map<String, dynamic>> getEpisode(
+    int id, {
+    int? cursor,
+    int limit = 30,
+  });
   Future<Map<String, dynamic>> searchHistory(String q);
   // Phase G
   Future<Map<String, dynamic>> getNotifications();
@@ -268,20 +281,25 @@ class HttpApiClient implements L7Client, ConditionalL7Client {
 
   @override
   Future<Map<String, dynamic>> qaConversation(
-    int id, {int? cursor, int limit = 30}
-  ) => _get('/qa/conversations/$id?limit=$limit${cursor == null ? '' : '&cursor=$cursor'}');
+    int id, {
+    int? cursor,
+    int limit = 30,
+  }) => _get(
+    '/qa/conversations/$id?limit=$limit${cursor == null ? '' : '&cursor=$cursor'}',
+  );
 
   @override
   Future<Map<String, dynamic>> qaAsk(
     String question, {
     int? conversationId,
     String? idempotencyKey,
-  }) => _send('POST', '/qa/ask', {
-        'question': question,
-        'conversation_id': ?conversationId,
-      }, normalTimeout, idempotencyKey == null ? null : {
-        'Idempotency-Key': idempotencyKey,
-      });
+  }) => _send(
+    'POST',
+    '/qa/ask',
+    {'question': question, 'conversation_id': ?conversationId},
+    normalTimeout,
+    idempotencyKey == null ? null : {'Idempotency-Key': idempotencyKey},
+  );
 
   @override
   Future<Map<String, dynamic>> listContext({int? cursor, int limit = 30}) =>
@@ -342,13 +360,21 @@ class HttpApiClient implements L7Client, ConditionalL7Client {
 
   // ---------------- Phase F ----------------
   @override
-  Future<Map<String, dynamic>> getEpisodes({int? cursor, int limit = 30}) =>
-      _get('/history/episodes?limit=$limit${cursor == null ? '' : '&cursor=$cursor'}');
+  Future<Map<String, dynamic>> getEpisodes({
+    int? cursor,
+    int limit = 30,
+  }) => _get(
+    '/history/episodes?limit=$limit${cursor == null ? '' : '&cursor=$cursor'}',
+  );
 
   @override
   Future<Map<String, dynamic>> getEpisode(
-    int id, {int? cursor, int limit = 30}
-  ) => _get('/history/episodes/$id?limit=$limit${cursor == null ? '' : '&cursor=$cursor'}');
+    int id, {
+    int? cursor,
+    int limit = 30,
+  }) => _get(
+    '/history/episodes/$id?limit=$limit${cursor == null ? '' : '&cursor=$cursor'}',
+  );
 
   @override
   Future<Map<String, dynamic>> searchHistory(String q) =>

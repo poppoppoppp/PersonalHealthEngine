@@ -4,8 +4,10 @@
 library;
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -251,7 +253,7 @@ class ProductConformanceClient extends FakeClient {
 
   @override
   Future<Map<String, dynamic>> getEvidence() async => {
-    'analysis_date': '2026-08-24',
+    'analysis_date': '2026-08-28',
     'provenance_note': '精确证据链',
     'metrics': [
       {
@@ -270,6 +272,106 @@ class ProductConformanceClient extends FakeClient {
         'series': const <dynamic>[],
         'baselines': const <dynamic>[],
         'deviations': const <dynamic>[],
+      },
+    ],
+    'all_metrics': [
+      {
+        'key': 'steps',
+        'label': '步数',
+        'value_display': '4,820 步',
+        'data_date': '2026-08-28',
+        'freshness_status': 'TODAY',
+        'freshness_label': '今日数据',
+        'used_in_judgment': true,
+        'deviation_label': '低于个人近期基线',
+        'baseline_median': 5900,
+        'baseline_value_display': '5,900 步',
+        'unit': 'steps',
+        'series': [
+          {'local_date': '2026-08-27', 'value_num': 6100},
+          {'local_date': '2026-08-28', 'value_num': 4820},
+        ],
+      },
+      {
+        'key': 'active_calories',
+        'label': '活动消耗',
+        'value_display': '286（设备记录）',
+        'data_date': '2026-08-28',
+        'freshness_status': 'TODAY',
+        'freshness_label': '今日数据',
+        'used_in_judgment': true,
+        'deviation_label': '低于个人近期基线',
+        'baseline_median': 325,
+        'baseline_value_display': '325（设备记录）',
+        'unit': 'vendor_calories',
+        'series': const <dynamic>[],
+      },
+      {
+        'key': 'sleep',
+        'label': '睡眠',
+        'value_display': '7 小时 18 分钟',
+        'data_date': '2026-08-27',
+        'freshness_status': 'RECENT',
+        'freshness_label': '1 天前的数据',
+        'used_in_judgment': false,
+        'unit': 'seconds',
+        'series': const <dynamic>[],
+      },
+      {
+        'key': 'heart_rate',
+        'label': '心率',
+        'value_display': '78.0 次/分',
+        'data_date': '2026-08-20',
+        'freshness_status': 'STALE',
+        'freshness_label': '数据需更新 · 最后记录 2026-08-20',
+        'used_in_judgment': false,
+        'unit': 'bpm',
+        'series': const <dynamic>[],
+      },
+      {
+        'key': 'resting_heart_rate',
+        'label': '静息心率',
+        'value_display': '62.0 次/分',
+        'data_date': '2026-08-20',
+        'freshness_status': 'STALE',
+        'freshness_label': '数据需更新 · 最后记录 2026-08-20',
+        'used_in_judgment': false,
+        'unit': 'bpm',
+        'series': const <dynamic>[],
+      },
+      {
+        'key': 'spo2',
+        'label': '血氧',
+        'value_display': '97.0%',
+        'data_date': '2026-08-20',
+        'freshness_status': 'STALE',
+        'freshness_label': '数据需更新 · 最后记录 2026-08-20',
+        'used_in_judgment': false,
+        'unit': 'percent',
+        'series': const <dynamic>[],
+      },
+      {
+        'key': 'stress',
+        'label': '压力',
+        'value_display': '32（设备原始指标）',
+        'data_date': '2026-08-20',
+        'freshness_status': 'STALE',
+        'freshness_label': '数据需更新 · 最后记录 2026-08-20',
+        'used_in_judgment': false,
+        'unit': 'vendor_score',
+        'series': const <dynamic>[],
+      },
+      {
+        'key': 'workouts',
+        'label': '运动记录',
+        'value_display': '暂无数据',
+        'data_date': null,
+        'freshness_status': 'UNAVAILABLE',
+        'freshness_label': '暂无可用数据',
+        'used_in_judgment': false,
+        'availability_note': '当前数据源尚未提供可用的运动记录。',
+        'unit': null,
+        'series': const <dynamic>[],
       },
     ],
   };
@@ -427,10 +529,73 @@ void main() {
     expect(find.text('今日行动'), findsOneWidget);
     expect(find.text('今天优先补充睡眠'), findsOneWidget);
     expect(find.text('更新于 21:00'), findsOneWidget);
-    expect(find.text('查看依据'), findsOneWidget);
+    expect(find.text('全部指标'), findsOneWidget);
     expect(find.text('问问我的状态'), findsOneWidget);
     expect(find.text('补充我的情况'), findsOneWidget);
   });
+
+  testWidgets('Today evidence summary explains the data used in the judgment', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final payload = todayBase();
+    payload['evidence_level2'] = ['steps.daily.bucket_count 低于个人近期基线：12 个'];
+    payload['evidence'] = [
+      {
+        'feature_name': 'steps.daily.sum',
+        'feature_label': '记录到的累计步数',
+        'current_value_display': '4,820 步',
+        'feature_date': '2026-08-28',
+        'freshness_label': '今日数据',
+        'deviation_label': '低于个人近期基线',
+      },
+      {
+        'feature_name': 'steps.daily.sum',
+        'feature_label': '记录到的累计步数',
+        'current_value_display': '4,820 步',
+        'feature_date': '2026-08-28',
+        'freshness_label': '今日数据',
+        'deviation_label': '低于个人近期基线',
+      },
+    ];
+    final env = envWith(payload);
+
+    await tester.pumpWidget(MaterialApp(home: TodayScreen(env: env)));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('本次判断参考了 1 项健康数据'), 300);
+
+    expect(find.text('步数'), findsOneWidget);
+    expect(find.text('4,820 步'), findsOneWidget);
+    expect(find.text('今日数据'), findsOneWidget);
+    expect(find.text('低于个人近期基线'), findsOneWidget);
+    expect(find.textContaining('bucket_count'), findsNothing);
+    expect(find.textContaining('L3'), findsNothing);
+  });
+
+  testWidgets(
+    'Today explains when only collection completeness was available',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final payload = todayBase();
+      payload['evidence'] = [
+        {
+          'feature_name': 'steps.daily.bucket_count',
+          'current_value_display': '12 个',
+          'freshness_label': '今日数据',
+        },
+      ];
+      final env = envWith(payload);
+
+      await tester.pumpWidget(MaterialApp(home: TodayScreen(env: env)));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('判断依据'), 300);
+
+      expect(find.textContaining('只参考了数据完整性'), findsOneWidget);
+      expect(find.textContaining('步数、睡眠、心率'), findsOneWidget);
+      expect(find.textContaining('bucket_count'), findsNothing);
+      expect(find.text('12 个'), findsNothing);
+    },
+  );
 
   testWidgets('Today and version history display labels, never machine enums', (
     tester,
@@ -468,14 +633,63 @@ void main() {
       await tester.pumpWidget(MaterialApp(home: EvidenceScreen(env: env)));
       await tester.pumpAndSettle();
 
-      expect(find.text('REM 睡眠占比'), findsOneWidget);
-      expect(find.textContaining('当前 12.0%'), findsOneWidget);
-      expect(find.textContaining('个人近期基线 20.0%'), findsOneWidget);
-      expect(find.textContaining('2 天前的数据'), findsOneWidget);
+      expect(find.text('步数'), findsOneWidget);
+      expect(find.text('4,820 步'), findsOneWidget);
+      expect(find.text('今日数据'), findsWidgets);
       expect(find.textContaining('PROVISIONAL'), findsNothing);
       expect(find.textContaining('BELOW_TYPICAL_RANGE'), findsNothing);
     },
   );
+
+  testWidgets('Evidence exposes all eight health metrics through filters', (
+    tester,
+  ) async {
+    final env = AppEnv(baseUrl: 'http://localhost:0', token: 't');
+    env.client = ProductConformanceClient(todayBase());
+    await tester.pumpWidget(MaterialApp(home: EvidenceScreen(env: env)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('本次使用 2'), findsOneWidget);
+    expect(find.text('全部 8'), findsOneWidget);
+    await tester.tap(find.text('全部 8'));
+    await tester.pumpAndSettle();
+    expect(find.text('步数'), findsOneWidget);
+    for (var i = 0; i < 5; i++) {
+      await tester.drag(find.byType(ListView), const Offset(0, -500));
+      await tester.pumpAndSettle();
+    }
+    expect(find.text('运动记录'), findsWidgets);
+    expect(find.text('暂无可用数据'), findsWidgets);
+  });
+
+  testWidgets('Evidence marks stale data with its last date, never normal', (
+    tester,
+  ) async {
+    final env = AppEnv(baseUrl: 'http://localhost:0', token: 't');
+    env.client = ProductConformanceClient(todayBase());
+    await tester.pumpWidget(MaterialApp(home: EvidenceScreen(env: env)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('需更新 5'));
+    await tester.pumpAndSettle();
+    expect(find.text('需更新 · 08/20'), findsWidgets);
+    expect(find.text('正常'), findsNothing);
+  });
+
+  testWidgets('Evidence expands a metric into a labelled trend and baseline', (
+    tester,
+  ) async {
+    final env = AppEnv(baseUrl: 'http://localhost:0', token: 't');
+    env.client = ProductConformanceClient(todayBase());
+    await tester.pumpWidget(MaterialApp(home: EvidenceScreen(env: env)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('步数'));
+    await tester.pumpAndSettle();
+    expect(find.text('近期趋势（步）'), findsOneWidget);
+    expect(find.text('个人近期基线 5,900 步'), findsOneWidget);
+    expect(find.text('2026-08-27 — 2026-08-28'), findsOneWidget);
+  });
 
   testWidgets('Context displays canonical context and body labels', (
     tester,
@@ -737,4 +951,98 @@ void main() {
       expect(find.text('今天先安排轻量活动。'), findsOneWidget);
     },
   );
+
+  testWidgets('visual QA captures metric-first evidence screens', (
+    tester,
+  ) async {
+    final fontFile = File(r'C:\Windows\Fonts\simhei.ttf');
+    final iconFontFile = File(
+      r'D:\flutter\flutter\bin\cache\artifacts\material_fonts\materialicons-regular.otf',
+    );
+    if (!fontFile.existsSync() || !iconFontFile.existsSync()) return;
+    await tester.runAsync(() async {
+      final fontBytes = await fontFile.readAsBytes();
+      final iconFontBytes = await iconFontFile.readAsBytes();
+      final fontLoader = FontLoader('VisualChinese')
+        ..addFont(Future.value(ByteData.view(fontBytes.buffer)));
+      final iconFontLoader = FontLoader('MaterialIcons')
+        ..addFont(Future.value(ByteData.view(iconFontBytes.buffer)));
+      await Future.wait([fontLoader.load(), iconFontLoader.load()]);
+    });
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    SharedPreferences.setMockInitialValues({});
+    final theme = ThemeData(
+      useMaterial3: true,
+      colorSchemeSeed: const Color(0xFF33557A),
+      scaffoldBackgroundColor: const Color(0xFFF7F8FA),
+      fontFamily: 'VisualChinese',
+      cardTheme: CardThemeData(
+        color: Colors.white,
+        elevation: 1,
+        shadowColor: const Color(0x140F172A),
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFFE0E5EC)),
+        ),
+      ),
+    );
+
+    final payload = todayBase();
+    payload['evidence'] = [
+      {
+        'feature_name': 'steps.daily.sum',
+        'feature_label': '记录到的累计步数',
+        'current_value_display': '4,820 步',
+        'feature_date': '2026-08-28',
+        'freshness_label': '今日数据',
+        'deviation_label': '低于个人近期基线',
+      },
+      {
+        'feature_name': 'calories.daily.sum',
+        'feature_label': '记录到的活动消耗',
+        'current_value_display': '286（设备记录）',
+        'feature_date': '2026-08-28',
+        'freshness_label': '今日数据',
+        'deviation_label': '低于个人近期基线',
+      },
+    ];
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: theme,
+        home: TodayScreen(env: envWith(payload)),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('本次判断参考了 2 项健康数据'), 260);
+    await expectLater(
+      find.byType(Scaffold),
+      matchesGoldenFile('goldens/today_evidence_summary.png'),
+    );
+
+    final evidenceEnv = AppEnv(baseUrl: 'http://localhost:0', token: 't');
+    evidenceEnv.client = ProductConformanceClient(todayBase());
+    await tester.pumpWidget(
+      MaterialApp(
+        key: UniqueKey(),
+        theme: theme,
+        home: EvidenceScreen(env: evidenceEnv),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(Scaffold),
+      matchesGoldenFile('goldens/evidence_used.png'),
+    );
+
+    await tester.tap(find.text('全部 8'));
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(Scaffold),
+      matchesGoldenFile('goldens/evidence_all.png'),
+    );
+  });
 }

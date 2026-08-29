@@ -372,6 +372,15 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   Widget _evidenceBlock(BuildContext context, TodayPayload p) {
+    final factsByFeature = <String, Map<String, dynamic>>{};
+    for (final fact in p.evidence) {
+      final feature = '${fact['feature_name'] ?? ''}';
+      if (feature.contains('bucket_count')) continue;
+      final key = feature.isNotEmpty ? feature : _evidenceLabel(fact);
+      factsByFeature.putIfAbsent(key, () => fact);
+    }
+    final allFacts = factsByFeature.values.toList();
+    final facts = allFacts.take(2).toList();
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
@@ -385,46 +394,107 @@ class _TodayScreenState extends State<TodayScreen> {
             children: [
               Row(
                 children: [
-                  const Text(
-                    '依据',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.black54,
-                      fontWeight: FontWeight.w600,
+                  Expanded(
+                    child: Text(
+                      facts.isEmpty
+                          ? '判断依据'
+                          : '本次判断参考了 ${allFacts.length} 项健康数据',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.black87,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   Text(
-                    '查看依据',
+                    '全部指标',
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 12.5,
                       color: Theme.of(context).colorScheme.primary,
                     ),
                   ),
                   const Icon(Icons.chevron_right, size: 18),
                 ],
               ),
-              const SizedBox(height: 8),
-              if (p.evidenceLevel2.isEmpty)
+              const SizedBox(height: 12),
+              if (facts.isEmpty)
                 const Text(
-                  '当前没有明显的偏离证据。',
-                  style: TextStyle(color: Colors.black54),
+                  '本次判断只参考了数据完整性，未使用可解释的健康指标。可在全部指标中查看步数、睡眠、心率等数据及日期。',
+                  style: TextStyle(color: Colors.black54, height: 1.45),
                 )
               else
-                for (final e in p.evidenceLevel2)
+                for (final fact in facts)
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    padding: const EdgeInsets.symmetric(vertical: 6),
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        const Text(
-                          '· ',
-                          style: TextStyle(color: Colors.black45),
+                        Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primary.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            _evidenceIcon(fact),
+                            size: 18,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
                         ),
+                        const SizedBox(width: 10),
                         Expanded(
-                          child: Text(
-                            e,
-                            style: const TextStyle(fontSize: 13.5, height: 1.4),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      _evidenceLabel(fact),
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    '${fact['current_value_display'] ?? '暂无数据'}',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 3),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 2,
+                                children: [
+                                  Text(
+                                    '${fact['freshness_label'] ?? fact['feature_date'] ?? '日期未知'}',
+                                    style: const TextStyle(
+                                      fontSize: 11.5,
+                                      color: Colors.black54,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${fact['deviation_label'] ?? '用于本次判断'}',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -435,6 +505,69 @@ class _TodayScreenState extends State<TodayScreen> {
         ),
       ),
     );
+  }
+
+  String _evidenceLabel(Map<String, dynamic> fact) {
+    final metric = '${fact['metric'] ?? ''}';
+    final feature = '${fact['feature_name'] ?? ''}';
+    if (metric == 'steps' || feature.startsWith('steps.')) return '步数';
+    if (metric == 'calories' || feature.startsWith('calories.')) {
+      return '活动消耗';
+    }
+    if (metric == 'sleep' || feature.startsWith('sleep_source_episode.')) {
+      return '睡眠';
+    }
+    if (metric == 'resting_heart_rate' ||
+        feature.startsWith('resting_heart_rate.')) {
+      return '静息心率';
+    }
+    if (metric == 'heart_rate' || feature.startsWith('heart_rate.')) {
+      return '心率';
+    }
+    if (metric == 'spo2' || feature.startsWith('spo2.')) return '血氧';
+    if (metric == 'xiaomi_stress_score' ||
+        feature.startsWith('xiaomi_stress_score.')) {
+      return '压力';
+    }
+    return switch (metric) {
+      'steps' => '步数',
+      'calories' => '活动消耗',
+      'sleep' => '睡眠',
+      'heart_rate' => '心率',
+      'resting_heart_rate' => '静息心率',
+      'spo2' => '血氧',
+      'xiaomi_stress_score' => '压力',
+      _ => '${fact['feature_label'] ?? fact['metric_label'] ?? '健康指标'}',
+    };
+  }
+
+  IconData _evidenceIcon(Map<String, dynamic> fact) {
+    final metric = '${fact['metric'] ?? ''}';
+    final feature = '${fact['feature_name'] ?? ''}';
+    if (feature.startsWith('steps.')) return Icons.directions_walk;
+    if (feature.startsWith('calories.')) {
+      return Icons.local_fire_department_outlined;
+    }
+    if (feature.startsWith('sleep_source_episode.')) {
+      return Icons.bedtime_outlined;
+    }
+    if (feature.startsWith('resting_heart_rate.') ||
+        feature.startsWith('heart_rate.')) {
+      return Icons.favorite_border;
+    }
+    if (feature.startsWith('spo2.')) return Icons.water_drop_outlined;
+    if (feature.startsWith('xiaomi_stress_score.')) {
+      return Icons.self_improvement;
+    }
+    return switch (metric) {
+      'steps' => Icons.directions_walk,
+      'calories' => Icons.local_fire_department_outlined,
+      'sleep' => Icons.bedtime_outlined,
+      'heart_rate' || 'resting_heart_rate' => Icons.favorite_border,
+      'spo2' => Icons.water_drop_outlined,
+      'xiaomi_stress_score' => Icons.self_improvement,
+      _ => Icons.monitor_heart_outlined,
+    };
   }
 
   Widget _entryRow(BuildContext context) {
@@ -535,7 +668,8 @@ class _TodayScreenState extends State<TodayScreen> {
     }
     setState(() => _feedbackBusy = true);
     final payloadKey = '$verdict\n${text ?? ''}';
-    final idempotencyKey = _feedbackRetryPayload == payloadKey && _feedbackRetryKey != null
+    final idempotencyKey =
+        _feedbackRetryPayload == payloadKey && _feedbackRetryKey != null
         ? _feedbackRetryKey!
         : 'feedback-${DateTime.now().microsecondsSinceEpoch}';
     _feedbackRetryPayload = payloadKey;
@@ -549,9 +683,9 @@ class _TodayScreenState extends State<TodayScreen> {
       _feedbackRetryPayload = null;
       _feedbackRetryKey = null;
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('反馈已保存，正在后台复核今日判断。')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('反馈已保存，正在后台复核今日判断。')));
       }
       final jobId = r['job_id'] as int?;
       if (jobId != null) unawaited(_finishFeedbackJob(jobId));
@@ -579,9 +713,9 @@ class _TodayScreenState extends State<TodayScreen> {
           await repository.cache.invalidate('patterns');
           widget.env.notifyDataChanged();
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('后台复核已完成，今日判断已刷新。')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('后台复核已完成，今日判断已刷新。')));
           }
           return;
         }
@@ -590,9 +724,9 @@ class _TodayScreenState extends State<TodayScreen> {
         }
       } catch (e) {
         if (attempt == 5 && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(apiErrorMessage(e))),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(apiErrorMessage(e))));
         }
       }
       delay = Duration(

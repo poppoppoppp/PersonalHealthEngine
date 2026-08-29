@@ -102,6 +102,16 @@ class HealthEngineApp extends StatelessWidget {
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF33557A)),
         scaffoldBackgroundColor: const Color(0xFFF7F8FA),
+        cardTheme: CardThemeData(
+          color: Colors.white,
+          elevation: 1,
+          shadowColor: const Color(0x140F172A),
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Color(0xFFE0E5EC)),
+          ),
+        ),
       ),
       home: const RootLoader(),
     );
