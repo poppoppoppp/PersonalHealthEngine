@@ -45,6 +45,14 @@ HEALTH_METRIC_OVERVIEW = (
     ("workouts", "运动记录", None),
 )
 
+# The canonical per-metric feature that represents the metric to the user. Diagnostic
+# sub-features (coverage bucket counts, sleep-stage segment counts, awake durations,
+# stage proportions) stay in the sealed bundle for reasoning but never surface as
+# user-facing evidence facts or duplicate the primary value.
+PRIMARY_FEATURE_NAMES = {
+    feature_name for _, _, feature_name in HEALTH_METRIC_OVERVIEW if feature_name is not None
+}
+
 
 def latest_analysis_date(l5: sqlite3.Connection) -> str | None:
     row = l5.execute(
@@ -515,6 +523,8 @@ def exact_bundle_evidence(
         if item.get("deviation_class") not in (
             "ABOVE_TYPICAL_RANGE", "BELOW_TYPICAL_RANGE",
         ):
+            continue
+        if item.get("feature_name") not in PRIMARY_FEATURE_NAMES:
             continue
         key = (
             item.get("feature_name"), item.get("feature_date"), item.get("window_days"),
