@@ -80,6 +80,20 @@ class ProductDeepSeekReasoningAdapter:
         )
         return self._validated_product_json(content, ("reasoning_summary",))
 
+    def reason_daily_lenient(self, bundle, candidates):
+        """Same request as reason_daily, but returns the raw parsed JSON without
+        enforcing the product-Chinese contract. Callers that can salvage field by field
+        (drop a non-Chinese action, retry on an off-contract summary) use this so one
+        imperfect model sample does not have to become a degraded judgment."""
+        user = self._real_module.canonical_json({
+            "evidence_bundle": bundle,
+            "hypothesis_candidates": candidates,
+        })
+        content = self._chat(
+            self._daily_system(candidates), user, operation="today",
+        )
+        return self._real_module._extract_json(content)
+
     def answer_question(self, question, bundle, candidates):
         schema = {
             "answer_text": "string: direct answer first",

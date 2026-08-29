@@ -30,7 +30,7 @@ from l7.config import Config, DEFINITION_FILES
 from l7.engine import model_cache
 from l7.store.db import open_readonly, utc_now
 from l7.upstream import readers
-from l7.upstream.l6_bridge import L6Bridge
+from l7.upstream.l6_bridge import L6Bridge, _is_chinese_product_text
 from l7.upstream.l6_bridge import ProductDeepSeekReasoningAdapter
 
 CONFIDENCE_ORDER = ("VERY_LOW", "LOW", "MODERATE", "HIGH")
@@ -164,6 +164,36 @@ class EngineOrchestrator:
                 c.close()
 
     # -- internals ------------------------------------------------------------
+    def _salvage_action_list(self, actions):
+        """Keep only contract-conforming Chinese actions instead of discarding the whole
+        sample when one action drifts (e.g. contains a Latin token like SpO2)."""
+        if not isinstance(actions, list):
+            return []
+        return [
+            action for action in actions
+            if isinstance(action, str) and _is_chinese_product_text(action)
+        ][:3]
+
+    def _attempt_reasoning_sample(self, bundle, ranked):
+        """One model attempt: strict product contract first; on its (brittle) hard
+        failure, salvage the raw sample field by field. Returns output or None."""
+        try:
+            return self.reasoning_adapter.reason_daily(bundle, ranked)
+        except Exception:
+            pass
+        lenient = getattr(self.reasoning_adapter, "reason_daily_lenient", None)
+        if lenient is None:
+            return None
+        try:
+            output = lenient(bundle, ranked)
+        except Exception:
+            return None
+        if isinstance(output, dict):
+            output["recommended_actions"] = self._salvage_action_list(
+                output.get("recommended_actions"),
+            )
+        return output
+
     def _record_no_data(self, user_id, trigger, started, local_date):
         sig = {"local_date": local_date, "note": "no upstream deviation analytics present"}
         run_id = self._insert_eval_run(user_id, started, trigger, sig, None, "FALLBACK_NO_DATA", 0, None)
@@ -217,12 +247,14 @@ class EngineOrchestrator:
         invocations = []
         model_output = model_cache.lookup(self.l7, request_hash, "REASONING")
         if model_output is None:
-            try:
-                model_output = self.reasoning_adapter.reason_daily(bundle, ranked)
+            for _ in range(3):
+                sample = self._attempt_reasoning_sample(bundle, ranked)
                 model_calls += 1
+                if sample is not None:
+                    model_output = sample
+                    break
+            if model_output is not None:
                 model_cache.store(self.l7, request_hash, "REASONING", self.reasoning_adapter.model_id, model_output)
-            except Exception:  # ModelError family from sealed adapters
-                model_output = None
         if model_output is not None:
             ok, errors = core.validate_daily_output(
                 model_output, [c["hypothesis_type"] for c in ranked] + ["UNKNOWN"], primary["confidence"]
@@ -592,14 +624,15 @@ class EngineOrchestrator:
         allowed = [candidate["hypothesis_type"] for candidate in ranked] + ["UNKNOWN"]
 
         def acceptable(payload: dict | None) -> bool:
+            # Display recovery adopts wording only: the recovered projection keeps the
+            # sealed judgment fields untouched (recovered = dict(dr)). Requiring the
+            # model's secondary hypothesis to equal the sealed one deadlocked recovery —
+            # the model may legitimately add a secondary beyond the deterministic
+            # candidate list, and that extra field is discarded anyway.
             ok, _ = core.validate_daily_output(payload, allowed, dr["confidence"])
             if not ok:
                 return False
-            if (
-                payload.get("primary_hypothesis_type") != dr["primary_hypothesis_type"]
-                or payload.get("secondary_hypothesis_type")
-                != dr["secondary_hypothesis_type"]
-            ):
+            if payload.get("primary_hypothesis_type") != dr["primary_hypothesis_type"]:
                 return False
             summary = payload.get("reasoning_summary")
             actions = payload.get("recommended_actions")
@@ -616,11 +649,12 @@ class EngineOrchestrator:
         output = model_cache.lookup(self.l7, request_hash, "REASONING")
         calls = 0
         if not acceptable(output):
-            calls = 1
-            try:
-                output = self.reasoning_adapter.reason_daily(bundle, ranked)
-            except Exception:
-                return None, calls
+            for _ in range(3):
+                candidate = self._attempt_reasoning_sample(bundle, ranked)
+                calls += 1
+                if acceptable(candidate):
+                    output = candidate
+                    break
             if not acceptable(output):
                 return None, calls
             model_cache.store(
