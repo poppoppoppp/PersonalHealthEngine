@@ -170,6 +170,32 @@ def create_app(config: Config | None = None, orchestrator: EngineOrchestrator | 
 
     @app.post("/today/refresh")
     def refresh_today(user_id: str = Depends(require_auth)):
+        # A queued health-write job (context correction, feedback) is already re-running
+        # the engine in the worker. Blocking this request on a second concurrent
+        # evaluation only produces a long spinner and a duplicate model call — return the
+        # current copy at once; the job's own evaluation updates Today when it lands.
+        pending = l7.execute(
+            "SELECT 1 FROM durable_jobs WHERE user_id=? AND status IN ('PENDING','RUNNING')"
+            " LIMIT 1",
+            (user_id,),
+        ).fetchone()
+        if pending is not None:
+            try:
+                current = today_service.get_today(user_id, trigger="app_open")
+            except LookupError:
+                result = orch.evaluate(user_id, trigger="manual_refresh")
+                return {
+                    "outcome": result.outcome,
+                    "model_calls": result.model_calls,
+                    "judgment_updated": result.judgment_updated,
+                    "today": result.today_payload,
+                }
+            return {
+                "outcome": "JOB_IN_PROGRESS",
+                "model_calls": 0,
+                "judgment_updated": False,
+                "today": current,
+            }
         result = orch.evaluate(user_id, trigger="manual_refresh")
         return {
             "outcome": result.outcome,

@@ -17,6 +17,7 @@ from l7.rendering.labels import (
     evidence_status_label,
     feature_label,
     format_health_value,
+    metric_label,
 )
 
 SYMPTOM_CONTEXT_TYPES = (
@@ -46,12 +47,17 @@ HEALTH_METRIC_OVERVIEW = (
 )
 
 # The canonical per-metric feature that represents the metric to the user. Diagnostic
-# sub-features (coverage bucket counts, sleep-stage segment counts, awake durations,
-# stage proportions) stay in the sealed bundle for reasoning but never surface as
-# user-facing evidence facts or duplicate the primary value.
+# sub-features (coverage bucket counts, sleep-stage segment counts, stage proportions)
+# stay in the sealed bundle for reasoning but never surface as user-facing evidence.
+# Sleep awake duration is the one sub-feature users genuinely care about (night-time
+# wake-ups), so it is surfaced as a secondary line beneath the sleep primary.
 PRIMARY_FEATURE_NAMES = {
     feature_name for _, _, feature_name in HEALTH_METRIC_OVERVIEW if feature_name is not None
 }
+SECONDARY_FEATURE_NAMES = {
+    "sleep_source_episode.vendor_awake_duration_seconds",
+}
+USER_FACING_FEATURE_NAMES = PRIMARY_FEATURE_NAMES | SECONDARY_FEATURE_NAMES
 
 
 def latest_analysis_date(l5: sqlite3.Connection) -> str | None:
@@ -524,7 +530,7 @@ def exact_bundle_evidence(
             "ABOVE_TYPICAL_RANGE", "BELOW_TYPICAL_RANGE",
         ):
             continue
-        if item.get("feature_name") not in PRIMARY_FEATURE_NAMES:
+        if item.get("feature_name") not in USER_FACING_FEATURE_NAMES:
             continue
         key = (
             item.get("feature_name"), item.get("feature_date"), item.get("window_days"),
@@ -587,6 +593,15 @@ def exact_bundle_evidence(
             "feature": dict(l3_row),
             "baseline": dict(l4_row),
         })
+    # Primary metrics lead; secondary sub-features (awake duration) follow. The display
+    # label keeps secondaries self-explanatory while primaries keep the metric name.
+    facts.sort(key=lambda f: 0 if f["feature_name"] in PRIMARY_FEATURE_NAMES else 1)
+    for fact in facts:
+        if fact["feature_name"] in PRIMARY_FEATURE_NAMES:
+            metric = str(fact.get("metric") or "").strip()
+            fact["display_label"] = metric_label(metric) if metric else fact["feature_label"]
+        else:
+            fact["display_label"] = fact["feature_label"]
     return facts
 
 
