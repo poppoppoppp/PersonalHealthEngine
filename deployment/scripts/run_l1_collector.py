@@ -47,12 +47,17 @@ def main() -> int:
     # Its normal keyring.get_password() calls are redirected here.
     keyring.set_keyring(FileSecretKeyring())
 
+    # Xiaomi cloud stores heart-rate/SpO2/stress samples in chunks whose timestamps
+    # fall outside a 2-day window (observed 2026-08-29); 8 days keeps those queries
+    # non-empty. L2 dedupes re-pulled records by logical key, so overlap is safe.
     sys.argv = [
         str(L1_CODE / "collector.py"),
         "--output-dir",
         str(captures),
         "--state-file",
         str(state),
+        "--overlap-days",
+        "8",
     ]
 
     print("========== L1 PRODUCTION COLLECTOR ==========")
