@@ -101,8 +101,8 @@ def test_failed_degraded_reasoning_recovery_keeps_current_projection(env, l6_wri
     env["adapter"].reason_daily = fail_recovery
     result = env["orch"].evaluate("owner", "manual_refresh")
 
-    assert attempts == 1
-    assert result.model_calls == 1
+    assert attempts == 3, "nondeterministic real models justify bounded retries"
+    assert result.model_calls == 3
     assert result.today_payload["version_id"] == degraded.today_payload["version_id"]
     assert DEGRADED_REASONING in result.today_payload["cause"]["text"]
     count = env["l7"].execute(
@@ -147,9 +147,34 @@ def test_hypothesis_changing_recovery_is_rejected(env, l6_write):
     env["adapter"].reason_daily = change_hypothesis
     result = env["orch"].evaluate("owner", "manual_refresh")
 
-    assert env["adapter"].reason_daily_calls == 1
+    assert env["adapter"].reason_daily_calls == 3
     assert result.today_payload["version_id"] == degraded.today_payload["version_id"]
     assert DEGRADED_REASONING in result.today_payload["cause"]["text"]
+
+
+def test_model_added_secondary_does_not_block_recovery(env, l6_write):
+    """Production deadlock observed 2026-08-29: the model returns the matching primary
+    plus an extra secondary that the deterministic candidate list never had. Display
+    recovery keeps the sealed judgment fields, so the extra secondary must not reject
+    the wording."""
+    set_degraded_reasoning(l6_write)
+    degraded = env["orch"].evaluate("owner", "app_open")
+    original_reason_daily = env["adapter"].reason_daily
+
+    def add_secondary(bundle, candidates):
+        output = original_reason_daily(bundle, candidates)
+        output["secondary_hypothesis_type"] = "RECOVERY_STRAIN"
+        return output
+
+    env["adapter"].reason_daily = add_secondary
+    result = env["orch"].evaluate("owner", "manual_refresh")
+
+    assert env["adapter"].reason_daily_calls == 1
+    assert DEGRADED_REASONING not in result.today_payload["cause"]["text"]
+    # The sealed judgment is untouched: secondary stays None in the projection.
+    assert result.today_payload["cause"]["secondary"] is None
+    assert result.today_payload["cause"]["hypothesis_type"] == "SLEEP_DEFICIT"
+    assert result.today_payload["judgment_updated"] is False
 
 
 def test_irrelevant_context_change_does_not_rewrite_wording(env, l6_write):
