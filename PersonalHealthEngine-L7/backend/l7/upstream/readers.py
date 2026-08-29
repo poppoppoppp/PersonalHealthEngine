@@ -11,7 +11,11 @@ import sqlite3
 from datetime import date
 from typing import Any
 
-from l7.rendering.reference_ranges import SAFETY_FEATURES, reference_for, safety_breach
+from l7.rendering.reference_ranges import (
+    SAFETY_FEATURES,
+    reference_for,
+    safety_breach,
+)
 from l7.rendering.labels import (
     baseline_maturity_label,
     deviation_direction_label,
@@ -100,6 +104,8 @@ def health_metric_overviews(
     reference_date: str,
     used_facts: dict[str, dict],
     limit: int = 28,
+    owner_age: int | None = None,
+    owner_sex: str | None = None,
 ) -> list[dict]:
     """Return the fixed user-facing health metric catalogue without coverage counts."""
     result = []
@@ -137,7 +143,7 @@ def health_metric_overviews(
                 "key": key,
                 "label": label,
                 "feature_name": feature_name,
-                "reference": reference_for(key),
+                "reference": reference_for(key, owner_age, owner_sex),
                 "value_display": "暂无数据",
                 "data_date": None,
                 "freshness_days": None,
@@ -179,7 +185,7 @@ def health_metric_overviews(
             "key": key,
             "label": label,
             "feature_name": feature_name,
-            "reference": reference_for(key),
+            "reference": reference_for(key, owner_age, owner_sex),
             "value_display": format_health_value(
                 feature_name, latest["value_num"], latest["unit"],
             ),

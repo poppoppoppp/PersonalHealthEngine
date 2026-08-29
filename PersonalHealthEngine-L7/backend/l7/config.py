@@ -54,6 +54,15 @@ class Config:
         default_factory=lambda: os.environ.get("L7_MEDICAL_ADAPTER", "mock")
     )
     api_token: str | None = field(default_factory=lambda: os.environ.get("L7_API_TOKEN"))
+    # 机主画像：用于把科学参考区间细化到年龄/性别档。仅本机使用，不出服务器。
+    owner_age: int | None = field(
+        default_factory=lambda: int(os.environ["L7_OWNER_AGE"])
+        if os.environ.get("L7_OWNER_AGE", "").isdigit()
+        else None
+    )
+    owner_sex: str | None = field(
+        default_factory=lambda: os.environ.get("L7_OWNER_SEX") or None
+    )
     default_user_id: str = "owner"
 
     def resolve_api_token(self) -> str:

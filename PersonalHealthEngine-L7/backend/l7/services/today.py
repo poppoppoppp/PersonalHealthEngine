@@ -120,6 +120,7 @@ class TodayService:
                     "metrics": [],
                     "all_metrics": readers.health_metric_overviews(
                         l3, reference_date, {},
+                        owner_age=self.cfg.owner_age, owner_sex=self.cfg.owner_sex,
                     ),
                 }
             stored = readers.read_current_bundle(l6, analysis_date)
@@ -129,6 +130,7 @@ class TodayService:
                     "metrics": [],
                     "all_metrics": readers.health_metric_overviews(
                         l3, reference_date, {},
+                        owner_age=self.cfg.owner_age, owner_sex=self.cfg.owner_sex,
                     ),
                 }
             bundle = stored["bundle"]

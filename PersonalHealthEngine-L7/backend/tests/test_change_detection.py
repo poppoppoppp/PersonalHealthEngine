@@ -391,3 +391,16 @@ def test_reference_ranges_and_safety_floors():
     assert safety_breach("resting_heart_rate", 35.0) == "low"
     assert safety_breach("heart_rate", 150.0) == "high"
     assert safety_breach("steps", 100000) is None
+
+
+def test_reference_for_age_sex_branches():
+    from l7.rendering.reference_ranges import reference_for
+
+    # 22 岁男性：落在通用成人档
+    assert reference_for("sleep", 22, "male") == {"low": 25200, "high": 32400}
+    # 65 岁以上：睡眠建议收窄为 7-8 小时
+    assert reference_for("sleep", 66, "male") == {"low": 25200, "high": 28800}
+    # 不传画像：通用成人档
+    assert reference_for("sleep") == {"low": 25200, "high": 32400}
+    # 心率档位不受年龄影响（通用成人标准覆盖 18-65+）
+    assert reference_for("resting_heart_rate", 22, "male") == {"low": 60, "high": 100}

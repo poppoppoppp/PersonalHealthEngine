@@ -37,12 +37,20 @@ REFERENCE_RANGES = {
 }
 
 
-def reference_for(metric: str) -> dict | None:
-    """返回展示参考带（low/high，指标自然单位）；无临床标准的指标返回 None。"""
+def reference_for(metric: str, age: int | None = None, sex: str | None = None) -> dict | None:
+    """返回展示参考带（low/high，指标自然单位）；无临床标准的指标返回 None。
+
+    age/sex 用于按人群细化：当前 22 岁男性落在通用成人档（数值相同），分支结构
+    为将来年龄增长/女性档位预留——例如 65 岁以上睡眠建议收窄为 7-8 小时。"""
     entry = REFERENCE_RANGES.get(metric)
     if entry is None or "display" not in entry:
         return None
-    return {"low": entry["display"][0], "high": entry["display"][1]}
+    lo, hi = entry["display"]
+
+    if metric == "sleep" and age is not None and age >= 65:
+        lo, hi = 7 * 3600, 8 * 3600
+
+    return {"low": lo, "high": hi}
 
 
 def safety_breach(metric: str, value: float) -> str | None:
