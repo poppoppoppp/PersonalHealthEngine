@@ -128,8 +128,11 @@ class ProductDeepSeekReasoningAdapter:
         system = (
             self._daily_system(candidates)
             + " Answer the user's question using ONLY the question-specific evidence bundle. "
-            + "Every important judgment must cite exact evidence_catalog keys. Never invent symptoms, "
-            + "training, alcohol, medication, disease, temperature, HRV, or history. Return STRICT JSON: "
+            + "direct_answer and reason MUST cite at least one specific personal value from the "
+            + "bundle with its date (e.g. 昨晚睡眠 7 小时 53 分、清醒 16 分钟、静息心率 64) — never "
+            + "answer with generic advice that could apply to anyone. Every important judgment must "
+            + "cite exact evidence_catalog keys. Never invent symptoms, training, alcohol, medication, "
+            + "disease, temperature, HRV, or history. Return STRICT JSON: "
             + json.dumps(schema, ensure_ascii=False)
         )
         content = self._chat(

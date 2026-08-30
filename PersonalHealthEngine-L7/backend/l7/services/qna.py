@@ -559,7 +559,20 @@ class QnAService:
                         if final_candidate is not None:
                             finalization_path = "APPROVED_WITH_CHANGES"
                         else:
-                            finalization_path = "APPROVED_WITH_CHANGES_FAILED_CLOSED"
+                            # 审查已判定候选内容"本质可发，仅需修改"。修订文本反复
+                            # 不合格时，退回原候选并把它要求的修改逐条追加为谨慎项，
+                            # 而不是把一个被判"可发"的回答整个吞掉。
+                            final_candidate = dict(candidate)
+                            extra = [
+                                c for c in medical_result.get("required_changes", [])
+                                if isinstance(c, str) and c.strip()
+                            ][:3]
+                            if extra:
+                                keep = max(0, 3 - len(extra))
+                                final_candidate["recommended_actions"] = (
+                                    final_candidate.get("recommended_actions", [])[:keep] + extra
+                                )
+                            finalization_path = "APPROVED_WITH_CHANGES_FALLBACK_ORIGINAL"
                     else:
                         final_candidate = None
                         finalization_path = status if not candidate_issues else "DETERMINISTIC_REJECTED"

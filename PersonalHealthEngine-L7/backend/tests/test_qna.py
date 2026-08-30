@@ -711,3 +711,53 @@ def test_chat_history_is_not_health_evidence(env):
     ).fetchone()[0]
     con.close()
     assert n == 0, "question chatter must not create USER_REPORTED context rows"
+
+
+def test_revision_failure_falls_back_to_original_with_critic_changes(env):
+    """审查已批准"仅需修改"时，修订稿反复不合格不应吞掉整个回答：
+    退回原候选，并把审查要求的修改追加为谨慎项。"""
+    force_review_hint(env["adapter"])
+    qna = make_qna(env)
+    force_review_hint(env["adapter"])
+
+    class StrictMedical:
+        model_id = "mock-medical-strict"
+
+        def review(self, bundle, hypothesis_types, question_text=None):
+            return {
+                "review_status": "APPROVED_WITH_CHANGES",
+                "medical_concerns": [],
+                "causality_concerns": [],
+                "missing_safety_considerations": [],
+                "unsafe_actions": [],
+                "required_changes": ["补充一条：如出现头晕立即停止"],
+                "escalation_reason": None,
+                "review_summary": "内容可发，但需补充谨慎项。",
+            }
+
+    class BadReviser(CountingMockReasoningAdapter):
+        def __init__(self):
+            super().__init__()
+            self.revision_calls = 0
+
+        def answer_question_candidate(self, question, bundle, candidates):
+            base = super().answer_question_candidate(question, bundle, candidates)
+            base["direct_answer"] = "基于你的睡眠数据，今天适合轻度活动。"
+            base["reason"] = "你的睡眠时长低于个人基线。"
+            return base
+
+        def revise_question_candidate(self, *args, **kwargs):
+            self.revision_calls += 1
+            return {"direct_answer": 123}  # 反复不合格
+
+    reviser = BadReviser()
+    force_review_hint(reviser)
+    qna._reasoning = reviser
+    qna._medical = StrictMedical()
+
+    r = qna.ask("owner", "今天能不能练腿？")
+
+    assert reviser.revision_calls == 3, "bounded retries before fallback"
+    assert r["direct_answer"] == "基于你的睡眠数据，今天适合轻度活动。"
+    assert any("头晕立即停止" in a for a in r["actions"]), "critic changes appended"
+    assert r["medical_review_state"] == "PERFORMED"
