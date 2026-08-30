@@ -187,7 +187,7 @@ def render_today_payload(
         "schema": "l7.today/v1",
         # v3 (2026-08-29): evidence facts are the canonical per-metric features only —
         # diagnostic sub-features and same-value duplicates never ship to the client.
-        "presentation_contract_version": 4,
+        "presentation_contract_version": 5,
         "product_state": product_state,
         "product_state_label": STATE_LABELS[product_state],
         "headline": STATE_HEADLINES[product_state],

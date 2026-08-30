@@ -296,7 +296,7 @@ class EngineOrchestrator:
         run_id = self._insert_eval_run(user_id, started, trigger, sig, None, "FALLBACK_NO_DATA", 0, None)
         payload = {
             "schema": "l7.today/v1",
-            "presentation_contract_version": 4,
+            "presentation_contract_version": 5,
             "product_state": "D",
             "product_state_label": "目前无法可靠判断",
             "headline": "目前还没有足够的健康数据可以分析。",
@@ -574,7 +574,7 @@ class EngineOrchestrator:
         )
         if same_judgment:
             prior = json.loads(latest["rendered_json"])
-            if prior.get("presentation_contract_version", 0) >= 4:
+            if prior.get("presentation_contract_version", 0) >= 5:
                 if trigger == "manual_refresh" and self._is_degraded_projection(prior):
                     recovered_dr, recovery_calls = self._retry_degraded_reasoning(dr, bundle)
                     if recovered_dr is not None:
@@ -637,7 +637,7 @@ class EngineOrchestrator:
         recover_degraded = False
         if latest is not None and latest["analysis_date"] == analysis_date:
             prior = json.loads(latest["rendered_json"])
-            if prior.get("presentation_contract_version", 0) >= 4:
+            if prior.get("presentation_contract_version", 0) >= 5:
                 recover_degraded = (
                     trigger == "manual_refresh" and self._is_degraded_projection(prior)
                 )
