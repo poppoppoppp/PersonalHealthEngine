@@ -68,18 +68,26 @@ def scheduled_model_worthy(
     now: datetime,
     reasoning_exists: bool,
     user_input_changed: bool,
+    new_overall_state: str | None = None,
+    new_primary: str | None = None,
+    stored_overall_state: str | None = None,
+    stored_primary: str | None = None,
 ) -> bool:
     """Cost gate for unattended scheduled refreshes.
 
     Mid-day data dribbles (steps accumulating) rarely changes what today's judgment
-    should say, so the model only pays at the three fixed daily windows plus when
-    something real happened: user context/feedback changed, the judged day is
-    complete, or it is the first analysis of the day."""
+    should say, so the model only pays when the judgment's SHAPE would change
+    (overall state or primary hypothesis differs from the stored one — e.g. a night's
+    sleep completing and erasing an interim "睡眠不足"), plus when the user added
+    context/feedback, the judged day is complete, it is the first analysis of the
+    day, or during the fixed daily windows."""
     if not reasoning_exists:
         return True
     if user_input_changed:
         return True
     if analysis_date < local_date:
+        return True
+    if new_overall_state != stored_overall_state or new_primary != stored_primary:
         return True
     return _in_analysis_window(now)
 
@@ -142,8 +150,11 @@ class EngineOrchestrator:
                 return self._record_no_data(user_id, trigger, started, local_date)
 
             sig = readers.upstream_signature(l3, l4, l5, l6, local_date)
+            # 被跳过的定时评估不消费"上游有变化"的信号：否则一次跳过会让
+            # 之后所有轮次都误以为没有变化，永远错过待处理的重新推理。
             last = self.l7.execute(
                 "SELECT upstream_sig_json FROM eval_runs WHERE user_id=? AND outcome != 'ERROR' "
+                "AND outcome != 'SCHEDULED_SKIPPED_MODEL' "
                 "ORDER BY id DESC LIMIT 1",
                 (user_id,),
             ).fetchone()
@@ -179,9 +190,8 @@ class EngineOrchestrator:
             need_model = stored is None or stored["bundle_sha256"] != bhash
 
             if need_model and trigger == "scheduled":
-                reasoning_exists = (
-                    readers.read_current_daily_reasoning(l6, analysis_date) is not None
-                )
+                stored_dr = readers.read_current_daily_reasoning(l6, analysis_date)
+                reasoning_exists = stored_dr is not None
                 last_sig = json.loads(last["upstream_sig_json"]) if last is not None else {}
                 user_input_changed = (
                     sig.get("l6_context_max_id") != last_sig.get("l6_context_max_id")
@@ -191,6 +201,10 @@ class EngineOrchestrator:
                 if not scheduled_model_worthy(
                     analysis_date, local_date, now,
                     reasoning_exists, user_input_changed,
+                    new_overall_state=bundle["overall_state"],
+                    new_primary=candidates[0]["hypothesis_type"] if candidates else "UNKNOWN",
+                    stored_overall_state=stored_dr["overall_state"] if stored_dr else None,
+                    stored_primary=stored_dr["primary_hypothesis_type"] if stored_dr else None,
                 ):
                     payload, _, version_id = self._render_current_today(
                         user_id, analysis_date, trigger, l6, l3, l4, l5,

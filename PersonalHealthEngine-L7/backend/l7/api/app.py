@@ -168,6 +168,34 @@ def create_app(config: Config | None = None, orchestrator: EngineOrchestrator | 
             request, today_service.get_today(user_id, trigger="app_open"),
         )
 
+    async def _request_collection_cycle(timeout_seconds: float = 300.0) -> None:
+        """手动刷新 = 采集 + 分析一条龙。
+
+        L1-L5 管线跑在宿主机 systemd 上，容器通过共享的 /runtime 卷发信号：
+        写入 collect.request，宿主机的 path 单元启动管线，完成后写 collect.finished
+        时间戳。本地开发环境没有 /runtime，直接跳过采集只做分析。"""
+        import asyncio
+        import os
+        from pathlib import Path
+
+        runtime = Path(os.environ.get("PHE_RUNTIME", "/runtime"))
+        request_path = runtime / "collect.request"
+        finished_path = runtime / "collect.finished"
+        try:
+            prev = finished_path.stat().st_mtime if finished_path.exists() else 0.0
+            request_path.write_text("now")
+        except OSError:
+            return  # 无共享卷（本地开发）：跳过采集，仅分析
+        loop = asyncio.get_event_loop()
+        deadline = loop.time() + timeout_seconds
+        while loop.time() < deadline:
+            await asyncio.sleep(2)
+            try:
+                if finished_path.stat().st_mtime > prev:
+                    return
+            except OSError:
+                continue
+
     @app.post("/today/refresh")
     async def refresh_today(request: Request, user_id: str = Depends(require_auth)):
         # A queued health-write job (context correction, feedback) is already re-running
@@ -184,6 +212,9 @@ def create_app(config: Config | None = None, orchestrator: EngineOrchestrator | 
             "scheduled" if isinstance(body, dict) and body.get("trigger") == "scheduled"
             else "manual_refresh"
         )
+        if trigger == "manual_refresh":
+            # 手动刷新 = 采集 + 分析一条龙（采集失败/无共享卷时退化为仅分析）。
+            await _request_collection_cycle()
         pending = l7.execute(
             "SELECT 1 FROM durable_jobs WHERE user_id=? AND status IN ('PENDING','RUNNING')"
             " LIMIT 1",

@@ -369,6 +369,18 @@ def test_scheduled_model_gate_matrix():
     # Inside the two fixed windows: worth it.
     assert scheduled_model_worthy("2026-08-29", "2026-08-29", morning_window, True, False) is True
     assert scheduled_model_worthy("2026-08-29", "2026-08-29", evening_window, True, False) is True
+    # 结论形状会变（睡眠补完后从"睡眠不足"变为"稳定"）→ 值得重新推理，不看窗口
+    assert scheduled_model_worthy(
+        "2026-08-29", "2026-08-29", noon, True, False,
+        new_overall_state="STABLE", new_primary="NO_SIGNIFICANT_FINDING",
+        stored_overall_state="NOTABLE_CHANGE", stored_primary="SLEEP_DEFICIT",
+    ) is True
+    # 形状不变的中午数据抖动 → 跳过
+    assert scheduled_model_worthy(
+        "2026-08-29", "2026-08-29", noon, True, False,
+        new_overall_state="NOTABLE_CHANGE", new_primary="SLEEP_DEFICIT",
+        stored_overall_state="NOTABLE_CHANGE", stored_primary="SLEEP_DEFICIT",
+    ) is False
     # Outside windows, partial day, no user input: skip the model.
     assert scheduled_model_worthy("2026-08-29", "2026-08-29", noon, True, False) is False
     assert scheduled_model_worthy("2026-08-29", "2026-08-29", outside_before, True, False) is False
@@ -404,3 +416,10 @@ def test_reference_for_age_sex_branches():
     assert reference_for("sleep") == {"low": 25200, "high": 32400}
     # 心率档位不受年龄影响（通用成人标准覆盖 18-65+）
     assert reference_for("resting_heart_rate", 22, "male") == {"low": 60, "high": 100}
+
+
+def test_scheduled_evaluate_does_not_crash(env):
+    """Regression 2026-08-30: the scheduled gate referenced a variable defined only
+    inside the materializer, 500-ing every unattended refresh."""
+    result = env["orch"].evaluate("owner", "scheduled")
+    assert result.outcome in ("REMATERIALIZED", "BUNDLE_UNCHANGED", "NO_UPSTREAM_CHANGE")

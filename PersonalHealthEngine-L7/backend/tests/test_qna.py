@@ -759,5 +759,6 @@ def test_revision_failure_falls_back_to_original_with_critic_changes(env):
 
     assert reviser.revision_calls == 3, "bounded retries before fallback"
     assert r["direct_answer"] == "基于你的睡眠数据，今天适合轻度活动。"
-    assert any("头晕立即停止" in a for a in r["actions"]), "critic changes appended"
+    # 机主明确要求：不把给编辑者的修改指令塞给用户
+    assert not any("头晕立即停止" in a for a in r["actions"])
     assert r["medical_review_state"] == "PERFORMED"

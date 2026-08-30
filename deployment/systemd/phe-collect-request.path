@@ -1,0 +1,11 @@
+[Unit]
+Description=Personal Health Engine on-demand collection request
+OnFailure=phe-collect-request-failed@%n.service
+
+[Path]
+# API 的"立即采集并分析"按钮写入此文件；宿主机的 path 单元触发采集管线。
+PathModified=/srv/phe/runtime/collect.request
+
+[Unit]
+[Install]
+WantedBy=multi-user.target

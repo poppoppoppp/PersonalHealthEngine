@@ -560,18 +560,9 @@ class QnAService:
                             finalization_path = "APPROVED_WITH_CHANGES"
                         else:
                             # 审查已判定候选内容"本质可发，仅需修改"。修订文本反复
-                            # 不合格时，退回原候选并把它要求的修改逐条追加为谨慎项，
-                            # 而不是把一个被判"可发"的回答整个吞掉。
+                            # 不合格时，退回干净的原始候选——把给编辑者的修改指令
+                            # 原样塞给用户是反体验的（机主 2026-08-30 明确要求删除）。
                             final_candidate = dict(candidate)
-                            extra = [
-                                c for c in medical_result.get("required_changes", [])
-                                if isinstance(c, str) and c.strip()
-                            ][:3]
-                            if extra:
-                                keep = max(0, 3 - len(extra))
-                                final_candidate["recommended_actions"] = (
-                                    final_candidate.get("recommended_actions", [])[:keep] + extra
-                                )
                             finalization_path = "APPROVED_WITH_CHANGES_FALLBACK_ORIGINAL"
                     else:
                         final_candidate = None

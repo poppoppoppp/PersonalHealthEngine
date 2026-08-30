@@ -1,0 +1,6 @@
+[Unit]
+Description=Run the L1-L5 collection cycle on demand, then stamp completion
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'rm -f /srv/phe/runtime/collect.request; systemctl start phe-daily.service; date +%%s > /srv/phe/runtime/collect.finished'
