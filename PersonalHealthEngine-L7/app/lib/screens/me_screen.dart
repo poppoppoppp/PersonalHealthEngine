@@ -2,10 +2,12 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../design.dart';
 import '../main.dart';
 import '../widgets/api_error_view.dart';
+import '../services/app_update.dart';
 import '../widgets/masthead.dart';
 import 'notifications_screen.dart';
 
@@ -22,6 +24,12 @@ class _MeScreenState extends State<MeScreen> {
   Map<String, dynamic>? today;
   List<dynamic>? runs;
   Object? error;
+  PackageInfo? packageInfo;
+  AppUpdateInfo? pendingUpdate;
+  bool checkingUpdate = false;
+  bool downloading = false;
+  double? downloadProgress;
+  String? updateNote;
 
   final urlController = TextEditingController();
   final tokenController = TextEditingController();
@@ -33,6 +41,69 @@ class _MeScreenState extends State<MeScreen> {
     urlController.text = widget.env.baseUrl;
     tokenController.text = widget.env.token;
     _load();
+    _loadPackageInfo();
+    _checkUpdate(silent: true);
+  }
+
+  Future<void> _loadPackageInfo() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (mounted) setState(() => packageInfo = info);
+    } catch (_) {}
+  }
+
+  Future<void> _checkUpdate({bool silent = false}) async {
+    setState(() {
+      checkingUpdate = true;
+      if (!silent) updateNote = null;
+    });
+    try {
+      final latest = await AppUpdateService(widget.env.client).fetchLatest();
+      final current = int.tryParse(packageInfo?.buildNumber ?? '');
+      if (mounted) {
+        setState(() {
+          checkingUpdate = false;
+          pendingUpdate =
+              (latest != null && (current == null || latest.versionCode > current))
+              ? latest
+              : null;
+          if (!silent) {
+            updateNote = pendingUpdate == null ? '已是最新版本' : null;
+          }
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          checkingUpdate = false;
+          if (!silent) updateNote = '检查失败，请稍后再试';
+        });
+      }
+    }
+  }
+
+  Future<void> _downloadAndInstall() async {
+    final update = pendingUpdate;
+    if (update == null || downloading) return;
+    setState(() {
+      downloading = true;
+      downloadProgress = null;
+      updateNote = '正在下载新版本…';
+    });
+    try {
+      final service = AppUpdateService(widget.env.client);
+      final path = await service.downloadApk(update);
+      if (mounted) setState(() => updateNote = '下载完成，正在启动安装…');
+      await service.install(path);
+      if (mounted) setState(() => downloading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          downloading = false;
+          updateNote = '更新失败：$e';
+        });
+      }
+    }
   }
 
   Future<void> _load() async {
@@ -165,6 +236,7 @@ class _MeScreenState extends State<MeScreen> {
                     ApiErrorView(error: error!, onRetry: _load),
                     const SizedBox(height: 12),
                   ],
+                  _updateCard(),
                   const SectionLabel('数据概览'),
                   Row(
                     children: [
@@ -220,6 +292,79 @@ class _MeScreenState extends State<MeScreen> {
                 ],
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _updateCard() {
+    final currentVersion = packageInfo?.version ?? '';
+    final currentBuild = packageInfo?.buildNumber ?? '';
+    final hasUpdate = pendingUpdate != null;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    hasUpdate
+                        ? '发现新版本 ${pendingUpdate!.versionName}'
+                        : '当前版本 $currentVersion',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: (checkingUpdate || downloading) ? null : _checkUpdate,
+                  child: checkingUpdate
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('检查更新', style: TextStyle(fontSize: 12)),
+                ),
+              ],
+            ),
+            if (hasUpdate) ...[
+              const SizedBox(height: 6),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: downloading ? null : _downloadAndInstall,
+                  icon: downloading
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.system_update_alt, size: 18),
+                  label: Text(
+                    downloading
+                        ? (downloadProgress != null && pendingUpdate != null
+                              ? '下载中 ${(downloadProgress! * 100).toStringAsFixed(0)}%'
+                              : '正在下载新版本…')
+                        : '下载并安装',
+                  ),
+                ),
+              ),
+            ],
+            if (updateNote != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  updateNote!,
+                  style: const TextStyle(fontSize: 11.5, color: Ed.inkSoft),
+                ),
+              ),
           ],
         ),
       ),

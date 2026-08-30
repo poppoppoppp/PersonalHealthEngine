@@ -64,6 +64,12 @@ class FakeClient implements L7Client {
   Future<Map<String, dynamic>> getEvalRuns() async => {'runs': []};
 
   @override
+  Future<Map<String, dynamic>> getAppVersion() async => {'available': false};
+
+  @override
+  Future<List<int>> downloadAppApk() async => const [];
+
+  @override
   Future<Map<String, dynamic>> health() async => {'status': 'ok'};
 
   @override

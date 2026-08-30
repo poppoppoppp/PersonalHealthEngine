@@ -61,6 +61,9 @@ services:
       - ../../PersonalHealthEngine-L6/scripts:/opt/l6/scripts:ro
       - ../../PersonalHealthEngine-L6/definitions:/opt/l6/definitions:ro
 
+      # Android app releases for in-app self-update.
+      - /srv/phe/app-releases:/data/app-releases:ro
+
       # Deployment-only ASGI wrapper.
       - ./l7_locked_app.py:/srv/l7/backend/l7_locked_app.py:ro
 

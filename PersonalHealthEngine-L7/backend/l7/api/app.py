@@ -464,6 +464,43 @@ def create_app(config: Config | None = None, orchestrator: EngineOrchestrator | 
     ):
         return history_service.sleep_structure(user_id, days=days)
 
+    # ---------------- App self-update ----------------
+    @app.get("/app/version")
+    def app_version():
+        """公开端点：仅返回版本元数据，不含任何健康数据。"""
+        import json as _json
+        from pathlib import Path
+
+        latest = Path("/data/app-releases/latest.json")
+        try:
+            return _json.loads(latest.read_text(encoding="utf-8"))
+        except OSError:
+            return {"available": False}
+
+    @app.get("/app/download")
+    def app_download(user_id: str = Depends(require_auth)):
+        """APK 内含访问令牌，因此下载必须持令牌鉴权。"""
+        import json as _json
+        from pathlib import Path
+
+        from fastapi.responses import FileResponse
+
+        latest = Path("/data/app-releases/latest.json")
+        try:
+            meta = _json.loads(latest.read_text(encoding="utf-8"))
+        except OSError:
+            raise HTTPException(status_code=404, detail="no release")
+        file_name = str(meta.get("file", ""))
+        safe = Path(file_name).name
+        apk = Path("/data/app-releases") / safe
+        if not apk.exists():
+            raise HTTPException(status_code=404, detail="no release file")
+        return FileResponse(
+            apk,
+            media_type="application/vnd.android.package-archive",
+            filename=safe,
+        )
+
     # ---------------- Notifications (§48–§52) ----------------
     @app.get("/notifications")
     def notifications_feed(user_id: str = Depends(require_auth)):
