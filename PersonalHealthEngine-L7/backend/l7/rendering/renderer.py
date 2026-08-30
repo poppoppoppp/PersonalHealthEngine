@@ -35,7 +35,7 @@ STATE_HEADLINES = {
     "B": "今天有一些变化，但还不需要特别处理。",
     "C": "今天的身体状态值得调整一下安排。",
     "D": "目前证据不足，无法可靠判断今天的状态。",
-    "E": "出现需要关注的健康安全信号。",
+    "E": "今天有几项数据需要你留意。",
 }
 
 HYPOTHESIS_FALLBACK_CAUSE = {
@@ -52,7 +52,7 @@ def _metric_from_feature(feature_name: str) -> str:
     return "sleep" if base == "sleep_source_episode" else base
 
 
-def map_product_state(dr: dict, symptom_context_active: bool) -> str:
+def map_product_state(dr: dict, symptom_context_active: bool, medical_escalated: bool = False) -> str:
     """Deterministic mapping from sealed L6 output to the five product states (§11).
 
     Precedence: E (safety) > D (insufficient) > C/B/A. This never upgrades a medical
@@ -60,9 +60,12 @@ def map_product_state(dr: dict, symptom_context_active: bool) -> str:
     conclusion→action→cause order.
     """
     medical_state = dr.get("medical_review_state")
+    review_alarms = medical_state in ("REQUIRED", "UNAVAILABLE") or (
+        medical_state == "PERFORMED" and medical_escalated
+    )
     if (
         dr.get("primary_hypothesis_type") == "ACUTE_ILLNESS_SUSPECTED"
-        or medical_state in ("REQUIRED", "PERFORMED", "UNAVAILABLE")
+        or review_alarms
         or symptom_context_active
     ):
         return "E"
@@ -155,6 +158,7 @@ def render_today_payload(
     cause_text = (dr.get("reasoning_summary") or "").strip() or HYPOTHESIS_FALLBACK_CAUSE.get(
         dr.get("primary_hypothesis_type") or "UNKNOWN", HYPOTHESIS_FALLBACK_CAUSE["UNKNOWN"]
     )
+    cause_text = _trim_cause(cause_text)
     secondary = dr.get("secondary_hypothesis_type")
     confidence = dr.get("confidence", "VERY_LOW")
     information_order = (
@@ -212,3 +216,16 @@ def render_today_payload(
         "feedback_prompt": feedback_prompt,
         "version_id": None,
     }
+
+def _trim_cause(text: str, max_chars: int = 92) -> str:
+    """原因只保留开头 1-2 句：模型的分析自白（"证据有限""缺乏关键数据"）留在
+    审计里，不进首页。"""
+    text = text.strip()
+    if len(text) <= max_chars:
+        return text
+    cut = text[:max_chars]
+    for sep in ("。", "！", "？"):
+        pos = cut.rfind(sep)
+        if pos >= 30:
+            return cut[: pos + 1]
+    return cut.rstrip("，、； ") + "…"

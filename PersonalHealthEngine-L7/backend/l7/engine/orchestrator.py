@@ -92,6 +92,23 @@ def scheduled_model_worthy(
     return _in_analysis_window(now)
 
 
+
+
+def _medical_review_escalated(l6: sqlite3.Connection, analysis_date: str) -> bool:
+    """当日医学审查是否真正发现了问题（ESCALATE/REJECTED）。跑过但批准 ≠ 告警。"""
+    try:
+        row = l6.execute(
+            "SELECT mr.review_state FROM medical_reviews mr"
+            " JOIN daily_reasoning dr ON dr.id = mr.subject_id AND mr.subject_type = 'DAILY_REASONING'"
+            " WHERE dr.analysis_date = ? AND dr.status = 'CURRENT'"
+            " ORDER BY mr.id DESC LIMIT 1",
+            (analysis_date,),
+        ).fetchone()
+    except sqlite3.OperationalError:
+        return False
+    return bool(row) and row[0] in ("ESCALATE", "REJECTED")
+
+
 class EngineOrchestrator:
     def __init__(
         self,
@@ -534,10 +551,14 @@ class EngineOrchestrator:
             symptom_active = readers.symptom_context_active(l6, analysis_date)
             stored = readers.read_current_bundle(l6, analysis_date)
             facts = self._exact_evidence(l6, l5, l4, l3, stored, analysis_date)
+            medical_escalated = _medical_review_escalated(l6, analysis_date)
         finally:
             l6.close()
 
-        product_state = map_product_state(dr, symptom_active)
+        product_state = map_product_state(
+            dr, symptom_active,
+            medical_escalated=medical_escalated,
+        )
         # 安全底座：个别指标越过硬危险阈值时，无论个人基线如何都升级为「健康安全关注」。
         breaches = readers.safety_floor_breaches(l3)
         if breaches and product_state not in ("D", "E"):
@@ -631,7 +652,9 @@ class EngineOrchestrator:
         bundle = stored["bundle"] if stored else {}
         facts = self._exact_evidence(l6, l5, l4, l3, stored, analysis_date)
         product_state = map_product_state(
-            dr, readers.symptom_context_active(l6, analysis_date),
+            dr,
+            readers.symptom_context_active(l6, analysis_date),
+            medical_escalated=_medical_review_escalated(l6, analysis_date),
         )
         breaches = readers.safety_floor_breaches(l3)
         if breaches and product_state not in ("D", "E"):

@@ -64,9 +64,17 @@ def test_symptom_context_maps_to_E():
 
 def test_E_precedence_over_C_and_D():
     assert map_product_state(dr(overall_state="NOTABLE_CHANGE",
-                                medical_review_state="PERFORMED"), False) == "E"
+                                medical_review_state="REQUIRED"), False) == "E"
     assert map_product_state(dr(overall_state="INSUFFICIENT_EVIDENCE",
                                 primary_hypothesis_type="ACUTE_ILLNESS_SUSPECTED"), False) == "E"
+
+
+def test_completed_clean_review_is_not_an_alarm():
+    """审查跑过且批准 ≠ 告警（机主反馈 2026-08-30：跑过医学审查就进 E 太玄乎）。
+    只有审查真正升级/拒绝时才进 E。"""
+    row = dr(overall_state="NOTABLE_CHANGE", medical_review_state="PERFORMED")
+    assert map_product_state(row, False, medical_escalated=False) == "C"
+    assert map_product_state(row, False, medical_escalated=True) == "E"
 
 
 def test_actions_capped_at_three():

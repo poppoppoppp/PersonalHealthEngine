@@ -52,7 +52,11 @@ class ProductDeepSeekReasoningAdapter:
         return self._base._daily_system(candidates) + (
             " All user-facing text MUST be written in natural Simplified Chinese (简体中文), "
             "including reasoning_summary and every recommended action. Do not output English "
-            "sentences, raw enum names, statistical field names, or diagnostic claims in those fields."
+            "sentences, raw enum names, statistical field names, or diagnostic claims in those fields. "
+            "reasoning_summary: at most TWO short sentences (≤60 字), must cite the concrete changed "
+            "values with numbers (e.g. 昨晚睡眠 7 小时 53 分、低于平时 1 小时). NEVER mention analysis "
+            "limitations, missing data types, or meta commentary (如'缺乏关键数据''证据有限''需要更多观察')"
+            " — those belong in audit logs, not user-facing copy."
         )
 
     def _validated_product_json(self, content, required_fields):
