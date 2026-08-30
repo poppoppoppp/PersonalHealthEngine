@@ -212,8 +212,8 @@ def create_app(config: Config | None = None, orchestrator: EngineOrchestrator | 
             "scheduled" if isinstance(body, dict) and body.get("trigger") == "scheduled"
             else "manual_refresh"
         )
-        if trigger == "manual_refresh":
-            # 手动刷新 = 采集 + 分析一条龙（采集失败/无共享卷时退化为仅分析）。
+        if trigger == "manual_refresh" and isinstance(body, dict) and body.get("collect"):
+            # 明确请求的"采集 + 分析一条龙"（首页按钮）。采集失败/无共享卷时退化为仅分析。
             await _request_collection_cycle()
         pending = l7.execute(
             "SELECT 1 FROM durable_jobs WHERE user_id=? AND status IN ('PENDING','RUNNING')"

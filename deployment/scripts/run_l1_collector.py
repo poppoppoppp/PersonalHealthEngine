@@ -53,11 +53,15 @@ def main() -> int:
     # 1. Heart-rate/SpO2/stress sample datasets return today's samples only when the
     #    query's end_date extends into tomorrow (chunked storage ignores an end at
     #    today midnight; summary datasets like steps are unaffected).
-    # 2. Their samples also live in chunks outside a 2-day window, so overlap 8 days
-    #    keeps those queries non-empty. L2 dedupes re-pulled records by logical key,
-    #    so both the extra overlap and the tomorrow end date are idempotent.
+    # 2. Their samples also live in chunks that may fall outside a narrow window, so
+    #    regular runs use an 8-day lookback to re-catch delayed chunks. On-demand
+    #    (button) runs only need the freshest hours — they run in quick mode
+    #    (PHE_COLLECT_OVERLAP=2) to keep the wait under ~90 seconds; the daily deep
+    #    pull backfills anything the quick windows missed. L2 dedupes re-pulled
+    #    records by logical key, so all of this is idempotent.
     from datetime import timedelta
 
+    overlap_days = os.environ.get("PHE_COLLECT_OVERLAP", "8")
     end_date = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
     sys.argv = [
         str(L1_CODE / "collector.py"),
@@ -68,7 +72,7 @@ def main() -> int:
         "--end-date",
         end_date,
         "--overlap-days",
-        "8",
+        overlap_days,
     ]
 
     print("========== L1 PRODUCTION COLLECTOR ==========")

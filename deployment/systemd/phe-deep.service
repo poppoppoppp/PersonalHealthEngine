@@ -1,0 +1,30 @@
+[Unit]
+Description=Personal Health Engine Daily Deep L1-L5 Pull (8-day lookback)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=phe
+Group=phe
+
+WorkingDirectory=/opt/phe
+
+EnvironmentFile=/etc/phe/production-paths.conf
+EnvironmentFile=/etc/phe/runtime.env
+Environment=PYTHONUNBUFFERED=1
+
+# 深挖模式：8 天回看，补回小米延迟分块入库的心率/血氧/压力历史样本。
+Environment=PHE_COLLECT_OVERLAP=8
+
+ExecStartPre=/opt/phe/.venv/bin/python /opt/phe/deployment/scripts/prepare_definition_files.py --code-root /opt/phe --data-root /srv/phe
+
+ExecStart=/opt/phe/.venv/bin/python /opt/phe/deployment/scripts/run_daily_pipeline.py
+
+ExecStartPost=/opt/phe/.venv/bin/python /opt/phe/deployment/scripts/refresh_l7_after_pipeline.py
+
+TimeoutStartSec=90min
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=phe-deep

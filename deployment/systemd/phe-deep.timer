@@ -1,0 +1,16 @@
+[Unit]
+Description=Run Personal Health Engine Deep Pull daily
+
+[Timer]
+
+# 每天凌晨 04:20（避开晨间 8-9 点分析档，也避开用户活跃时段）。
+OnCalendar=*-*-* 04:20:00 Asia/Shanghai
+
+Persistent=true
+
+AccuracySec=1min
+
+Unit=phe-deep.service
+
+[Install]
+WantedBy=timers.target

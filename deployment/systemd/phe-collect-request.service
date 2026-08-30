@@ -3,4 +3,7 @@ Description=Run the L1-L5 collection cycle on demand, then stamp completion
 
 [Service]
 Type=oneshot
-ExecStart=/bin/sh -c 'rm -f /srv/phe/runtime/collect.request; systemctl start phe-daily.service; date +%%s > /srv/phe/runtime/collect.finished'
+# 按钮要的是新鲜数据，用轻量回看把等待压到 ~90 秒内；
+# 延迟分块的历史补齐由每天 04:20 的 phe-deep.service 负责。
+Environment=PHE_COLLECT_OVERLAP=2
+ExecStart=/bin/sh -c 'rm -f /srv/phe/runtime/collect.request; systemctl start phe-daily.service; date +%s > /srv/phe/runtime/collect.finished'

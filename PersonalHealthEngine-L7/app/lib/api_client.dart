@@ -88,7 +88,7 @@ class TodayPayload {
 
 abstract class L7Client {
   Future<TodayPayload> getToday();
-  Future<Map<String, dynamic>> refreshToday();
+  Future<Map<String, dynamic>> refreshToday({bool collect = false});
   Future<Map<String, dynamic>> getTodayVersions();
   Future<Map<String, dynamic>> getEvidence();
   Future<Map<String, dynamic>> getPatterns();
@@ -251,8 +251,8 @@ class HttpApiClient implements L7Client, ConditionalL7Client {
   Future<TodayPayload> getToday() async => TodayPayload(await _get('/today'));
 
   @override
-  Future<Map<String, dynamic>> refreshToday() =>
-      _send('POST', '/today/refresh', null, inferenceTimeout);
+  Future<Map<String, dynamic>> refreshToday({bool collect = false}) =>
+      _send('POST', '/today/refresh', {'collect': collect}, inferenceTimeout);
 
   @override
   Future<Map<String, dynamic>> getTodayVersions() => _get('/today/versions');

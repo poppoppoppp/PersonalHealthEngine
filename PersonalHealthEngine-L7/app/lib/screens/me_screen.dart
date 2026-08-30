@@ -82,7 +82,7 @@ class _MeScreenState extends State<MeScreen> {
       _reanalyzeNote = null;
     });
     try {
-      await widget.env.client.refreshToday();
+      await widget.env.client.refreshToday(collect: true);
       if (mounted) _reanalyzeNote = '分析完成';
       await _load();
     } catch (e) {

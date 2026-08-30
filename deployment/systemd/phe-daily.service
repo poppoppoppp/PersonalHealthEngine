@@ -18,6 +18,9 @@ EnvironmentFile=/etc/phe/production-paths.conf
 EnvironmentFile=/etc/phe/runtime.env
 
 Environment=PYTHONUNBUFFERED=1
+# 轻量回看（2 天）：新鲜数据由本服务每 30 分钟拉取；延迟分块的历史数据由
+# phe-deep.service 每天 04:20 用 8 天回看补齐。
+Environment=PHE_COLLECT_OVERLAP=2
 
 # Repair only transport-level path/EOL drift whose bytes still match the sealed registry.
 ExecStartPre=/opt/phe/.venv/bin/python /opt/phe/deployment/scripts/prepare_definition_files.py --code-root /opt/phe --data-root /srv/phe

@@ -31,7 +31,9 @@ class FakeClient implements L7Client {
   Future<TodayPayload> getToday() async => TodayPayload(today);
 
   @override
-  Future<Map<String, dynamic>> refreshToday() async => {'today': today};
+  Future<Map<String, dynamic>> refreshToday({bool collect = false}) async => {
+    'today': today,
+  };
 
   @override
   Future<Map<String, dynamic>> getTodayVersions() async => {'versions': []};
@@ -172,7 +174,7 @@ class FailingClient extends FakeClient {
   Future<TodayPayload> getToday() async => _failure();
 
   @override
-  Future<Map<String, dynamic>> refreshToday() async => _failure();
+  Future<Map<String, dynamic>> refreshToday({bool collect = false}) async => _failure();
 
   @override
   Future<Map<String, dynamic>> getEvidence() async => _failure();

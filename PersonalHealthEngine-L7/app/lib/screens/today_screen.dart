@@ -104,13 +104,13 @@ class _TodayScreenState extends State<TodayScreen> {
     }
   }
 
-  Future<void> _refresh() async {
+  Future<void> _refresh({bool collect = false}) async {
     setState(() {
       loading = true;
       error = null;
     });
     try {
-      final r = await widget.env.client.refreshToday();
+      final r = await widget.env.client.refreshToday(collect: collect);
       final p = TodayPayload((r['today'] as Map).cast<String, dynamic>());
       final repository = await widget.env.repository();
       await repository.cache.store('today', p.raw, version: p.versionId ?? 0);
@@ -689,7 +689,7 @@ class _TodayScreenState extends State<TodayScreen> {
 
   Future<void> _reanalyze() async {
     setState(() => _reanalyzing = true);
-    await _refresh();
+    await _refresh(collect: true);
     if (mounted) setState(() => _reanalyzing = false);
   }
 
